@@ -17,7 +17,7 @@ export async function onRequestPost(context) {
     if (url.pathname.includes('/api/admin') || url.pathname.includes('/create-token') || url.pathname.includes('/list-tokens')) {
       const adminPassword = request.headers.get("X-Admin-Password");
       // رمز عبور ادمین خود را می‌توانید اینجا تغییر دهید
-      if (adminPassword !== "YOUR_SECURE_ADMIN_PASSWORD") {
+      if (adminPassword !== "Abf@153759@Abgg12") {
         return new Response(JSON.stringify({ error: "رمز عبور ادمین اشتباه است." }), { status: 401, headers: corsHeaders });
       }
 
