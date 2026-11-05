@@ -18,13 +18,19 @@ export async function onRequest(context) {
     return new Response(JSON.stringify({ error: "رمز عبور اشتباه است." }), { status: 401, headers: corsHeaders });
   }
 
-  const url = new URL(request.url);
-
   try {
-    // ساخت کد جدید
-    if (request.method === "POST" && (url.pathname.endsWith('/create-token') || url.pathname.includes('create-token'))) {
-      const body = await request.json();
-      const tokenName = body.token;
+    const url = new URL(request.url);
+    
+    // اگر درخواست ساخت کد بود
+    if (request.method === "POST" || url.pathname.includes('create-token')) {
+      let tokenName = "";
+      try {
+        const body = await request.json();
+        tokenName = body.token;
+      } catch (e) {
+        // اگر بادی به شکل دیگری ارسال شده بود
+      }
+
       if (!tokenName) {
         return new Response(JSON.stringify({ error: "نام کد فعال‌سازی الزامی است." }), { status: 400, headers: corsHeaders });
       }
@@ -39,18 +45,14 @@ export async function onRequest(context) {
       return new Response(JSON.stringify({ success: true, message: "کد با موفقیت ساخته شد." }), { headers: corsHeaders });
     }
     
-    // لیست کردن کدها (با متد GET یا POST)
-    if (url.pathname.endsWith('/list-tokens') || url.pathname.includes('list-tokens')) {
-      const list = await env.ANANAS_KV.list({ prefix: "token_" });
-      const tokens = [];
-      for (const key of list.keys) {
-        const val = await env.ANANAS_KV.get(key.name);
-        tokens.push({ name: key.name.replace("token_", ""), data: JSON.parse(val || "{}") });
-      }
-      return new Response(JSON.stringify({ tokens }), { headers: corsHeaders });
+    // در غیر این صورت لیست کدها را برمی‌گردانیم
+    const list = await env.ANANAS_KV.list({ prefix: "token_" });
+    const tokens = [];
+    for (const key of list.keys) {
+      const val = await env.ANANAS_KV.get(key.name);
+      tokens.push({ name: key.name.replace("token_", ""), data: JSON.parse(val || "{}") });
     }
-
-    return new Response(JSON.stringify({ error: "مسیر نامعتبر" }), { status: 404, headers: corsHeaders });
+    return new Response(JSON.stringify({ tokens }), { headers: corsHeaders });
 
   } catch (err) {
     return new Response(JSON.stringify({ error: `خطای سرور: ${err.message}` }), { status: 500, headers: corsHeaders });
