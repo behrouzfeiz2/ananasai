@@ -4,11 +4,56 @@ export async function onRequestPost(context) {
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, X-User-Token",
+    "Access-Control-Allow-Headers": "Content-Type, X-User-Token, X-Admin-Password",
     "Content-Type": "application/json; charset=utf-8"
   };
 
+  const url = new URL(request.url);
+
   try {
+    // ----------------------------------------------------
+    // بخش پنل مدیریت (Admin API)
+    // ----------------------------------------------------
+    if (url.pathname.includes('/api/admin') || url.pathname.includes('/create-token') || url.pathname.includes('/list-tokens')) {
+      const adminPassword = request.headers.get("X-Admin-Password");
+      // رمز عبور ادمین خود را می‌توانید اینجا تغییر دهید
+      if (adminPassword !== "YOUR_SECURE_ADMIN_PASSWORD") {
+        return new Response(JSON.stringify({ error: "رمز عبور ادمین اشتباه است." }), { status: 401, headers: corsHeaders });
+      }
+
+      // اکشن ۱: ساخت کد جدید با انقضای خودکار ۳۰ روزه (۲۵۹۲۰۰۰ ثانیه)
+      if (url.pathname.endsWith('/create-token')) {
+        const body = await request.json();
+        const tokenName = body.token;
+        if (!tokenName) {
+          return new Response(JSON.stringify({ error: "نام کد فعال‌سازی الزامی است." }), { status: 400, headers: corsHeaders });
+        }
+        
+        const expirationSeconds = 30 * 24 * 60 * 60; // ۳۰ روز
+        await env.ANANAS_KV.put(
+          `token_${tokenName.trim()}`, 
+          JSON.stringify({ active: true, created: Date.now() }),
+          { expirationTtl: expirationSeconds }
+        );
+
+        return new Response(JSON.stringify({ success: true, message: "کد پرو با انقضای ۳۰ روزه با موفقیت ساخته شد." }), { headers: corsHeaders });
+      }
+      
+      // اکشن ۲: لیست کردن کدهای فعال
+      if (url.pathname.endsWith('/list-tokens')) {
+        const list = await env.ANANAS_KV.list({ prefix: "token_" });
+        const tokens = [];
+        for (const key of list.keys) {
+          const val = await env.ANANAS_KV.get(key.name);
+          tokens.push({ name: key.name.replace("token_", ""), data: JSON.parse(val || "{}") });
+        }
+        return new Response(JSON.stringify({ tokens }), { headers: corsHeaders });
+      }
+    }
+
+    // ----------------------------------------------------
+    // بخش اصلی ارتباط با جمنای (کاربران رایگان و پرو)
+    // ----------------------------------------------------
     const body = await request.json();
     const { model, payload, isImageRequest } = body;
     
@@ -20,11 +65,9 @@ export async function onRequestPost(context) {
     let limitText = 20;
     let limitImage = 4;
 
-    // ۱. بررسی اعتبار کد فعال‌سازی وارد شده توسط کاربر
+    // ۱. بررسی اعتبار کد فعال‌سازی پرو
     if (userToken && userToken.trim() !== "") {
       const cleanToken = userToken.trim();
-      
-      // بررسی وجود کد در کلودفلر KV
       const tokenData = await env.ANANAS_KV.get(`token_${cleanToken}`);
       
       if (tokenData) {
@@ -35,7 +78,7 @@ export async function onRequestPost(context) {
         return new Response(
           JSON.stringify({ 
             error: { 
-              message: "کد فعال‌سازی نامعتبر است. برای خرید کد پرو به تلگرام @Branex_ir مراجعه کنید." 
+              message: "کد فعال‌سازی نامعتبر یا منقضی شده است. برای تهیه کد پرو به تلگرام @Branex_ir مراجعه کنید." 
             } 
           }),
           { status: 401, headers: corsHeaders }
@@ -43,7 +86,7 @@ export async function onRequestPost(context) {
       }
     }
 
-    // ۲. سیستم محدودیت روزانه بر اساس IP یا کد پرو
+    // ۲. سیستم محدودیت روزانه (Rate Limit با Cloudflare KV)
     const today = new Date().toISOString().split('T')[0];
     const storageKey = `usage_${isPro ? 'pro_' : 'free_'}${userToken || clientIP}_${today}`;
     
@@ -69,10 +112,10 @@ export async function onRequestPost(context) {
       usage.text += 1;
     }
 
-    // ذخیره مصرف در KV با انقضای ۲۴ ساعته
+    // ذخیره میزان مصرف جدید در KV با انقضای ۲۴ ساعته
     await env.ANANAS_KV.put(storageKey, JSON.stringify(usage), { expirationTtl: 86400 });
 
-    // ۳. ارسال درخواست به جمنای
+    // ۳. ارسال درخواست به گوگل جمنای
     const googleApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model || "gemini-2.5-flash")}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
     const response = await fetch(googleApiUrl, {
@@ -92,46 +135,13 @@ export async function onRequestPost(context) {
   }
 }
 
-export async open onRequestOptions() {
+export async function onRequestOptions() {
   return new Response(null, {
     status: 204,
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, X-User-Token"
+      "Access-Control-Allow-Headers": "Content-Type, X-User-Token, X-Admin-Password"
     }
   });
-}
-
-
-// اضافه کردن مدیریت پنل ادمین در بک‌اند
-if (request.url.includes('/api/admin')) {
-  const adminPassword = request.headers.get("X-Admin-Password");
-  // رمز عبور ادمین خود را اینجا تغییر دهید
-  if (adminPassword !== "YOUR_SECURE_ADMIN_PASSWORD") {
-    return new Response(JSON.stringify({ error: "رمز عبور اشتباه است" }), { status: 401, headers: corsHeaders });
-  }
-
-  const url = new URL(request.url);
-  
-  // اکشن ۱: ساخت کد جدید
-  if (url.pathname.endsWith('/create-token')) {
-    const body = await request.json();
-    const tokenName = body.token;
-    if (!tokenName) return new Response(JSON.stringify({ error: "نام کد الزامی است" }), { status: 400, headers: corsHeaders });
-    
-    await env.ANANAS_KV.put(`token_${tokenName}`, JSON.stringify({ active: true, created: Date.now() }));
-    return new Response(JSON.stringify({ success: true, message: "کد با موفقیت ساخته شد" }), { headers: corsHeaders });
-  }
-  
-  // اکشن ۲: لیست کردن کدها
-  if (url.pathname.endsWith('/list-tokens')) {
-    const list = await env.ANANAS_KV.list({ prefix: "token_" });
-    const tokens = [];
-    for (const key of list.keys) {
-      const val = await env.ANANAS_KV.get(key.name);
-      tokens.push({ name: key.name.replace("token_", ""), data: JSON.parse(val || "{}") });
-    }
-    return new Response(JSON.stringify({ tokens }), { headers: corsHeaders });
-  }
 }
