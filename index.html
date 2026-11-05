@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>آناناس | دستیار هوشمند شما (AnanasAI)</title>
+  <title>آناناس | دستیار هوشمند و تصویرساز جمنای (AnanasAI)</title>
   
   <!-- فاوآیکون آناناس -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍍</text></svg>">
@@ -372,7 +372,7 @@
     let attachedImage = null;
     let isGenerating = false;
 
-    // مدل پایدار جمنای در تیر رایگان (هم برای چت و هم برای مهندسی پرامپت تصویر)
+    // به‌روزرسانی به آخرین مدل رسمی گوگل طبق پیام API
     let chatModel = 'gemini-3.8-flash';
     let userToken = localStorage.getItem('ananas_user_token') || '';
 
@@ -546,8 +546,7 @@
 
       try {
         if (wantImage) {
-          // مرحله ۱: ارسال به جمنای با پرچم isImageRequest=true
-          // هم سهمیه عکس کاربر در gemini.js بررسی و کسر می‌شود، هم پرامپت فارسی (یا عکس پیوست‌شده) توسط جمنای به یک پرامپت حرفه‌ای انگلیسی تبدیل می‌گردد
+          // ارسال به gemini-3.8-flash با پرچم isImageRequest=true برای کسر سهمیه عکس در gemini.js و ساخت پرامپت حرفه‌ای انگلیسی
           const promptParts = [];
           if (userMsg.imageData && userMsg.imageMime) {
             promptParts.push({ inlineData: { mimeType: userMsg.imageMime, data: userMsg.imageData } });
@@ -560,11 +559,9 @@
             contents: [{ role: 'user', parts: promptParts }]
           };
 
-          // فراخوانی API جمنای با isImageRequest = true برای اعمال محدودیت سهمیه عکس در سرور
           const geminiRes = await callGeminiAPI(chatModel, promptEnhancerPayload, true);
           const enhancedPrompt = geminiRes?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || userMsg.text || 'A creative digital art masterpiece';
 
-          // مرحله ۲: رندر تصویر با کیفیت بالا بر اساس پرامپت مهندسی‌شده توسط جمنای
           const seed = Math.floor(Math.random() * 1000000);
           const encodedPrompt = encodeURIComponent(enhancedPrompt);
           const generatedImageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&model=flux&seed=${seed}`;
@@ -572,12 +569,12 @@
           removeLoadingBubble();
           currentSession.messages.push({
             role: 'model',
-            text: `✨ **تصویر درخواستی شما با موتور هوشمند آناناس ساخته شد:**`,
+            text: `✨ **تصویر درخواستی شما با موفقیت ساخته شد:**`,
             generatedImage: generatedImageUrl
           });
 
         } else {
-          // حالت گفتگو و تحلیل تصویر
+          // حالت گفتگو و تحلیل تصویر با مدل جدید gemini-3.8-flash
           const historyContents = currentSession.messages.map(m => {
             const parts = [];
             if (m.text) parts.push({ text: m.text });
@@ -685,7 +682,7 @@
       bubble.innerHTML = `
         <div class="rounded-2xl bg-ananas-card border border-ananas-border px-4 py-3 text-xs text-gray-300 flex items-center gap-2.5">
           <span class="text-lg animate-bounce">🍍</span>
-          <span>${isImage ? 'آناناس در حال پردازش پرامپت و خلق تصویر است...' : 'آناناس در حال نوشتن پاسخ است...'}</span>
+          <span>${isImage ? 'آناناس در حال خلق تصویر است...' : 'آناناس در حال نوشتن پاسخ است...'}</span>
         </div>
       `;
       container.appendChild(bubble);
