@@ -372,10 +372,14 @@
     let attachedImage = null;
     let isGenerating = false;
 
-    // مدل پیش‌فرض چت و تحلیل تصویر جمنای
+    // مدل پیش‌فرض چت و تحلیل تصویر
     let chatModel = 'gemini-2.5-flash';
-    // مدل اختصاصی تولید تصویر جمنای در تیر رایگان
-    let imageModel = 'gemini-2.0-flash-exp-image-generation';
+    // لیست مدل‌های تصویرساز بومی جمنای به ترتیب اولویت (حذف مدل منسوخ شده exp)
+    const imageModels = [
+      'gemini-2.5-flash-image',
+      'gemini-2.5-flash-image-preview',
+      'gemini-2.0-flash-preview-image-generation'
+    ];
     let userToken = localStorage.getItem('ananas_user_token') || '';
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -548,10 +552,9 @@
 
       try {
         if (wantImage) {
-          // ارسال درخواست ساخت یا ویرایش تصویر به جمنای
           const parts = [];
           if (userMsg.text) {
-            parts.push({ text: `Generate a high-quality image based on this request: ${userMsg.text}` });
+            parts.push({ text: `Generate a high-quality image: ${userMsg.text}` });
           }
           if (userMsg.imageData && userMsg.imageMime) {
             parts.push({ inlineData: { mimeType: userMsg.imageMime, data: userMsg.imageData } });
@@ -564,23 +567,37 @@
             }
           };
 
-          const result = await callGeminiAPI(imageModel, imagePayload, true);
-          const candidateParts = result?.candidates?.[0]?.content?.parts || [];
-
           let generatedImageUrl = null;
           let replyText = '';
+          let lastError = null;
 
-          for (const part of candidateParts) {
-            if (part.inlineData && part.inlineData.data) {
-              const mime = part.inlineData.mimeType || 'image/png';
-              generatedImageUrl = `data:${mime};base64,${part.inlineData.data}`;
-            } else if (part.text) {
-              replyText += part.text + '\n';
+          // تست ترتیبی مدل‌های تصویرساز جمنای برای جلوگیری از خطای 404
+          for (const modelName of imageModels) {
+            try {
+              const result = await callGeminiAPI(modelName, imagePayload, true);
+              const candidateParts = result?.candidates?.[0]?.content?.parts || [];
+
+              for (const part of candidateParts) {
+                if (part.inlineData && part.inlineData.data) {
+                  const mime = part.inlineData.mimeType || 'image/png';
+                  generatedImageUrl = `data:${mime};base64,${part.inlineData.data}`;
+                } else if (part.text) {
+                  replyText += part.text + '\n';
+                }
+              }
+
+              if (generatedImageUrl) break;
+            } catch (err) {
+              lastError = err;
+              // اگر خطا مربوط به اتمام سهمیه روزانه یا توکن کاربر در KV بود، حلقه متوقف شود
+              if (err.message && (err.message.includes('سهمیه') || err.message.includes('کد فعال‌سازی') || err.message.includes('محدودیت'))) {
+                throw err;
+              }
             }
           }
 
           if (!generatedImageUrl) {
-            throw new Error(replyText.trim() || 'جمنای تصویری تولید نکرد. لطفاً پرامپت خود را واضح‌تر بنویسید.');
+            throw new Error(lastError ? lastError.message : 'مدل تصویرساز جمنای پاسخ نداد.');
           }
 
           removeLoadingBubble();
