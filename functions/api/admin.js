@@ -13,7 +13,6 @@ export async function onRequest(context) {
   }
 
   const adminPassword = request.headers.get("X-Admin-Password");
-  // رمز عبور ادمین
   if (adminPassword !== "YOUR_SECURE_ADMIN_PASSWORD") {
     return new Response(JSON.stringify({ error: "رمز عبور اشتباه است." }), { status: 401, headers: corsHeaders });
   }
@@ -21,14 +20,14 @@ export async function onRequest(context) {
   try {
     const url = new URL(request.url);
     
-    // اگر درخواست ساخت کد بود
+    // ساخت کد جدید
     if (request.method === "POST" || url.pathname.includes('create-token')) {
       let tokenName = "";
       try {
         const body = await request.json();
         tokenName = body.token;
       } catch (e) {
-        // اگر بادی به شکل دیگری ارسال شده بود
+        // خطای خواندن JSON
       }
 
       if (!tokenName) {
@@ -45,7 +44,7 @@ export async function onRequest(context) {
       return new Response(JSON.stringify({ success: true, message: "کد با موفقیت ساخته شد." }), { headers: corsHeaders });
     }
     
-    // در غیر این صورت لیست کدها را برمی‌گردانیم
+    // لیست کردن کدها
     const list = await env.ANANAS_KV.list({ prefix: "token_" });
     const tokens = [];
     for (const key of list.keys) {
