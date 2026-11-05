@@ -4,57 +4,11 @@ export async function onRequestPost(context) {
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, X-User-Token, X-Admin-Password",
+    "Access-Control-Allow-Headers": "Content-Type, X-User-Token",
     "Content-Type": "application/json; charset=utf-8"
   };
 
-  const url = new URL(request.url);
-
   try {
-    // ----------------------------------------------------
-    // بخش پنل مدیریت (Admin API)
-    // ----------------------------------------------------
-    if (url.pathname.includes('/api/admin') || url.pathname.includes('create-token') || url.pathname.includes('list-tokens')) {
-      const adminPassword = request.headers.get("X-Admin-Password");
-      
-      // رمز عبور ادمین پیش‌فرض (می‌توانید تغییر دهید)
-      if (adminPassword !== "Abf@153759@Abqwe1230a-") {
-        return new Response(JSON.stringify({ error: "رمز عبور ادمین اشتباه است." }), { status: 401, headers: corsHeaders });
-      }
-
-      // اکشن ۱: ساخت کد جدید با انقضای خودکار ۳۰ روزه
-      if (url.pathname.endsWith('/create-token') || url.pathname.includes('create-token')) {
-        const body = await request.json();
-        const tokenName = body.token;
-        if (!tokenName) {
-          return new Response(JSON.stringify({ error: "نام کد فعال‌سازی الزامی است." }), { status: 400, headers: corsHeaders });
-        }
-        
-        const expirationSeconds = 30 * 24 * 60 * 60; // ۳۰ روز
-        await env.ANANAS_KV.put(
-          `token_${tokenName.trim()}`, 
-          JSON.stringify({ active: true, created: Date.now() }),
-          { expirationTtl: expirationSeconds }
-        );
-
-        return new Response(JSON.stringify({ success: true, message: "کد پرو با موفقیت ساخته شد." }), { headers: corsHeaders });
-      }
-      
-      // اکشن ۲: لیست کردن کدهای فعال
-      if (url.pathname.endsWith('/list-tokens') || url.pathname.includes('list-tokens')) {
-        const list = await env.ANANAS_KV.list({ prefix: "token_" });
-        const tokens = [];
-        for (const key of list.keys) {
-          const val = await env.ANANAS_KV.get(key.name);
-          tokens.push({ name: key.name.replace("token_", ""), data: JSON.parse(val || "{}") });
-        }
-        return new Response(JSON.stringify({ tokens }), { headers: corsHeaders });
-      }
-    }
-
-    // ----------------------------------------------------
-    // بخش اصلی ارتباط با جمنای (کاربران رایگان و پرو)
-    // ----------------------------------------------------
     const body = await request.json();
     const { model, payload, isImageRequest } = body;
     
@@ -115,8 +69,9 @@ export async function onRequestPost(context) {
 
     await env.ANANAS_KV.put(storageKey, JSON.stringify(usage), { expirationTtl: 86400 });
 
-    // ۳. ارسال درخواست به گوگل جمنای
-    const googleApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model || "gemini-2.5-flash")}:generateContent?key=${encodeURIComponent(apiKey)}`;
+    // ۳. تنظیم مدل هوشمند (استفاده از مدل ارسالی یا پیش‌فرض gemini-3.5-flash-lite)
+    const selectedModel = model || "gemini-3.5-flash-lite";
+    const googleApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(selectedModel)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
     const response = await fetch(googleApiUrl, {
       method: "POST",
@@ -141,7 +96,7 @@ export async function onRequestOptions() {
     headers: {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, X-User-Token, X-Admin-Password"
+      "Access-Control-Allow-Headers": "Content-Type, X-User-Token"
     }
   });
 }
