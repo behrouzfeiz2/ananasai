@@ -55,7 +55,6 @@
       color: #f3f4f6;
       overflow: hidden;
     }
-    /* اسکرول‌بار سفارشی */
     ::-webkit-scrollbar {
       width: 6px;
       height: 6px;
@@ -70,7 +69,6 @@
     ::-webkit-scrollbar-thumb:hover {
       background: #f59e0b;
     }
-    /* استایل خروجی مارک‌داون */
     .prose-ananas p {
       margin-bottom: 0.75rem;
       line-height: 1.85;
@@ -113,7 +111,7 @@
       0%, 100% { opacity: 0.4; transform: scale(1); }
       50% { opacity: 0.8; transform: scale(1.06); }
     }
-    . pineapple-glow {
+    .pineapple-glow {
       animation: pulseGlow 3s infinite ease-in-out;
     }
   </style>
@@ -131,7 +129,6 @@
       <div class="flex items-center gap-3">
         <div class="relative w-11 h-11 rounded-2xl bg-gradient-to-tr from-ananas-600 via-ananas-400 to-ananas-leaf p-0.5 shadow-lg shadow-ananas-500/20">
           <div class="w-full h-full bg-ananas-dark rounded-[14px] flex items-center justify-center">
-            <!-- آیکون اختصاصی SVG آناناس -->
             <svg class="w-7 h-7" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M32 6C28 14 22 16 18 15C22 20 26 22 32 22C38 22 42 20 46 15C42 16 36 14 32 6Z" fill="#10B981"/>
               <path d="M32 10C30 16 26 19 23 19C26 22 29 24 32 24C35 24 38 22 41 19C38 19 34 16 32 10Z" fill="#34D399"/>
@@ -177,15 +174,15 @@
     <!-- فوتر سایدبار و تنظیمات -->
     <div class="p-3 border-t border-ananas-border space-y-2 bg-ananas-dark/40">
       <div class="flex items-center justify-between px-3 py-2 rounded-xl bg-ananas-card border border-ananas-border text-xs">
-        <span class="text-gray-400">وضعیت اتصال:</span>
-        <span id="connectionBadge" class="flex items-center gap-1.5 text-emerald-400 font-medium">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          پروکسی کلودفلر
+        <span class="text-gray-400">وضعیت حساب:</span>
+        <span id="accountStatusBadge" class="flex items-center gap-1.5 text-gray-300 font-medium">
+          <span class="w-2 h-2 rounded-full bg-gray-400"></span>
+          نسخه رایگان
         </span>
       </div>
       <button onclick="openSettingsModal()" class="w-full py-2 px-3 rounded-xl border border-ananas-border hover:border-ananas-500/50 text-gray-300 hover:text-white text-xs flex items-center justify-center gap-2 transition">
-        <svg class="w-4 h-4 text-ananas-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-        <span>تنظیمات API و مدل جمنای</span>
+        <svg class="w-4 h-4 text-ananas-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+        <span>وارد کردن کد فعال‌سازی پرو 🔑</span>
       </button>
     </div>
   </aside>
@@ -237,7 +234,7 @@
             سلام! به هوش مصنوعی <span class="text-ananas-400">آناناس</span> خوش آمدید
           </h2>
           <p class="text-sm text-gray-400 max-w-md mx-auto leading-relaxed">
-          جمنای پرو با امکانات نامحدود برای کاربران فارسی زبان ، بدون نیاز به استفاده از VPN  
+          دستیار هوشمند جمنای با قابلیت‌های پیشرفته و اختصاصی برای کاربران فارسی‌زبان  
           </p>
         </div>
 
@@ -257,22 +254,6 @@
               <span class="text-gray-500 group-hover:translate-x-[-3px] transition">←</span>
             </div>
             <p class="text-xs text-gray-300">ساخت تصویر یک آناناس نئونی آینده‌نگر در ساحل</p>
-          </button>
-
-          <button onclick="quickPrompt('chat', 'یک متن تبلیغاتی خلاقانه و کوتاه برای معرفی سرویس هوش مصنوعی آناناس (AnanasAI) بنویس.')" class="p-3.5 rounded-2xl bg-ananas-card hover:bg-ananas-card/80 border border-ananas-border hover:border-ananas-500/50 transition group">
-            <div class="flex items-center justify-between mb-1">
-              <span class="text-xs font-bold text-ananas-400">✍️ تولید محتوا</span>
-              <span class="text-gray-500 group-hover:translate-x-[-3px] transition">←</span>
-            </div>
-            <p class="text-xs text-gray-300">نگارش متن تبلیغاتی خلاقانه برای برند AnanasAI</p>
-          </button>
-
-          <button onclick="quickPrompt('image', 'Minimalist flat vector logo of a golden pineapple with circuit lines, dark background')" class="p-3.5 rounded-2xl bg-ananas-card hover:bg-ananas-card/80 border border-ananas-border hover:border-ananas-leaf/50 transition group">
-            <div class="flex items-center justify-between mb-1">
-              <span class="text-xs font-bold text-emerald-400">🍍 طراحی لوگو با هوش مصنوعی</span>
-              <span class="text-gray-500 group-hover:translate-x-[-3px] transition">←</span>
-            </div>
-            <p class="text-xs text-gray-300">طراحی لوگوی مینیمال آناناس طلایی دیجیتال</p>
           </button>
         </div>
       </div>
@@ -324,96 +305,76 @@
         </form>
 
         <div class="flex items-center justify-between mt-2 px-1 text-[11px] text-gray-400">
-          <span id="modeHintText">💬 حالت گفتگو فعال است (برای ساخت عکس، روی «ساخت تصویر» کلیک کنید یا بنویسید «عکس ... بساز»)</span>
+          <span id="modeHintText">💬 حالت گفتگو فعال است (برای ساخت عکس، روی «ساخت تصویر» کلیک کنید)</span>
           <span>AnanasAI 🍍</span>
         </div>
       </div>
     </div>
   </main>
 
-  <!-- مودال تنظیمات API -->
+  <!-- مودال وارد کردن کد فعال‌سازی پرو -->
   <div id="settingsModal" class="fixed inset-0 bg-black/75 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
     <div class="bg-ananas-card border border-ananas-border rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
       <div class="flex items-center justify-between border-b border-ananas-border pb-3">
         <div class="flex items-center gap-2">
-          <span class="text-xl">🍍</span>
-          <h3 class="font-bold text-white text-base">تنظیمات اتصال AnanasAI</h3>
+          <span class="text-xl">🔑</span>
+          <h3 class="font-bold text-white text-base">فعال‌سازی اشتراک پرو آناناس</h3>
         </div>
         <button onclick="closeSettingsModal()" class="text-gray-400 hover:text-white">✕</button>
       </div>
 
       <div class="space-y-3 text-xs leading-relaxed">
-        <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300">
-          ✅ این نسخه به‌صورت پیش‌فرض به مسیر <code class="text-white">/api/gemini</code> در <b>Cloudflare Pages</b> متصل است و از متغیر محیطی <code class="text-white">GEMINI_API_KEY</code> سرور استفاده می‌کند.
+        <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300">
+          💡 با وارد کردن کد فعال‌سازی ۳۰ روزه، سهمیه روزانه شما به <b>۱۰۰ پیام</b> و <b>۱۰ تصویر</b> ارتقا پیدا می‌کند. برای تهیه کد به تلگرام <a href="https://t.me/Branex_ir" target="_blank" class="underline font-bold">@Branex_ir</a> مراجعه کنید.
         </div>
 
         <div>
-          <label class="block text-gray-300 font-medium mb-1">مدل چت متنی جمنای:</label>
-          <select id="chatModelSelect" class="w-full bg-ananas-dark border border-ananas-border rounded-xl px-3 py-2 text-white focus:outline-none focus:border-ananas-500">
-            <option value="gemini-2.5-flash">gemini-2.5-flash (سریع و رایگان - پیشنهادی)</option>
-            <option value="gemini-2.5-pro">gemini-2.5-pro (دقیق‌تر برای کدنویسی)</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-gray-300 font-medium mb-1">مدل تصویرساز جمنای:</label>
-          <select id="imageModelSelect" class="w-full bg-ananas-dark border border-ananas-border rounded-xl px-3 py-2 text-white focus:outline-none focus:border-ananas-500">
-            <option value="gemini-2.0-flash-preview-image-generation">gemini-2.0-flash-preview-image-generation (خروجی مستقیم تصویر)</option>
-            <option value="gemini-2.5-flash-image-preview">gemini-2.5-flash-image-preview</option>
-          </select>
-        </div>
-
-        <div>
-          <label class="block text-gray-300 font-medium mb-1">کلید API شخصی (اختیاری - فقط در صورت تمایل به جایگزینی کلید سرور):</label>
-          <input id="customApiKeyInput" type="password" placeholder="AIzaSy... (خالی بگذارید تا از کلید کلودفلر استفاده شود)" class="w-full bg-ananas-dark border border-ananas-border rounded-xl px-3 py-2 text-white focus:outline-none focus:border-ananas-500 dir-ltr text-left" />
+          <label class="block text-gray-300 font-medium mb-1">کد فعال‌سازی پرو:</label>
+          <input id="userTokenInput" type="text" placeholder="مثلاً: pro-user-1405" class="w-full bg-ananas-dark border border-ananas-border rounded-xl px-3 py-2 text-white focus:outline-none focus:border-ananas-500 dir-ltr text-left font-mono" />
         </div>
       </div>
 
-      <div class="flex items-center justify-end gap-2 pt-2 border-t border-ananas-border">
-        <button onclick="closeSettingsModal()" class="px-4 py-2 rounded-xl border border-ananas-border text-gray-300 text-xs">انصراف</button>
-        <button onclick="saveSettings()" class="px-4 py-2 rounded-xl bg-ananas-500 hover:bg-ananas-400 text-ananas-dark font-bold text-xs">ذخیره تغییرات</button>
+      <div class="flex items-center justify-between pt-2 border-t border-ananas-border">
+        <button onclick="removeUserToken()" class="text-xs text-red-400 hover:underline">حذف توکن و بازگشت به رایگان</button>
+        <div class="flex gap-2">
+          <button onclick="closeSettingsModal()" class="px-4 py-2 rounded-xl border border-ananas-border text-gray-300 text-xs">انصراف</button>
+          <button onclick="saveUserToken()" class="px-4 py-2 rounded-xl bg-ananas-500 hover:bg-ananas-400 text-ananas-dark font-bold text-xs">اعمال کد</button>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- جاوااسکریپت یکپارچه برنامه -->
   <script>
-    // وضعیت کلی برنامه
     let currentMode = 'chat'; // 'chat' | 'image'
     let sessions = JSON.parse(localStorage.getItem('ananas_sessions') || '[]');
     let activeSessionId = null;
-    let attachedImage = null; // { mimeType, data, name, previewUrl }
+    let attachedImage = null;
     let isGenerating = false;
 
-    // تنظیمات ذخیره‌شده
-    let chatModel = localStorage.getItem('ananas_chat_model') || 'gemini-2.5-flash';
-    let imageModel = localStorage.getItem('ananas_image_model') || 'gemini-2.0-flash-preview-image-generation';
-    let customApiKey = localStorage.getItem('ananas_custom_api_key') || '';
+    let chatModel = 'gemini-2.5-flash';
+    let imageModel = 'gemini-2.0-flash-preview-image-generation';
+    let userToken = localStorage.getItem('ananas_user_token') || '';
 
-    // مقداردهی اولیه
     window.addEventListener('DOMContentLoaded', () => {
-      updateConnectionBadge();
+      updateAccountStatusBadge();
       renderHistoryList();
       if (sessions.length > 0) {
         loadSession(sessions[0].id);
       }
     });
 
-    function updateConnectionBadge() {
-      const badge = document.getElementById('connectionBadge');
-      const modelTag = document.getElementById('activeModelTag');
-      modelTag.textContent = currentMode === 'image' ? imageModel : chatModel;
-
-      if (customApiKey) {
-        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-ananas-400"></span> کلید اختصاصی کاربر';
-        badge.className = 'flex items-center gap-1.5 text-ananas-400 font-medium';
+    function updateAccountStatusBadge() {
+      const badge = document.getElementById('accountStatusBadge');
+      if (userToken) {
+        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> حساب پرو (Pro)';
+        badge.className = 'flex items-center gap-1.5 text-amber-400 font-medium';
       } else {
-        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> پروکسی کلودفلر';
-        badge.className = 'flex items-center gap-1.5 text-emerald-400 font-medium';
+        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-gray-400"></span> نسخه رایگان';
+        badge.className = 'flex items-center gap-1.5 text-gray-300 font-medium';
       }
     }
 
-    // تغییر حالت بین گفتگو و ساخت تصویر
     function setMode(mode) {
       currentMode = mode;
       const chatBtn = document.getElementById('modeChatBtn');
@@ -424,25 +385,22 @@
       if (mode === 'image') {
         imgBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-emerald-500 text-ananas-dark';
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
-        input.placeholder = 'توصیف تصویری که می‌خواهید جمنای بسازد را بنویسید (فارسی یا انگلیسی)...';
+        input.placeholder = 'توصیف تصویری که می‌خواهید جمنای بسازد را بنویسید...';
         hint.textContent = '🎨 حالت ساخت تصویر فعال است؛ تصویر تولیدشده مستقیماً از جمنای تحویل و قابل دانلود می‌شود.';
       } else {
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-ananas-500 text-ananas-dark';
         imgBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
         input.placeholder = 'پیام خود را برای آناناس بنویسید...';
-        hint.textContent = '💬 حالت گفتگو فعال است (برای ساخت عکس، روی «ساخت تصویر» کلیک کنید یا بنویسید «عکس ... بساز»)';
+        hint.textContent = '💬 حالت گفتگو فعال است (برای ساخت عکس، روی «ساخت تصویر» کلیک کنید)';
       }
-      updateConnectionBadge();
     }
 
-    // تشخیص خودکار درخواست ساخت تصویر در متن فارسی یا انگلیسی
     function isImageRequestPrompt(text) {
       if (currentMode === 'image') return true;
       const pattern = /(عکس|تصویر|لوگو|نقاشی|طرح|پوستر).*(بساز|طراحی کن|تولید کن|بکش)|^(generate image|create image|draw a)/i;
       return pattern.test(text.trim());
     }
 
-    // مدیریت پیوست عکس
     function handleFileSelect(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -468,13 +426,13 @@
       document.getElementById('attachmentPreview').classList.add('hidden');
     }
 
-    // متد اصلی ارتباط با بک‌اند کلودفلر (/api/gemini)
-    async function callGeminiAPI(selectedModel, requestPayload) {
+    // ارسال درخواست به بک‌اند کلودفلر همراه با ارسال کد فعال‌سازی توکن کاربر
+    async function callGeminiAPI(selectedModel, requestPayload, isImgReq) {
       const headers = {
         'Content-Type': 'application/json'
       };
-      if (customApiKey) {
-        headers['X-Custom-API-Key'] = customApiKey;
+      if (userToken) {
+        headers['X-User-Token'] = userToken;
       }
 
       const response = await fetch('/api/gemini', {
@@ -482,7 +440,8 @@
         headers: headers,
         body: JSON.stringify({
           model: selectedModel,
-          payload: requestPayload
+          payload: requestPayload,
+          isImageRequest: isImgReq
         })
       });
 
@@ -494,7 +453,6 @@
       return data;
     }
 
-    // ارسال پیام کاربر
     async function handleSubmit(e) {
       if (e) e.preventDefault();
       if (isGenerating) return;
@@ -503,7 +461,6 @@
       const userText = inputEl.value.trim();
       if (!userText && !attachedImage) return;
 
-      // ایجاد سشن در صورت عدم وجود
       if (!activeSessionId) {
         const newSession = {
           id: 'sess_' + Date.now(),
@@ -517,7 +474,6 @@
       const currentSession = sessions.find(s => s.id === activeSessionId);
       const wantImage = isImageRequestPrompt(userText);
 
-      // افزودن پیام کاربر
       const userMsg = {
         role: 'user',
         text: userText,
@@ -527,7 +483,6 @@
       };
       currentSession.messages.push(userMsg);
 
-      // پاکسازی ورودی
       inputEl.value = '';
       inputEl.style.height = 'auto';
       const currentAttachment = attachedImage;
@@ -537,13 +492,11 @@
       renderMessages();
       renderHistoryList();
 
-      // نمایش لودینگ آناناس
       isGenerating = true;
       appendLoadingBubble(wantImage);
 
       try {
         if (wantImage) {
-          // ارسال درخواست ساخت تصویر به جمنای از طریق کلودفلر
           const parts = [];
           if (userText) {
             parts.push({ text: `Generate a high quality image based on this description: ${userText}` });
@@ -564,7 +517,7 @@
             }
           };
 
-          const result = await callGeminiAPI(imageModel, payload);
+          const result = await callGeminiAPI(imageModel, payload, true);
           const candidateParts = result?.candidates?.[0]?.content?.parts || [];
           
           let generatedImgBase64 = null;
@@ -585,18 +538,17 @@
           if (generatedImgBase64) {
             currentSession.messages.push({
               role: 'model',
-              text: accompanyingText.trim() || 'تصویر درخواستی شما با موفقیت توسط جمنای در آناناس ساخته شد:',
+              text: accompanyingText.trim() || 'تصویر درخواستی شما با موفقیت توسط جمنای ساخته شد:',
               generatedImage: `data:${generatedMime};base64,${generatedImgBase64}`
             });
           } else {
             currentSession.messages.push({
               role: 'model',
-              text: accompanyingText.trim() || 'مدل پاسخی بدون تصویر برگرداند. لطفاً توصیف تصویر را واضح‌تر یا به انگلیسی وارد کنید.'
+              text: accompanyingText.trim() || 'مدل پاسخی بدون تصویر برگرداند.'
             });
           }
 
         } else {
-          // ارسال درخواست گفتگوی متنی / تحلیل عکس به جمنای از طریق کلودفلر
           const historyContents = currentSession.messages.map(m => {
             const parts = [];
             if (m.text) parts.push({ text: m.text });
@@ -618,7 +570,7 @@
             contents: historyContents
           };
 
-          const result = await callGeminiAPI(chatModel, payload);
+          const result = await callGeminiAPI(chatModel, payload, false);
           const replyText = result?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('\n') || 'پاسخی دریافت نشد.';
 
           removeLoadingBubble();
@@ -633,7 +585,7 @@
         currentSession.messages.push({
           role: 'model',
           isError: true,
-          text: `⚠️ **خطا در دریافت پاسخ:**\n${err.message}`
+          text: `⚠️ **خطا:**\n${err.message}`
         });
       } finally {
         isGenerating = false;
@@ -642,7 +594,6 @@
       }
     }
 
-    // رندر پیام‌ها در صفحه
     function renderMessages() {
       const welcome = document.getElementById('welcomeScreen');
       const container = document.getElementById('chatMessages');
@@ -705,7 +656,7 @@
       bubble.innerHTML = `
         <div class="rounded-2xl bg-ananas-card border border-ananas-border px-4 py-3 text-xs text-gray-300 flex items-center gap-2.5">
           <span class="text-lg animate-bounce">🍍</span>
-          <span>${isImage ? 'آناناس در حال خلق تصویر روی جمنای است...' : 'آناناس در حال نوشتن پاسخ است...'}</span>
+          <span>${isImage ? 'آناناس در حال خلق تصویر است...' : 'آناناس در حال نوشتن پاسخ است...'}</span>
         </div>
       `;
       container.appendChild(bubble);
@@ -717,7 +668,6 @@
       if (el) el.remove();
     }
 
-    // مدیریت سشن‌ها و تاریخچه
     function startNewChat() {
       activeSessionId = null;
       renderMessages();
@@ -743,7 +693,6 @@
 
     function saveSessions() {
       try {
-        // برای جلوگیری از پر شدن localStorage، تصاویر بزرگ Base64 کاربر را در حافظه موقت نگه می‌داریم
         const lightSessions = sessions.map(s => ({
           ...s,
           messages: s.messages.map(m => ({
@@ -754,9 +703,7 @@
           }))
         }));
         localStorage.setItem('ananas_sessions', JSON.stringify(lightSessions));
-      } catch (e) {
-        console.warn('Storage full, skipping image persistence.');
-      }
+      } catch (e) {}
     }
 
     function renderHistoryList() {
@@ -773,7 +720,6 @@
       `).join('');
     }
 
-    // ابزارهای کمکی رابط کاربری
     function quickPrompt(mode, text) {
       setMode(mode);
       const input = document.getElementById('promptInput');
@@ -819,9 +765,7 @@
     }
 
     function openSettingsModal() {
-      document.getElementById('chatModelSelect').value = chatModel;
-      document.getElementById('imageModelSelect').value = imageModel;
-      document.getElementById('customApiKeyInput').value = customApiKey;
+      document.getElementById('userTokenInput').value = userToken;
       const modal = document.getElementById('settingsModal');
       modal.classList.remove('hidden');
       modal.classList.add('flex');
@@ -833,16 +777,19 @@
       modal.classList.remove('flex');
     }
 
-    function saveSettings() {
-      chatModel = document.getElementById('chatModelSelect').value;
-      imageModel = document.getElementById('imageModelSelect').value;
-      customApiKey = document.getElementById('customApiKeyInput').value.trim();
+    function saveUserToken() {
+      userToken = document.getElementById('userTokenInput').value.trim();
+      localStorage.setItem('ananas_user_token', userToken);
+      updateAccountStatusBadge();
+      closeSettingsModal();
+      alert(userToken ? 'کد فعال‌سازی با موفقیت ثبت شد!' : 'کد پاک شد.');
+    }
 
-      localStorage.setItem('ananas_chat_model', chatModel);
-      localStorage.setItem('ananas_image_model', imageModel);
-      localStorage.setItem('ananas_custom_api_key', customApiKey);
-
-      updateConnectionBadge();
+    function removeUserToken() {
+      userToken = '';
+      localStorage.removeItem('ananas_user_token');
+      document.getElementById('userTokenInput').value = '';
+      updateAccountStatusBadge();
       closeSettingsModal();
     }
 
