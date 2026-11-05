@@ -14,15 +14,16 @@ export async function onRequestPost(context) {
     // ----------------------------------------------------
     // بخش پنل مدیریت (Admin API)
     // ----------------------------------------------------
-    if (url.pathname.includes('/api/admin') || url.pathname.includes('/create-token') || url.pathname.includes('/list-tokens')) {
+    if (url.pathname.includes('/api/admin') || url.pathname.includes('create-token') || url.pathname.includes('list-tokens')) {
       const adminPassword = request.headers.get("X-Admin-Password");
-      // رمز عبور ادمین خود را می‌توانید اینجا تغییر دهید
-      if (adminPassword !== "Abf@153759@Abgg12") {
+      
+      // رمز عبور ادمین پیش‌فرض (می‌توانید تغییر دهید)
+      if (adminPassword !== "Abf@153759@Abqwe1230a-") {
         return new Response(JSON.stringify({ error: "رمز عبور ادمین اشتباه است." }), { status: 401, headers: corsHeaders });
       }
 
-      // اکشن ۱: ساخت کد جدید با انقضای خودکار ۳۰ روزه (۲۵۹۲۰۰۰ ثانیه)
-      if (url.pathname.endsWith('/create-token')) {
+      // اکشن ۱: ساخت کد جدید با انقضای خودکار ۳۰ روزه
+      if (url.pathname.endsWith('/create-token') || url.pathname.includes('create-token')) {
         const body = await request.json();
         const tokenName = body.token;
         if (!tokenName) {
@@ -36,11 +37,11 @@ export async function onRequestPost(context) {
           { expirationTtl: expirationSeconds }
         );
 
-        return new Response(JSON.stringify({ success: true, message: "کد پرو با انقضای ۳۰ روزه با موفقیت ساخته شد." }), { headers: corsHeaders });
+        return new Response(JSON.stringify({ success: true, message: "کد پرو با موفقیت ساخته شد." }), { headers: corsHeaders });
       }
       
       // اکشن ۲: لیست کردن کدهای فعال
-      if (url.pathname.endsWith('/list-tokens')) {
+      if (url.pathname.endsWith('/list-tokens') || url.pathname.includes('list-tokens')) {
         const list = await env.ANANAS_KV.list({ prefix: "token_" });
         const tokens = [];
         for (const key of list.keys) {
@@ -95,7 +96,7 @@ export async function onRequestPost(context) {
     if (isImageRequest) {
       if (usage.image >= limitImage) {
         const errMsg = isPro 
-          ? "سهمیه ساخت تصویر پرو امروز شما (۱۰ تصویر) به پایان رسیده است. فردا مجدداً تلاش کنید." 
+          ? "سهمیه ساخت تصویر پرو امروز شما (۱۰ تصویر) به پایان رسیده است." 
           : "سهمیه رایگان ساخت تصویر امروز شما (۴ تصویر) تمام شد. برای دسترسی به ۱۰ تصویر روزانه، کد اشتراک پرو را از تلگرام @Branex_ir تهیه کنید.";
           
         return new Response(JSON.stringify({ error: { message: errMsg } }), { status: 429, headers: corsHeaders });
@@ -104,15 +105,14 @@ export async function onRequestPost(context) {
     } else {
       if (usage.text >= limitText) {
         const errMsg = isPro 
-          ? "سهمیه پیام‌های پرو امروز شما (۱۰۰ درخواست) به پایان رسیده است. فردا مجدداً تلاش کنید." 
-          : "سهمیه رایگان پیام‌های امروز شما (۲۰ درخواست) تمام شد. برای ارتقا به حساب پرو (۱۰۰ درخواست و ۱۰ تصویر روزانه)، کد فعال‌سازی را از تلگرام @Branex_ir تهیه کنید.";
+          ? "سهمیه پیام‌های پرو امروز شما (۱۰۰ درخواست) به پایان رسیده است." 
+          : "سهمیه رایگان پیام‌های امروز شما (۲۰ درخواست) تمام شد. برای ارتقا به حساب پرو، کد فعال‌سازی را از تلگرام @Branex_ir تهیه کنید.";
           
         return new Response(JSON.stringify({ error: { message: errMsg } }), { status: 429, headers: corsHeaders });
       }
       usage.text += 1;
     }
 
-    // ذخیره میزان مصرف جدید در KV با انقضای ۲۴ ساعته
     await env.ANANAS_KV.put(storageKey, JSON.stringify(usage), { expirationTtl: 86400 });
 
     // ۳. ارسال درخواست به گوگل جمنای
