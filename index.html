@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>آناناس | دستیار هوشمند و تصویرساز جمنای (AnanasAI)</title>
+  
+  <!-- فاوآیکون آناناس -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍍</text></svg>">
+
+  <!-- فونت فارسی وزیرمتن (Vazirmatn) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- کتابخانه رندر Markdown -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Vazirmatn', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            ananas: {
+              50: '#fffbeb',
+              100: '#fef3c7',
+              400: '#fbbf24',
+              500: '#f59e0b',
+              600: '#d97706',
+              leaf: '#10b981',
+              dark: '#0b0f17',
+              card: '#151c28',
+              border: '#232f46'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    * {
+      font-family: 'Vazirmatn', sans-serif;
+      box-sizing: border-box;
+    }
+    body {
+      background-color: #0b0f17;
+      color: #f3f4f6;
+      overflow: hidden;
+    }
+    /* اسکرول‌بار سفارشی */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0f17;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #232f46;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #f59e0b;
+    }
+    /* استایل خروجی مارک‌داون */
+    .prose-ananas p {
+      margin-bottom: 0.75rem;
+      line-height: 1.85;
+    }
+    .prose-ananas p:last-child {
+      margin-bottom: 0;
+    }
+    .prose-ananas pre {
+      background: #090d14;
+      border: 1px solid #232f46;
+      border-radius: 0.75rem;
+      padding: 1rem;
+      overflow-x: auto;
+      direction: ltr;
+      text-align: left;
+      margin: 0.75rem 0;
+      font-size: 0.875rem;
+    }
+    .prose-ananas code {
+      background: rgba(245, 158, 11, 0.12);
+      color: #fbbf24;
+      padding: 0.15rem 0.4rem;
+      border-radius: 0.35rem;
+      font-size: 0.85em;
+    }
+    .prose-ananas pre code {
+      background: transparent;
+      color: #e5e7eb;
+      padding: 0;
+    }
+    .prose-ananas ul, .prose-ananas ol {
+      padding-right: 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .prose-ananas ul { list-style-type: disc; }
+    .prose-ananas ol { list-style-type: decimal; }
+    .prose-ananas li { margin-bottom: 0.25rem; line-height: 1.75; }
+    
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.4; transform: scale(1); }
+      50% { opacity: 0.8; transform: scale(1.06); }
+    }
+    . pineapple-glow {
+      animation: pulseGlow 3s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="h-screen w-screen flex select-none md:select-auto">
+
+  <!-- پس‌زمینه موبایل برای سایدبار -->
+  <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-30 hidden lg:hidden"></div>
+
+  <!-- سایدبار سمت راست -->
+  <aside id="sidebar" class="fixed lg:static inset-y-0 right-0 z-40 w-72 bg-ananas-card border-l border-ananas-border flex flex-col transition-transform duration-300 translate-x-full lg:translate-x-0">
+    
+    <!-- هدر لوگو آناناس -->
+    <div class="p-4 border-b border-ananas-border flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="relative w-11 h-11 rounded-2xl bg-gradient-to-tr from-ananas-600 via-ananas-400 to-ananas-leaf p-0.5 shadow-lg shadow-ananas-500/20">
+          <div class="w-full h-full bg-ananas-dark rounded-[14px] flex items-center justify-center">
+            <!-- آیکون اختصاصی SVG آناناس -->
+            <svg class="w-7 h-7" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M32 6C28 14 22 16 18 15C22 20 26 22 32 22C38 22 42 20 46 15C42 16 36 14 32 6Z" fill="#10B981"/>
+              <path d="M32 10C30 16 26 19 23 19C26 22 29 24 32 24C35 24 38 22 41 19C38 19 34 16 32 10Z" fill="#34D399"/>
+              <rect x="18" y="22" width="28" height="34" rx="14" fill="url(#ananasGrad)"/>
+              <path d="M22 28L42 48M42 28L22 48M19 38L35 54M29 23L45 39" stroke="#78350F" stroke-width="2" stroke-linecap="round" stroke-opacity="0.35"/>
+              <defs>
+                <linearGradient id="ananasGrad" x1="18" y1="22" x2="46" y2="56" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#FBBF24"/>
+                  <stop offset="1" stop-color="#D97706"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+        </div>
+        <div>
+          <div class="flex items-center gap-1.5">
+            <h1 class="font-bold text-lg tracking-tight text-white">آناناس</h1>
+            <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-ananas-500/15 text-ananas-400 border border-ananas-500/30">AnanasAI</span>
+          </div>
+          <p class="text-xs text-gray-400">موتور هوشمند Gemini</p>
+        </div>
+      </div>
+      <button onclick="toggleSidebar()" class="lg:hidden text-gray-400 hover:text-white p-1">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <!-- دکمه گفتگوی جدید -->
+    <div class="p-3">
+      <button onclick="startNewChat()" class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-l from-ananas-500 to-ananas-600 hover:from-ananas-400 hover:to-ananas-500 text-ananas-dark font-bold text-sm shadow-lg shadow-ananas-500/15 flex items-center justify-center gap-2 transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 4v16m8-8H4"/></svg>
+        <span>گفتگوی تازه با آناناس</span>
+      </button>
+    </div>
+
+    <!-- تاریخچه گفتگوها -->
+    <div class="px-3 py-1 text-xs font-medium text-gray-400 flex items-center justify-between">
+      <span>تاریخچه گفتگوها</span>
+      <button onclick="clearAllHistory()" class="text-[11px] text-red-400 hover:underline">حذف همه</button>
+    </div>
+    <div id="chatHistoryList" class="flex-1 overflow-y-auto px-3 space-y-1.5 py-2"></div>
+
+    <!-- فوتر سایدبار و تنظیمات -->
+    <div class="p-3 border-t border-ananas-border space-y-2 bg-ananas-dark/40">
+      <div class="flex items-center justify-between px-3 py-2 rounded-xl bg-ananas-card border border-ananas-border text-xs">
+        <span class="text-gray-400">وضعیت اتصال:</span>
+        <span id="connectionBadge" class="flex items-center gap-1.5 text-emerald-400 font-medium">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          پروکسی کلودفلر
+        </span>
+      </div>
+      <button onclick="openSettingsModal()" class="w-full py-2 px-3 rounded-xl border border-ananas-border hover:border-ananas-500/50 text-gray-300 hover:text-white text-xs flex items-center justify-center gap-2 transition">
+        <svg class="w-4 h-4 text-ananas-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <span>تنظیمات API و مدل جمنای</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- بخش اصلی چت -->
+  <main class="flex-1 flex flex-col h-full bg-ananas-dark relative overflow-hidden">
+    
+    <!-- نوار بالای صفحه -->
+    <header class="h-16 border-b border-ananas-border px-4 lg:px-8 flex items-center justify-between bg-ananas-dark/80 backdrop-blur-md z-20">
+      <div class="flex items-center gap-3">
+        <button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-xl bg-ananas-card border border-ananas-border text-gray-300">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🍍</span>
+          <span class="font-bold text-white text-sm sm:text-base">AnanasAI</span>
+          <span id="activeModelTag" class="hidden sm:inline-block text-[11px] bg-ananas-card border border-ananas-border text-gray-300 px-2.5 py-0.5 rounded-full">
+            gemini-2.5-flash
+          </span>
+        </div>
+      </div>
+
+      <!-- کلید تغییر حالت چت / ساخت تصویر -->
+      <div class="flex items-center bg-ananas-card p-1 rounded-xl border border-ananas-border">
+        <button id="modeChatBtn" onclick="setMode('chat')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-ananas-500 text-ananas-dark">
+          <span>💬</span>
+          <span>گفتگو</span>
+        </button>
+        <button id="modeImageBtn" onclick="setMode('image')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white">
+          <span>🎨</span>
+          <span>ساخت تصویر</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- محفظه پیام‌ها -->
+    <div id="messagesContainer" class="flex-1 overflow-y-auto px-4 lg:px-8 py-6 space-y-6">
+      
+      <!-- صفحه خوش‌آمدگویی اولیه -->
+      <div id="welcomeScreen" class="max-w-2xl mx-auto text-center py-10 space-y-6">
+        <div class="relative mx-auto w-20 h-20 flex items-center justify-center">
+          <div class="absolute inset-0 rounded-full bg-ananas-500/20 blur-xl pineapple-glow"></div>
+          <div class="relative w-16 h-16 rounded-3xl bg-ananas-card border border-ananas-500/40 flex items-center justify-center text-4xl shadow-xl">
+            🍍
+          </div>
+        </div>
+        <div class="space-y-2">
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-white">
+            سلام! به هوش مصنوعی <span class="text-ananas-400">آناناس</span> خوش آمدید
+          </h2>
+          <p class="text-sm text-gray-400 max-w-md mx-auto leading-relaxed">
+            متصل به API رایگان گوگل جمنای بر بستر Cloudflare Pages. می‌توانید سوال بپرسید، کد بنویسید، فایل عکس بفرستید یا تصویر بسازید.
+          </p>
+        </div>
+
+        <!-- کارت‌های پیشنهاد سریع -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-right max-w-xl mx-auto pt-2">
+          <button onclick="quickPrompt('chat', 'یک برنامه هفتگی یادگیری پایتون برای سطح مقدماتی تا متوسط به زبان فارسی بنویس.')" class="p-3.5 rounded-2xl bg-ananas-card hover:bg-ananas-card/80 border border-ananas-border hover:border-ananas-500/50 transition group">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-bold text-ananas-400">💬 پرسش و پاسخ هوشمند</span>
+              <span class="text-gray-500 group-hover:translate-x-[-3px] transition">←</span>
+            </div>
+            <p class="text-xs text-gray-300">برنامه هفتگی یادگیری پایتون به زبان فارسی</p>
+          </button>
+
+          <button onclick="quickPrompt('image', 'A cute futuristic neon pineapple wearing sunglasses on a tropical cyber beach, digital art, high quality')" class="p-3.5 rounded-2xl bg-ananas-card hover:bg-ananas-card/80 border border-ananas-border hover:border-ananas-leaf/50 transition group">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-bold text-emerald-400">🎨 تولید تصویر با جمنای</span>
+              <span class="text-gray-500 group-hover:translate-x-[-3px] transition">←</span>
+            </div>
+            <p class="text-xs text-gray-300">ساخت تصویر یک آناناس نئونی آینده‌نگر در ساحل</p>
+          </button>
+
+          <button onclick="quickPrompt('chat', 'یک متن تبلیغاتی خلاقانه و کوتاه برای معرفی سرویس هوش مصنوعی آناناس (AnanasAI) بنویس.')" class="p-3.5 rounded-2xl bg-ananas-card hover:bg-ananas-card/80 border border-ananas-border hover:border-ananas-500/50 transition group">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-bold text-ananas-400">✍️ تولید محتوا</span>
+              <span class="text-gray-500 group-hover:translate-x-[-3px] transition">←</span>
+            </div>
+            <p class="text-xs text-gray-300">نگارش متن تبلیغاتی خلاقانه برای برند AnanasAI</p>
+          </button>
+
+          <button onclick="quickPrompt('image', 'Minimalist flat vector logo of a golden pineapple with circuit lines, dark background')" class="p-3.5 rounded-2xl bg-ananas-card hover:bg-ananas-card/80 border border-ananas-border hover:border-ananas-leaf/50 transition group">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-bold text-emerald-400">🍍 طراحی لوگو با هوش مصنوعی</span>
+              <span class="text-gray-500 group-hover:translate-x-[-3px] transition">←</span>
+            </div>
+            <p class="text-xs text-gray-300">طراحی لوگوی مینیمال آناناس طلایی دیجیتال</p>
+          </button>
+        </div>
+      </div>
+
+      <!-- لیست پیام‌های گفتگو -->
+      <div id="chatMessages" class="max-w-3xl mx-auto space-y-5"></div>
+    </div>
+
+    <!-- بخش ورودی پیام در پایین صفحه -->
+    <div class="p-3 sm:p-4 border-t border-ananas-border bg-ananas-dark/95 backdrop-blur-md">
+      <div class="max-w-3xl mx-auto">
+        
+        <!-- پیش‌نمایش عکس پیوست‌شده -->
+        <div id="attachmentPreview" class="hidden mb-2 p-2 rounded-xl bg-ananas-card border border-ananas-border flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <img id="attachedImgThumb" src="" class="w-11 h-11 rounded-lg object-cover border border-ananas-500/40" alt="پیوست" />
+            <div>
+              <p id="attachedFileName" class="text-xs font-medium text-white truncate max-w-[200px]"></p>
+              <p class="text-[11px] text-gray-400">آماده ارسال به جمنای</p>
+            </div>
+          </div>
+          <button onclick="removeAttachment()" class="p-1.5 text-gray-400 hover:text-red-400">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <!-- کادر تایپ -->
+        <form onsubmit="handleSubmit(event)" class="relative flex items-end gap-2 bg-ananas-card border border-ananas-border focus-within:border-ananas-500/70 rounded-2xl p-2 shadow-lg">
+          
+          <!-- دکمه آپلود تصویر -->
+          <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleFileSelect(event)" />
+          <button type="button" onclick="document.getElementById('fileInput').click()" title="پیوست تصویر برای تحلیل یا ویرایش" class="p-2.5 rounded-xl text-gray-400 hover:text-ananas-400 hover:bg-ananas-dark/60 transition shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+          </button>
+
+          <textarea
+            id="promptInput"
+            rows="1"
+            placeholder="پیام خود را برای آناناس بنویسید..."
+            onkeydown="handleEnterKey(event)"
+            oninput="autoResizeTextarea(this)"
+            class="w-full bg-transparent text-white placeholder-gray-400 text-sm focus:outline-none resize-none py-2 px-1 max-h-36 leading-relaxed"
+          ></textarea>
+
+          <!-- دکمه ارسال -->
+          <button id="sendBtn" type="submit" class="p-2.5 rounded-xl bg-ananas-500 hover:bg-ananas-400 text-ananas-dark font-bold transition shrink-0 flex items-center justify-center shadow-md shadow-ananas-500/20">
+            <svg class="w-5 h-5 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+          </button>
+        </form>
+
+        <div class="flex items-center justify-between mt-2 px-1 text-[11px] text-gray-400">
+          <span id="modeHintText">💬 حالت گفتگو فعال است (برای ساخت عکس، روی «ساخت تصویر» کلیک کنید یا بنویسید «عکس ... بساز»)</span>
+          <span>AnanasAI 🍍</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- مودال تنظیمات API -->
+  <div id="settingsModal" class="fixed inset-0 bg-black/75 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-ananas-card border border-ananas-border rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-ananas-border pb-3">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🍍</span>
+          <h3 class="font-bold text-white text-base">تنظیمات اتصال AnanasAI</h3>
+        </div>
+        <button onclick="closeSettingsModal()" class="text-gray-400 hover:text-white">✕</button>
+      </div>
+
+      <div class="space-y-3 text-xs leading-relaxed">
+        <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300">
+          ✅ این نسخه به‌صورت پیش‌فرض به مسیر <code class="text-white">/api/gemini</code> در <b>Cloudflare Pages</b> متصل است و از متغیر محیطی <code class="text-white">GEMINI_API_KEY</code> سرور استفاده می‌کند.
+        </div>
+
+        <div>
+          <label class="block text-gray-300 font-medium mb-1">مدل چت متنی جمنای:</label>
+          <select id="chatModelSelect" class="w-full bg-ananas-dark border border-ananas-border rounded-xl px-3 py-2 text-white focus:outline-none focus:border-ananas-500">
+            <option value="gemini-2.5-flash">gemini-2.5-flash (سریع و رایگان - پیشنهادی)</option>
+            <option value="gemini-2.5-pro">gemini-2.5-pro (دقیق‌تر برای کدنویسی)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-gray-300 font-medium mb-1">مدل تصویرساز جمنای:</label>
+          <select id="imageModelSelect" class="w-full bg-ananas-dark border border-ananas-border rounded-xl px-3 py-2 text-white focus:outline-none focus:border-ananas-500">
+            <option value="gemini-2.0-flash-preview-image-generation">gemini-2.0-flash-preview-image-generation (خروجی مستقیم تصویر)</option>
+            <option value="gemini-2.5-flash-image-preview">gemini-2.5-flash-image-preview</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-gray-300 font-medium mb-1">کلید API شخصی (اختیاری - فقط در صورت تمایل به جایگزینی کلید سرور):</label>
+          <input id="customApiKeyInput" type="password" placeholder="AIzaSy... (خالی بگذارید تا از کلید کلودفلر استفاده شود)" class="w-full bg-ananas-dark border border-ananas-border rounded-xl px-3 py-2 text-white focus:outline-none focus:border-ananas-500 dir-ltr text-left" />
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-ananas-border">
+        <button onclick="closeSettingsModal()" class="px-4 py-2 rounded-xl border border-ananas-border text-gray-300 text-xs">انصراف</button>
+        <button onclick="saveSettings()" class="px-4 py-2 rounded-xl bg-ananas-500 hover:bg-ananas-400 text-ananas-dark font-bold text-xs">ذخیره تغییرات</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- جاوااسکریپت یکپارچه برنامه -->
+  <script>
+    // وضعیت کلی برنامه
+    let currentMode = 'chat'; // 'chat' | 'image'
+    let sessions = JSON.parse(localStorage.getItem('ananas_sessions') || '[]');
+    let activeSessionId = null;
+    let attachedImage = null; // { mimeType, data, name, previewUrl }
+    let isGenerating = false;
+
+    // تنظیمات ذخیره‌شده
+    let chatModel = localStorage.getItem('ananas_chat_model') || 'gemini-2.5-flash';
+    let imageModel = localStorage.getItem('ananas_image_model') || 'gemini-2.0-flash-preview-image-generation';
+    let customApiKey = localStorage.getItem('ananas_custom_api_key') || '';
+
+    // مقداردهی اولیه
+    window.addEventListener('DOMContentLoaded', () => {
+      updateConnectionBadge();
+      renderHistoryList();
+      if (sessions.length > 0) {
+        loadSession(sessions[0].id);
+      }
+    });
+
+    function updateConnectionBadge() {
+      const badge = document.getElementById('connectionBadge');
+      const modelTag = document.getElementById('activeModelTag');
+      modelTag.textContent = currentMode === 'image' ? imageModel : chatModel;
+
+      if (customApiKey) {
+        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-ananas-400"></span> کلید اختصاصی کاربر';
+        badge.className = 'flex items-center gap-1.5 text-ananas-400 font-medium';
+      } else {
+        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> پروکسی کلودفلر';
+        badge.className = 'flex items-center gap-1.5 text-emerald-400 font-medium';
+      }
+    }
+
+    // تغییر حالت بین گفتگو و ساخت تصویر
+    function setMode(mode) {
+      currentMode = mode;
+      const chatBtn = document.getElementById('modeChatBtn');
+      const imgBtn = document.getElementById('modeImageBtn');
+      const input = document.getElementById('promptInput');
+      const hint = document.getElementById('modeHintText');
+
+      if (mode === 'image') {
+        imgBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-emerald-500 text-ananas-dark';
+        chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
+        input.placeholder = 'توصیف تصویری که می‌خواهید جمنای بسازد را بنویسید (فارسی یا انگلیسی)...';
+        hint.textContent = '🎨 حالت ساخت تصویر فعال است؛ تصویر تولیدشده مستقیماً از جمنای تحویل و قابل دانلود می‌شود.';
+      } else {
+        chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-ananas-500 text-ananas-dark';
+        imgBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
+        input.placeholder = 'پیام خود را برای آناناس بنویسید...';
+        hint.textContent = '💬 حالت گفتگو فعال است (برای ساخت عکس، روی «ساخت تصویر» کلیک کنید یا بنویسید «عکس ... بساز»)';
+      }
+      updateConnectionBadge();
+    }
+
+    // تشخیص خودکار درخواست ساخت تصویر در متن فارسی یا انگلیسی
+    function isImageRequestPrompt(text) {
+      if (currentMode === 'image') return true;
+      const pattern = /(عکس|تصویر|لوگو|نقاشی|طرح|پوستر).*(بساز|طراحی کن|تولید کن|بکش)|^(generate image|create image|draw a)/i;
+      return pattern.test(text.trim());
+    }
+
+    // مدیریت پیوست عکس
+    function handleFileSelect(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64Data = reader.result.split(',')[1];
+        attachedImage = {
+          mimeType: file.type,
+          data: base64Data,
+          name: file.name,
+          previewUrl: reader.result
+        };
+        document.getElementById('attachedImgThumb').src = reader.result;
+        document.getElementById('attachedFileName').textContent = file.name;
+        document.getElementById('attachmentPreview').classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removeAttachment() {
+      attachedImage = null;
+      document.getElementById('fileInput').value = '';
+      document.getElementById('attachmentPreview').classList.add('hidden');
+    }
+
+    // متد اصلی ارتباط با بک‌اند کلودفلر (/api/gemini)
+    async function callGeminiAPI(selectedModel, requestPayload) {
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      if (customApiKey) {
+        headers['X-Custom-API-Key'] = customApiKey;
+      }
+
+      const response = await fetch('/api/gemini', {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({
+          model: selectedModel,
+          payload: requestPayload
+        })
+      });
+
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        const errMsg = data?.error?.message || `خطای ارتباط با سرور (${response.status})`;
+        throw new Error(errMsg);
+      }
+      return data;
+    }
+
+    // ارسال پیام کاربر
+    async function handleSubmit(e) {
+      if (e) e.preventDefault();
+      if (isGenerating) return;
+
+      const inputEl = document.getElementById('promptInput');
+      const userText = inputEl.value.trim();
+      if (!userText && !attachedImage) return;
+
+      // ایجاد سشن در صورت عدم وجود
+      if (!activeSessionId) {
+        const newSession = {
+          id: 'sess_' + Date.now(),
+          title: userText ? userText.slice(0, 32) : 'تحلیل تصویر',
+          messages: []
+        };
+        sessions.unshift(newSession);
+        activeSessionId = newSession.id;
+      }
+
+      const currentSession = sessions.find(s => s.id === activeSessionId);
+      const wantImage = isImageRequestPrompt(userText);
+
+      // افزودن پیام کاربر
+      const userMsg = {
+        role: 'user',
+        text: userText,
+        imagePreview: attachedImage ? attachedImage.previewUrl : null,
+        imageMime: attachedImage ? attachedImage.mimeType : null,
+        imageData: attachedImage ? attachedImage.data : null
+      };
+      currentSession.messages.push(userMsg);
+
+      // پاکسازی ورودی
+      inputEl.value = '';
+      inputEl.style.height = 'auto';
+      const currentAttachment = attachedImage;
+      removeAttachment();
+
+      saveSessions();
+      renderMessages();
+      renderHistoryList();
+
+      // نمایش لودینگ آناناس
+      isGenerating = true;
+      appendLoadingBubble(wantImage);
+
+      try {
+        if (wantImage) {
+          // ارسال درخواست ساخت تصویر به جمنای از طریق کلودفلر
+          const parts = [];
+          if (userText) {
+            parts.push({ text: `Generate a high quality image based on this description: ${userText}` });
+          }
+          if (currentAttachment) {
+            parts.push({
+              inlineData: {
+                mimeType: currentAttachment.mimeType,
+                data: currentAttachment.data
+              }
+            });
+          }
+
+          const payload = {
+            contents: [{ role: 'user', parts }],
+            generationConfig: {
+              responseModalities: ['TEXT', 'IMAGE']
+            }
+          };
+
+          const result = await callGeminiAPI(imageModel, payload);
+          const candidateParts = result?.candidates?.[0]?.content?.parts || [];
+          
+          let generatedImgBase64 = null;
+          let generatedMime = 'image/png';
+          let accompanyingText = '';
+
+          for (const part of candidateParts) {
+            if (part.inlineData && part.inlineData.data) {
+              generatedImgBase64 = part.inlineData.data;
+              generatedMime = part.inlineData.mimeType || 'image/png';
+            } else if (part.text) {
+              accompanyingText += part.text + '\n';
+            }
+          }
+
+          removeLoadingBubble();
+
+          if (generatedImgBase64) {
+            currentSession.messages.push({
+              role: 'model',
+              text: accompanyingText.trim() || 'تصویر درخواستی شما با موفقیت توسط جمنای در آناناس ساخته شد:',
+              generatedImage: `data:${generatedMime};base64,${generatedImgBase64}`
+            });
+          } else {
+            currentSession.messages.push({
+              role: 'model',
+              text: accompanyingText.trim() || 'مدل پاسخی بدون تصویر برگرداند. لطفاً توصیف تصویر را واضح‌تر یا به انگلیسی وارد کنید.'
+            });
+          }
+
+        } else {
+          // ارسال درخواست گفتگوی متنی / تحلیل عکس به جمنای از طریق کلودفلر
+          const historyContents = currentSession.messages.map(m => {
+            const parts = [];
+            if (m.text) parts.push({ text: m.text });
+            if (m.imageData && m.imageMime) {
+              parts.push({ inlineData: { mimeType: m.imageMime, data: m.imageData } });
+            }
+            return {
+              role: m.role === 'user' ? 'user' : 'model',
+              parts
+            };
+          });
+
+          const payload = {
+            systemInstruction: {
+              parts: [{
+                text: 'نام تو «آناناس» (AnanasAI) است؛ یک دستیار هوش مصنوعی فارسی‌زبان، صمیمی، دقیق و حرفه‌ای که به موتور Google Gemini متصل است. پاسخ‌هایت را به زبان فارسی روان، ساختاریافته و با فرمت Markdown ارائه بده.'
+              }]
+            },
+            contents: historyContents
+          };
+
+          const result = await callGeminiAPI(chatModel, payload);
+          const replyText = result?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('\n') || 'پاسخی دریافت نشد.';
+
+          removeLoadingBubble();
+          currentSession.messages.push({
+            role: 'model',
+            text: replyText
+          });
+        }
+
+      } catch (err) {
+        removeLoadingBubble();
+        currentSession.messages.push({
+          role: 'model',
+          isError: true,
+          text: `⚠️ **خطا در دریافت پاسخ:**\n${err.message}`
+        });
+      } finally {
+        isGenerating = false;
+        saveSessions();
+        renderMessages();
+      }
+    }
+
+    // رندر پیام‌ها در صفحه
+    function renderMessages() {
+      const welcome = document.getElementById('welcomeScreen');
+      const container = document.getElementById('chatMessages');
+      const currentSession = sessions.find(s => s.id === activeSessionId);
+
+      if (!currentSession || currentSession.messages.length === 0) {
+        welcome.classList.remove('hidden');
+        container.innerHTML = '';
+        return;
+      }
+
+      welcome.classList.add('hidden');
+      container.innerHTML = currentSession.messages.map((msg, idx) => {
+        if (msg.role === 'user') {
+          return `
+            <div class="flex justify-start">
+              <div class="max-w-[85%] sm:max-w-[75%] rounded-2xl rounded-tr-xs bg-gradient-to-l from-ananas-500 to-ananas-600 text-ananas-dark px-4 py-3 shadow-md">
+                ${msg.imagePreview ? `<img src="${msg.imagePreview}" class="max-h-52 rounded-xl mb-2 border border-black/15" alt="تصویر کاربر" />` : ''}
+                <div class="text-sm font-medium whitespace-pre-wrap leading-relaxed">${escapeHtml(msg.text)}</div>
+              </div>
+            </div>
+          `;
+        } else {
+          const parsedMd = marked.parse(msg.text || '');
+          return `
+            <div class="flex items-start gap-3 justify-end">
+              <div class="flex-1 max-w-[90%] sm:max-w-[82%] rounded-2xl rounded-tl-xs bg-ananas-card border ${msg.isError ? 'border-red-500/50' : 'border-ananas-border'} px-4 py-3.5 shadow-md">
+                <div class="flex items-center justify-between mb-1.5 pb-1.5 border-b border-ananas-border/60">
+                  <span class="text-xs font-bold text-ananas-400 flex items-center gap-1">🍍 آناناس (AnanasAI)</span>
+                  <button onclick="copyMessageText(${idx})" class="text-[11px] text-gray-400 hover:text-white transition">کپی متن</button>
+                </div>
+                <div class="prose-ananas text-sm text-gray-200">${parsedMd}</div>
+                ${msg.generatedImage ? `
+                  <div class="mt-3 space-y-2">
+                    <div class="relative group rounded-2xl overflow-hidden border border-ananas-500/30 bg-black/40">
+                      <img src="${msg.generatedImage}" class="w-full max-h-[420px] object-contain mx-auto" alt="تصویر تولید شده با جمنای" />
+                    </div>
+                    <div class="flex items-center justify-end">
+                      <a href="${msg.generatedImage}" download="AnanasAI-${Date.now()}.png" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-ananas-500 hover:bg-ananas-400 text-ananas-dark font-bold text-xs transition shadow-md">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        <span>دانلود تصویر باکیفیت</span>
+                      </a>
+                    </div>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          `;
+        }
+      }).join('');
+
+      scrollToBottom();
+    }
+
+    function appendLoadingBubble(isImage) {
+      const container = document.getElementById('chatMessages');
+      const bubble = document.createElement('div');
+      bubble.id = 'loadingBubble';
+      bubble.className = 'flex items-start gap-3 justify-end';
+      bubble.innerHTML = `
+        <div class="rounded-2xl bg-ananas-card border border-ananas-border px-4 py-3 text-xs text-gray-300 flex items-center gap-2.5">
+          <span class="text-lg animate-bounce">🍍</span>
+          <span>${isImage ? 'آناناس در حال خلق تصویر روی جمنای است...' : 'آناناس در حال نوشتن پاسخ است...'}</span>
+        </div>
+      `;
+      container.appendChild(bubble);
+      scrollToBottom();
+    }
+
+    function removeLoadingBubble() {
+      const el = document.getElementById('loadingBubble');
+      if (el) el.remove();
+    }
+
+    // مدیریت سشن‌ها و تاریخچه
+    function startNewChat() {
+      activeSessionId = null;
+      renderMessages();
+      renderHistoryList();
+      if (window.innerWidth < 1024) toggleSidebar(false);
+    }
+
+    function loadSession(id) {
+      activeSessionId = id;
+      renderMessages();
+      renderHistoryList();
+      if (window.innerWidth < 1024) toggleSidebar(false);
+    }
+
+    function clearAllHistory() {
+      if (!confirm('آیا تمام تاریخچه گفتگوها پاک شود؟')) return;
+      sessions = [];
+      activeSessionId = null;
+      saveSessions();
+      renderMessages();
+      renderHistoryList();
+    }
+
+    function saveSessions() {
+      try {
+        // برای جلوگیری از پر شدن localStorage، تصاویر بزرگ Base64 کاربر را در حافظه موقت نگه می‌داریم
+        const lightSessions = sessions.map(s => ({
+          ...s,
+          messages: s.messages.map(m => ({
+            role: m.role,
+            text: m.text,
+            isError: m.isError,
+            generatedImage: m.generatedImage || null
+          }))
+        }));
+        localStorage.setItem('ananas_sessions', JSON.stringify(lightSessions));
+      } catch (e) {
+        console.warn('Storage full, skipping image persistence.');
+      }
+    }
+
+    function renderHistoryList() {
+      const list = document.getElementById('chatHistoryList');
+      if (sessions.length === 0) {
+        list.innerHTML = '<p class="text-xs text-gray-500 text-center py-6">هنوز گفتگویی ثبت نشده است</p>';
+        return;
+      }
+      list.innerHTML = sessions.map(s => `
+        <button onclick="loadSession('${s.id}')" class="w-full text-right px-3 py-2.5 rounded-xl text-xs truncate transition flex items-center gap-2 ${s.id === activeSessionId ? 'bg-ananas-500/15 text-ananas-400 border border-ananas-500/30 font-bold' : 'text-gray-300 hover:bg-ananas-dark/60'}">
+          <span>🍍</span>
+          <span class="truncate flex-1">${escapeHtml(s.title)}</span>
+        </button>
+      `).join('');
+    }
+
+    // ابزارهای کمکی رابط کاربری
+    function quickPrompt(mode, text) {
+      setMode(mode);
+      const input = document.getElementById('promptInput');
+      input.value = text;
+      handleSubmit();
+    }
+
+    function copyMessageText(idx) {
+      const currentSession = sessions.find(s => s.id === activeSessionId);
+      if (!currentSession || !currentSession.messages[idx]) return;
+      navigator.clipboard.writeText(currentSession.messages[idx].text || '');
+    }
+
+    function handleEnterKey(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSubmit();
+      }
+    }
+
+    function autoResizeTextarea(el) {
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+    }
+
+    function scrollToBottom() {
+      const mc = document.getElementById('messagesContainer');
+      mc.scrollTop = mc.scrollHeight;
+    }
+
+    function toggleSidebar(force) {
+      const sb = document.getElementById('sidebar');
+      const ov = document.getElementById('sidebarOverlay');
+      const isHidden = sb.classList.contains('translate-x-full');
+      const show = typeof force === 'boolean' ? force : isHidden;
+      if (show) {
+        sb.classList.remove('translate-x-full');
+        ov.classList.remove('hidden');
+      } else {
+        sb.classList.add('translate-x-full');
+        ov.classList.add('hidden');
+      }
+    }
+
+    function openSettingsModal() {
+      document.getElementById('chatModelSelect').value = chatModel;
+      document.getElementById('imageModelSelect').value = imageModel;
+      document.getElementById('customApiKeyInput').value = customApiKey;
+      const modal = document.getElementById('settingsModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeSettingsModal() {
+      const modal = document.getElementById('settingsModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function saveSettings() {
+      chatModel = document.getElementById('chatModelSelect').value;
+      imageModel = document.getElementById('imageModelSelect').value;
+      customApiKey = document.getElementById('customApiKeyInput').value.trim();
+
+      localStorage.setItem('ananas_chat_model', chatModel);
+      localStorage.setItem('ananas_image_model', imageModel);
+      localStorage.setItem('ananas_custom_api_key', customApiKey);
+
+      updateConnectionBadge();
+      closeSettingsModal();
+    }
+
+    function escapeHtml(str) {
+      return (str || '').replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
+    }
+  </script>
+</body>
+</html>
