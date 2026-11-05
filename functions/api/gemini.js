@@ -102,3 +102,36 @@ export async open onRequestOptions() {
     }
   });
 }
+
+
+// اضافه کردن مدیریت پنل ادمین در بک‌اند
+if (request.url.includes('/api/admin')) {
+  const adminPassword = request.headers.get("X-Admin-Password");
+  // رمز عبور ادمین خود را اینجا تغییر دهید
+  if (adminPassword !== "YOUR_SECURE_ADMIN_PASSWORD") {
+    return new Response(JSON.stringify({ error: "رمز عبور اشتباه است" }), { status: 401, headers: corsHeaders });
+  }
+
+  const url = new URL(request.url);
+  
+  // اکشن ۱: ساخت کد جدید
+  if (url.pathname.endsWith('/create-token')) {
+    const body = await request.json();
+    const tokenName = body.token;
+    if (!tokenName) return new Response(JSON.stringify({ error: "نام کد الزامی است" }), { status: 400, headers: corsHeaders });
+    
+    await env.ANANAS_KV.put(`token_${tokenName}`, JSON.stringify({ active: true, created: Date.now() }));
+    return new Response(JSON.stringify({ success: true, message: "کد با موفقیت ساخته شد" }), { headers: corsHeaders });
+  }
+  
+  // اکشن ۲: لیست کردن کدها
+  if (url.pathname.endsWith('/list-tokens')) {
+    const list = await env.ANANAS_KV.list({ prefix: "token_" });
+    const tokens = [];
+    for (const key of list.keys) {
+      const val = await env.ANANAS_KV.get(key.name);
+      tokens.push({ name: key.name.replace("token_", ""), data: JSON.parse(val || "{}") });
+    }
+    return new Response(JSON.stringify({ tokens }), { headers: corsHeaders });
+  }
+}
