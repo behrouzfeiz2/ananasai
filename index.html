@@ -171,18 +171,27 @@
     </div>
     <div id="chatHistoryList" class="flex-1 overflow-y-auto px-3 space-y-1.5 py-2"></div>
 
-    <!-- فوتر سایدبار و تنظیمات -->
+    <!-- فوتر سایدبار و مدیریت اشتراک پرو -->
     <div class="p-3 border-t border-ananas-border space-y-2 bg-ananas-dark/40">
-      <div class="flex items-center justify-between px-3 py-2 rounded-xl bg-ananas-card border border-ananas-border text-xs">
-        <span class="text-gray-400">وضعیت حساب:</span>
-        <span id="accountStatusBadge" class="flex items-center gap-1.5 text-gray-300 font-medium">
-          <span class="w-2 h-2 rounded-full bg-gray-400"></span>
-          نسخه رایگان
-        </span>
+      <div id="accountStatusCard" class="flex flex-col gap-1.5 p-2.5 rounded-xl bg-ananas-card border border-ananas-border text-xs">
+        <div class="flex items-center justify-between">
+          <span class="text-gray-400">وضعیت حساب:</span>
+          <span id="accountStatusBadge" class="flex items-center gap-1.5 text-gray-300 font-medium">
+            <span class="w-2 h-2 rounded-full bg-gray-400"></span>
+            نسخه رایگان
+          </span>
+        </div>
+        <!-- مدت زمان باقی‌مانده (فقط برای کاربران پرو) -->
+        <div id="proTimeRemainingContainer" class="hidden text-[11px] text-amber-400 font-medium pt-1 border-t border-ananas-border/50 flex items-center justify-between">
+          <span>⏳ اعتبار پرو:</span>
+          <span id="proTimeRemainingText">۳۰ روز باقی‌مانده</span>
+        </div>
       </div>
-      <button onclick="openSettingsModal()" class="w-full py-2 px-3 rounded-xl border border-ananas-border hover:border-ananas-500/50 text-gray-300 hover:text-white text-xs flex items-center justify-center gap-2 transition">
+
+      <!-- دکمه اکانت (تغییر وضعیت بر اساس پرو یا رایگان بودن) -->
+      <button id="actionAccountBtn" onclick="openSettingsModal()" class="w-full py-2 px-3 rounded-xl border border-ananas-border hover:border-ananas-500/50 text-gray-300 hover:text-white text-xs flex items-center justify-center gap-2 transition">
         <svg class="w-4 h-4 text-ananas-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
-        <span>وارد کردن کد فعال‌سازی پرو 🔑</span>
+        <span id="actionBtnText">وارد کردن کد فعال‌سازی پرو 🔑</span>
       </button>
     </div>
   </aside>
@@ -298,7 +307,7 @@
             class="w-full bg-transparent text-white placeholder-gray-400 text-sm focus:outline-none resize-none py-2 px-1 max-h-36 leading-relaxed"
           ></textarea>
 
-          <!-- دکمه ارسال (اصلاح جهت با کلاس rotate-180) -->
+          <!-- دکمه ارسال -->
           <button id="sendBtn" type="submit" class="p-2.5 rounded-xl bg-ananas-500 hover:bg-ananas-400 text-ananas-dark font-bold transition shrink-0 flex items-center justify-center shadow-md shadow-ananas-500/20">
             <svg class="w-5 h-5 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
           </button>
@@ -311,7 +320,7 @@
       </div>
     </div>
 
-    <!-- فوتر طراح سایت در جای درست (پایین صفحه چت) -->
+    <!-- فوتر طراح سایت -->
     <footer class="py-2.5 px-4 border-t border-ananas-border bg-ananas-dark text-center text-[11px] text-gray-400">
       <div class="max-w-3xl mx-auto flex items-center justify-center gap-1">
         <span>طراحی و پیاده‌سازی توسط</span>
@@ -322,13 +331,13 @@
     </footer>
   </main>
 
-  <!-- مودال وارد کردن کد فعال‌سازی پرو -->
+  <!-- مودال وارد کردن/مدیریت کد فعال‌سازی پرو -->
   <div id="settingsModal" class="fixed inset-0 bg-black/75 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
     <div class="bg-ananas-card border border-ananas-border rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
       <div class="flex items-center justify-between border-b border-ananas-border pb-3">
         <div class="flex items-center gap-2">
           <span class="text-xl">🔑</span>
-          <h3 class="font-bold text-white text-base">فعال‌سازی اشتراک پرو آناناس</h3>
+          <h3 class="font-bold text-white text-base">مدیریت اشتراک پرو آناناس</h3>
         </div>
         <button onclick="closeSettingsModal()" class="text-gray-400 hover:text-white">✕</button>
       </div>
@@ -340,7 +349,7 @@
 
         <div>
           <label class="block text-gray-300 font-medium mb-1">کد فعال‌سازی پرو:</label>
-          <input id="userTokenInput" type="text" placeholder="مثلاً: pro-user-1405" class="w-full bg-ananas-dark border border-ananas-border rounded-xl px-3 py-2 text-white focus:outline-none focus:border-ananas-500 dir-ltr text-left font-mono" />
+          <input id="userTokenInput" type="text" placeholder="مثلاً: PRO-XXXXX" class="w-full bg-ananas-dark border border-ananas-border rounded-xl px-3 py-2 text-white focus:outline-none focus:border-ananas-500 dir-ltr text-left font-mono" />
         </div>
       </div>
 
@@ -356,7 +365,7 @@
 
   <!-- جاوااسکریپت یکپارچه برنامه -->
   <script>
-    let currentMode = 'chat'; // 'chat' | 'image'
+    let currentMode = 'chat';
     let sessions = JSON.parse(localStorage.getItem('ananas_sessions') || '[]');
     let activeSessionId = null;
     let attachedImage = null;
@@ -374,14 +383,46 @@
       }
     });
 
+    // مدیریت وضعیت حساب و نمایش زمان باقی‌مانده پرو
     function updateAccountStatusBadge() {
       const badge = document.getElementById('accountStatusBadge');
+      const actionBtnText = document.getElementById('actionBtnText');
+      const timeContainer = document.getElementById('proTimeRemainingContainer');
+      const timeText = document.getElementById('proTimeRemainingText');
+
       if (userToken) {
         badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> حساب پرو (Pro)';
-        badge.className = 'flex items-center gap-1.5 text-amber-400 font-medium';
+        badge.className = 'flex items-center gap-1.5 text-amber-400 font-bold';
+        
+        actionBtnText.textContent = 'مدیریت کد فعال‌سازی ⚙️';
+
+        let tokenTimeKey = `ananas_token_time_${userToken}`;
+        let savedTime = localStorage.getItem(tokenTimeKey);
+        
+        if (!savedTime) {
+          savedTime = Date.now();
+          localStorage.setItem(tokenTimeKey, savedTime);
+        }
+
+        const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+        const expireTime = Number(savedTime) + thirtyDaysMs;
+        const timeLeftMs = expireTime - Date.now();
+
+        if (timeLeftMs <= 0) {
+          timeText.textContent = 'مهلت کد به پایان رسیده است';
+          timeContainer.classList.remove('hidden');
+        } else {
+          const daysLeft = Math.floor(timeLeftMs / (1000 * 60 * 60 * 24));
+          const hoursLeft = Math.floor((timeLeftMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          timeText.textContent = `${daysLeft} روز و ${hoursLeft} ساعت باقی‌مانده`;
+          timeContainer.classList.remove('hidden');
+        }
+
       } else {
         badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-gray-400"></span> نسخه رایگان';
         badge.className = 'flex items-center gap-1.5 text-gray-300 font-medium';
+        actionBtnText.textContent = 'وارد کردن کد فعال‌سازی پرو 🔑';
+        timeContainer.classList.add('hidden');
       }
     }
 
@@ -787,19 +828,32 @@
     }
 
     function saveUserToken() {
-      userToken = document.getElementById('userTokenInput').value.trim();
+      const inputVal = document.getElementById('userTokenInput').value.trim();
+      if (!inputVal) return alert('لطفاً کد فعال‌سازی را وارد کنید.');
+      
+      userToken = inputVal;
       localStorage.setItem('ananas_user_token', userToken);
+      
+      // ثبت زمان شروع فعال‌سازی برای محاسبه ۳۰ روز اعتبار
+      if (!localStorage.getItem(`ananas_token_time_${userToken}`)) {
+        localStorage.setItem(`ananas_token_time_${userToken}`, Date.now());
+      }
+
       updateAccountStatusBadge();
       closeSettingsModal();
-      alert(userToken ? 'کد فعال‌سازی با موفقیت ثبت شد!' : 'کد پاک شد.');
+      alert('کد فعال‌سازی پرو با موفقیت اعمال شد!');
     }
 
     function removeUserToken() {
+      if (userToken) {
+        localStorage.removeItem(`ananas_token_time_${userToken}`);
+      }
       userToken = '';
       localStorage.removeItem('ananas_user_token');
       document.getElementById('userTokenInput').value = '';
       updateAccountStatusBadge();
       closeSettingsModal();
+      alert('اشتراک پرو غیرفعال شد و حساب به حالت رایگان بازگشت.');
     }
 
     let escapeHtml = (str) => (str || '').replace(/[&<>"']/g, m => ({
