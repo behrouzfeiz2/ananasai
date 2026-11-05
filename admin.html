@@ -1,4 +1,71 @@
-async function checkLogin() {
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>مدیریت کدهای پرو | آناناس (AnanasAI)</title>
+  
+  <!-- فونت فارسی وزیرمتن -->
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <style>
+    * { font-family: 'Vazirmatn', sans-serif; }
+    body { background-color: #0b0f17; color: #f3f4f6; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+  <!-- کادر ورود به پنل ادمین -->
+  <div id="loginBox" class="bg-[#151c28] border border-[#232f46] p-6 rounded-2xl max-w-sm w-full space-y-4 shadow-2xl">
+    <div class="text-center space-y-1">
+      <span class="text-3xl">🍍</span>
+      <h2 class="text-lg font-bold text-white">ورود به پنل مدیریت آناناس</h2>
+      <p class="text-xs text-gray-400">رمز عبور ادمین را وارد کنید</p>
+    </div>
+    <input id="adminPassInput" type="password" placeholder="رمز عبور ادمین" class="w-full bg-[#0b0f17] border border-[#232f46] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500 text-white">
+    <button onclick="checkLogin()" class="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold py-2.5 rounded-xl text-sm transition shadow-lg shadow-amber-500/20">ورود به پنل</button>
+  </div>
+
+  <!-- محتوای اصلی پنل ادمین -->
+  <div id="panelBox" class="hidden bg-[#151c28] border border-[#232f46] p-6 rounded-2xl max-w-2xl w-full space-y-5 shadow-2xl">
+    <div class="flex items-center justify-between border-b border-[#232f46] pb-4">
+      <div class="flex items-center gap-2">
+        <span class="text-xl">🍍</span>
+        <h2 class="font-bold text-white text-base">مدیریت کدهای پرو (AnanasAI)</h2>
+      </div>
+      <button onclick="loadTokens()" class="text-xs text-amber-400 hover:underline flex items-center gap-1">
+        <span>🔄 بروزرسانی لیست</span>
+      </button>
+    </div>
+
+    <!-- بخش ساخت کد جدید -->
+    <div class="space-y-2">
+      <label class="block text-xs font-medium text-gray-300">ساخت کد فعال‌سازی ۳۰ روزه جدید:</label>
+      <div class="flex gap-2">
+        <input id="newTokenInput" type="text" placeholder="مثلاً: pro-user-1405 یا کد دلخواه" class="flex-1 bg-[#0b0f17] border border-[#232f46] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500 text-white dir-ltr text-left">
+        <button onclick="createToken()" class="bg-amber-500 hover:bg-amber-400 text-black font-bold px-5 py-2 rounded-xl text-sm transition shrink-0 shadow-md">ساخت کد</button>
+      </div>
+    </div>
+
+    <!-- لیست کدها و مدت زمان باقی‌مانده -->
+    <div class="space-y-2">
+      <div class="flex items-center justify-between text-xs text-gray-400 px-1">
+        <span>کدهای فعال پرو</span>
+        <span>وضعیت اعتبار / مدت باقی‌مانده</span>
+      </div>
+      <div class="max-h-72 overflow-y-auto border border-[#232f46] rounded-xl p-2 space-y-2 bg-[#0b0f17]/50" id="tokenList">
+        <!-- لیست کدها اینجا بارگذاری می‌شود -->
+      </div>
+    </div>
+  </div>
+
+  <!-- کدهای اسکریپت با تگ صحیح -->
+  <script>
+    let pass = "";
+
+    async function checkLogin() {
       pass = document.getElementById('adminPassInput').value.trim();
       const res = await fetch('/api/admin/list-tokens', { headers: { 'X-Admin-Password': pass } });
       if (res.ok) {
@@ -74,3 +141,6 @@ async function checkLogin() {
         alert('خطا در ساخت کد. لطفاً دوباره تلاش کنید.');
       }
     }
+  </script>
+</body>
+</html>
