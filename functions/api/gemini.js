@@ -20,7 +20,6 @@ export async function onRequestPost(context) {
     let limitText = 20;
     let limitImage = 4;
 
-    // ۱. بررسی اعتبار کد فعال‌سازی پرو
     if (userToken && userToken.trim() !== "") {
       const cleanToken = userToken.trim();
       const tokenData = await env.ANANAS_KV.get(`token_${cleanToken}`);
@@ -31,17 +30,12 @@ export async function onRequestPost(context) {
         limitImage = 10;
       } else {
         return new Response(
-          JSON.stringify({ 
-            error: { 
-              message: "کد فعال‌سازی نامعتبر یا منقضی شده است. برای تهیه کد پرو به تلگرام @Branex_ir مراجعه کنید." 
-            } 
-          }),
+          JSON.stringify({ error: { message: "کد فعال‌سازی نامعتبر یا منقضی شده است." } }),
           { status: 401, headers: corsHeaders }
         );
       }
     }
 
-    // ۲. سیستم محدودیت روزانه (Rate Limit با Cloudflare KV)
     const today = new Date().toISOString().split('T')[0];
     const storageKey = `usage_${isPro ? 'pro_' : 'free_'}${userToken || clientIP}_${today}`;
     
@@ -49,38 +43,41 @@ export async function onRequestPost(context) {
 
     if (isImageRequest) {
       if (usage.image >= limitImage) {
-        const errMsg = isPro 
-          ? "سهمیه ساخت تصویر پرو امروز شما (۱۰ تصویر) به پایان رسیده است." 
-          : "سهمیه رایگان ساخت تصویر امروز شما (۴ تصویر) تمام شد. برای دسترسی به ۱۰ تصویر روزانه، کد اشتراک پرو را از تلگرام @Branex_ir تهیه کنید.";
-          
-        return new Response(JSON.stringify({ error: { message: errMsg } }), { status: 429, headers: corsHeaders });
+        return new Response(JSON.stringify({ error: { message: "سهمیه ساخت تصویر امروز شما به پایان رسیده است." } }), { status: 429, headers: corsHeaders });
       }
       usage.image += 1;
     } else {
       if (usage.text >= limitText) {
-        const errMsg = isPro 
-          ? "سهمیه پیام‌های پرو امروز شما (۱۰۰ درخواست) به پایان رسیده است." 
-          : "سهمیه رایگان پیام‌های امروز شما (۲۰ درخواست) تمام شد. برای ارتقا به حساب پرو، کد فعال‌سازی را از تلگرام @Branex_ir تهیه کنید.";
-          
-        return new Response(JSON.stringify({ error: { message: errMsg } }), { status: 429, headers: corsHeaders });
+        return new Response(JSON.stringify({ error: { message: "سهمیه پیام‌های امروز شما به پایان رسیده است." } }), { status: 429, headers: corsHeaders });
       }
       usage.text += 1;
     }
 
     await env.ANANAS_KV.put(storageKey, JSON.stringify(usage), { expirationTtl: 86400 });
 
-    // ۳. تنظیم مدل هوشمند (استفاده از مدل ارسالی یا پیش‌فرض gemini-3.5-flash-lite)
-    const selectedModel = model || "gemini-3.5-flash-lite";
-    const googleApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(selectedModel)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+    // لیست مدل‌ها به ترتیب اولویت برای جلوگیری از خطای ترافیک بالا
+    const modelsToTry = [model || "gemini-3.5-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
+    let response = null;
+    let responseDataText = "";
 
-    const response = await fetch(googleApiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+    for (const currentModel of modelsToTry) {
+      const googleApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(currentModel)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      
+      response = await fetch(googleApiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
 
-    const data = await response.text();
-    return new Response(data, { status: response.status, headers: corsHeaders });
+      responseDataText = await response.text();
+
+      // اگر خطا مربوط به شلوغی سرور نبود، از حلقه خارج شو
+      if (response.ok || !responseDataText.includes("high demand")) {
+        break;
+      }
+    }
+
+    return new Response(responseDataText, { status: response.status, headers: corsHeaders });
 
   } catch (err) {
     return new Response(
