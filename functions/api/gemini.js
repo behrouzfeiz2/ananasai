@@ -55,8 +55,8 @@ export async function onRequestPost(context) {
 
     await env.ANANAS_KV.put(storageKey, JSON.stringify(usage), { expirationTtl: 86400 });
 
-    // لیست مدل‌ها به ترتیب اولویت برای جلوگیری از خطای ترافیک بالا
-    const modelsToTry = [model || "gemini-3.5-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
+    // به‌روزرسانی مدل‌ها به نسخه جدید و پایدار gemini-3.8-flash
+    const modelsToTry = [model || "gemini-3.8-flash", "gemini-2.5-flash"];
     let response = null;
     let responseDataText = "";
 
@@ -71,8 +71,8 @@ export async function onRequestPost(context) {
 
       responseDataText = await response.text();
 
-      // اگر خطا مربوط به شلوغی سرور نبود، از حلقه خارج شو
-      if (response.ok || !responseDataText.includes("high demand")) {
+      // اگر پاسخ موفق بود یا خطا مربوط به شلوغی سرور (high demand) نبود، از حلقه خارج شو
+      if (response.ok || (!responseDataText.includes("high demand") && !responseDataText.includes("not available"))) {
         break;
       }
     }
