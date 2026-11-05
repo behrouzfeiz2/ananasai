@@ -148,7 +148,6 @@
             <h1 class="font-bold text-lg tracking-tight text-white">آناناس</h1>
             <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-ananas-500/15 text-ananas-400 border border-ananas-500/30">AnanasAI</span>
           </div>
-          <!-- شعار جدید زیر لوگو -->
           <p class="text-xs text-gray-400">هوش مصنوعی شخصی شما</p>
         </div>
       </div>
@@ -244,7 +243,6 @@
           <h2 class="text-2xl sm:text-3xl font-extrabold text-white">
             سلام! به هوش مصنوعی <span class="text-ananas-400">آناناس</span> خوش آمدید
           </h2>
-          <!-- متن جدید خوش‌آمدگویی -->
           <p class="text-sm text-gray-400 max-w-md mx-auto leading-relaxed">
             دستیار هوشمند شما برای تولید محتوا و کدنویسی
           </p>
@@ -374,8 +372,10 @@
     let attachedImage = null;
     let isGenerating = false;
 
-    // تنظیم مدل روی gemini-3.5-flash-lite
-    let chatModel = 'gemini-3.5-flash-lite';
+    // مدل پیش‌فرض چت و تحلیل تصویر جمنای
+    let chatModel = 'gemini-2.5-flash';
+    // مدل اختصاصی تولید تصویر جمنای در تیر رایگان
+    let imageModel = 'gemini-2.0-flash-exp-image-generation';
     let userToken = localStorage.getItem('ananas_user_token') || '';
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -438,7 +438,6 @@
       if (mode === 'image') {
         imgBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-emerald-500 text-ananas-dark';
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
-        // عبارت جدید برای باکس تصویر
         input.placeholder = 'چه تصویری می‌خواهی آناناس برات درست کنه؟';
         hint.textContent = '🎨 حالت ساخت تصویر فعال است.';
       } else {
@@ -538,7 +537,6 @@
 
       inputEl.value = '';
       inputEl.style.height = 'auto';
-      const currentAttachment = attachedImage;
       removeAttachment();
 
       saveSessions();
@@ -550,19 +548,50 @@
 
       try {
         if (wantImage) {
+          // ارسال درخواست ساخت یا ویرایش تصویر به جمنای
+          const parts = [];
+          if (userMsg.text) {
+            parts.push({ text: `Generate a high-quality image based on this request: ${userMsg.text}` });
+          }
+          if (userMsg.imageData && userMsg.imageMime) {
+            parts.push({ inlineData: { mimeType: userMsg.imageMime, data: userMsg.imageData } });
+          }
+
+          const imagePayload = {
+            contents: [{ role: 'user', parts }],
+            generationConfig: {
+              responseModalities: ['TEXT', 'IMAGE']
+            }
+          };
+
+          const result = await callGeminiAPI(imageModel, imagePayload, true);
+          const candidateParts = result?.candidates?.[0]?.content?.parts || [];
+
+          let generatedImageUrl = null;
+          let replyText = '';
+
+          for (const part of candidateParts) {
+            if (part.inlineData && part.inlineData.data) {
+              const mime = part.inlineData.mimeType || 'image/png';
+              generatedImageUrl = `data:${mime};base64,${part.inlineData.data}`;
+            } else if (part.text) {
+              replyText += part.text + '\n';
+            }
+          }
+
+          if (!generatedImageUrl) {
+            throw new Error(replyText.trim() || 'جمنای تصویری تولید نکرد. لطفاً پرامپت خود را واضح‌تر بنویسید.');
+          }
+
           removeLoadingBubble();
-
-          // استفاده از Pollinations.ai برای تولید تصویر بدون تحریم و خطا
-          const imagePromptEncoded = encodeURIComponent(userText || 'A creative digital art masterpiece');
-          const generatedImageUrl = `https://image.pollinations.ai/prompt/${imagePromptEncoded}?width=1024&height=1024&nologo=true&seed=${Math.floor(Math.random() * 1000000)}`;
-
           currentSession.messages.push({
             role: 'model',
-            text: `تصویر درخواستی شما با موفقیت ساخته شد:`,
+            text: replyText.trim() || 'تصویر درخواستی شما با موفقیت ساخته شد:',
             generatedImage: generatedImageUrl
           });
 
         } else {
+          // حالت گفتگو و تحلیل تصویر
           const historyContents = currentSession.messages.map(m => {
             const parts = [];
             if (m.text) parts.push({ text: m.text });
@@ -713,7 +742,8 @@
             role: m.role,
             text: m.text,
             isError: m.isError,
-            generatedImage: m.generatedImage || null
+            // جلوگیری از پر شدن حافظه localStorage توسط تصاویر سنگین Base64
+            generatedImage: (m.generatedImage && !m.generatedImage.startsWith('data:')) ? m.generatedImage : null
           }))
         }));
         localStorage.setItem('ananas_sessions', JSON.stringify(lightSessions));
