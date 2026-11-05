@@ -4,16 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>مدیریت کدهای پرو | آناناس (AnanasAI)</title>
-  
-  <!-- فونت فارسی وزیرمتن -->
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap" rel="stylesheet">
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <style>
-    * { font-family: 'Vazirmatn', sans-serif; }
-    body { background-color: #0b0f17; color: #f3f4f6; }
-  </style>
+  <style> * { font-family: 'Vazirmatn', sans-serif; } body { background-color: #0b0f17; color: #f3f4f6; } </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center p-4">
 
@@ -40,12 +33,13 @@
       </button>
     </div>
 
-    <!-- بخش ساخت کد جدید -->
+    <!-- بخش ساخت کد رندوم جدید -->
     <div class="space-y-2">
-      <label class="block text-xs font-medium text-gray-300">ساخت کد فعال‌سازی ۳۰ روزه جدید:</label>
+      <label class="block text-xs font-medium text-gray-300">تولید خودکار کد فعال‌سازی ۳۰ روزه:</label>
       <div class="flex gap-2">
-        <input id="newTokenInput" type="text" placeholder="مثلاً: pro-user-1405 یا کد دلخواه" class="flex-1 bg-[#0b0f17] border border-[#232f46] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500 text-white dir-ltr text-left">
-        <button onclick="createToken()" class="bg-amber-500 hover:bg-amber-400 text-black font-bold px-5 py-2 rounded-xl text-sm transition shrink-0 shadow-md">ساخت کد</button>
+        <input id="newTokenInput" type="text" readonly placeholder="روی دکمه تولید کلیک کنید..." class="flex-1 bg-[#0b0f17] border border-[#232f46] rounded-xl px-3 py-2 text-sm text-amber-400 font-mono focus:outline-none dir-ltr text-left">
+        <button onclick="generateRandomCode()" class="bg-gray-700 hover:bg-gray-600 text-white font-bold px-3 py-2 rounded-xl text-xs transition shrink-0">🎲 ساخت رندوم</button>
+        <button onclick="createToken()" class="bg-amber-500 hover:bg-amber-400 text-black font-bold px-4 py-2 rounded-xl text-sm transition shrink-0 shadow-md">ثبت در سیستم</button>
       </div>
     </div>
 
@@ -61,24 +55,34 @@
     </div>
   </div>
 
-  <!-- کدهای اسکریپت با تگ صحیح -->
   <script>
     let pass = "";
 
+    // تولید کد رندوم ۱۰ رقمی/کارکتری
+    function generateRandomCode() {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let result = 'PRO-';
+      for (let i = 0; i < 8; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      document.getElementById('newTokenInput').value = result;
+    }
+
     async function checkLogin() {
       pass = document.getElementById('adminPassInput').value.trim();
-      const res = await fetch('/api/admin/list-tokens', { headers: { 'X-Admin-Password': pass } });
+      const res = await fetch('/api/admin', { headers: { 'X-Admin-Password': pass } });
       if (res.ok) {
         document.getElementById('loginBox').classList.add('hidden');
         document.getElementById('panelBox').classList.remove('hidden');
         loadTokens();
+        generateRandomCode(); // به صورت خودکار یک کد اولیه بسازد
       } else {
         alert('رمز عبور ادمین اشتباه است!');
       }
     }
 
     async function loadTokens() {
-      const res = await fetch('/api/admin/list-tokens', { headers: { 'X-Admin-Password': pass } });
+      const res = await fetch('/api/admin', { headers: { 'X-Admin-Password': pass } });
       const data = await res.json();
       const listEl = document.getElementById('tokenList');
       
@@ -125,18 +129,18 @@
 
     async function createToken() {
       const token = document.getElementById('newTokenInput').value.trim();
-      if (!token) return alert('لطفاً نام یا متن کد را وارد کنید');
+      if (!token) return alert('ابتدا یک کد رندوم تولید کنید');
       
-      const res = await fetch('/api/admin/create-token', {
+      const res = await fetch('/api/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Admin-Password': pass },
         body: JSON.stringify({ token })
       });
       
       if (res.ok) {
-        document.getElementById('newTokenInput').value = '';
         loadTokens();
-        alert('کد فعال‌سازی با موفقیت ساخته شد!');
+        generateRandomCode(); // ساخت خودکار کد بعدی
+        alert('کد فعال‌سازی پرو با موفقیت ساخته شد!');
       } else {
         alert('خطا در ساخت کد. لطفاً دوباره تلاش کنید.');
       }
