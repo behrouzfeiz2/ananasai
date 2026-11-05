@@ -148,7 +148,8 @@
             <h1 class="font-bold text-lg tracking-tight text-white">آناناس</h1>
             <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-ananas-500/15 text-ananas-400 border border-ananas-500/30">AnanasAI</span>
           </div>
-          <p class="text-xs text-gray-400">موتور هوشمند Gemini</p>
+          <!-- تغییر شعار زیر لوگو -->
+          <p class="text-xs text-gray-400">هوش مصنوعی شخصی شما</p>
         </div>
       </div>
       <button onclick="toggleSidebar()" class="lg:hidden text-gray-400 hover:text-white p-1">
@@ -181,14 +182,13 @@
             نسخه رایگان
           </span>
         </div>
-        <!-- مدت زمان باقی‌مانده (فقط برای کاربران پرو) -->
+        <!-- مدت زمان باقی‌مانده -->
         <div id="proTimeRemainingContainer" class="hidden text-[11px] text-amber-400 font-medium pt-1 border-t border-ananas-border/50 flex items-center justify-between">
           <span>⏳ اعتبار پرو:</span>
           <span id="proTimeRemainingText">۳۰ روز باقی‌مانده</span>
         </div>
       </div>
 
-      <!-- دکمه اکانت (تغییر وضعیت بر اساس پرو یا رایگان بودن) -->
       <button id="actionAccountBtn" onclick="openSettingsModal()" class="w-full py-2 px-3 rounded-xl border border-ananas-border hover:border-ananas-500/50 text-gray-300 hover:text-white text-xs flex items-center justify-center gap-2 transition">
         <svg class="w-4 h-4 text-ananas-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
         <span id="actionBtnText">وارد کردن کد فعال‌سازی پرو 🔑</span>
@@ -208,8 +208,9 @@
         <div class="flex items-center gap-2">
           <span class="text-xl">🍍</span>
           <span class="font-bold text-white text-sm sm:text-base">AnanasAI</span>
-          <span id="activeModelTag" class="hidden sm:inline-block text-[11px] bg-ananas-card border border-ananas-border text-gray-300 px-2.5 py-0.5 rounded-full">
-            gemini-2.5-flash
+          <!-- تغییر اسم مدل در بالای صفحه به انگلیسی -->
+          <span id="activeModelTag" class="hidden sm:inline-block text-[11px] bg-ananas-card border border-ananas-border text-gray-300 px-2.5 py-0.5 rounded-full dir-ltr">
+            branex-pro-3.8
           </span>
         </div>
       </div>
@@ -242,8 +243,9 @@
           <h2 class="text-2xl sm:text-3xl font-extrabold text-white">
             سلام! به هوش مصنوعی <span class="text-ananas-400">آناناس</span> خوش آمدید
           </h2>
+          <!-- تغییر متن توضیحی خوش‌آمدگویی -->
           <p class="text-sm text-gray-400 max-w-md mx-auto leading-relaxed">
-          دستیار هوشمند جمنای با قابلیت‌های پیشرفته و اختصاصی برای کاربران فارسی‌زبان  
+            دستیار هوشمند شما برای تولید محتوا و کدنویسی
           </p>
         </div>
 
@@ -281,7 +283,7 @@
             <img id="attachedImgThumb" src="" class="w-11 h-11 rounded-lg object-cover border border-ananas-500/40" alt="پیوست" />
             <div>
               <p id="attachedFileName" class="text-xs font-medium text-white truncate max-w-[200px]"></p>
-              <p class="text-[11px] text-gray-400">آماده ارسال به جمنای</p>
+              <p class="text-[11px] text-gray-400">آماده ارسال</p>
             </div>
           </div>
           <button onclick="removeAttachment()" class="p-1.5 text-gray-400 hover:text-red-400">
@@ -307,9 +309,9 @@
             class="w-full bg-transparent text-white placeholder-gray-400 text-sm focus:outline-none resize-none py-2 px-1 max-h-36 leading-relaxed"
           ></textarea>
 
-          <!-- دکمه ارسال -->
+          <!-- دکمه ارسال با آیکون به سمت بالا (بدون چرخش اضافی یا با فلش به بالا) -->
           <button id="sendBtn" type="submit" class="p-2.5 rounded-xl bg-ananas-500 hover:bg-ananas-400 text-ananas-dark font-bold transition shrink-0 flex items-center justify-center shadow-md shadow-ananas-500/20">
-            <svg class="w-5 h-5 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
           </button>
         </form>
 
@@ -348,6 +350,7 @@
         </div>
 
         <div>
+          <!-- تغییر عبارت باکس مربوط به تصویر در اینجا و بخش‌های مرتبط -->
           <label class="block text-gray-300 font-medium mb-1">کد فعال‌سازی پرو:</label>
           <input id="userTokenInput" type="text" placeholder="مثلاً: PRO-XXXXX" class="w-full bg-ananas-dark border border-ananas-border rounded-xl px-3 py-2 text-white focus:outline-none focus:border-ananas-500 dir-ltr text-left font-mono" />
         </div>
@@ -371,8 +374,9 @@
     let attachedImage = null;
     let isGenerating = false;
 
-    let chatModel = 'gemini-2.5-flash';
-    let imageModel = 'gemini-2.0-flash-preview-image-generation';
+    // به‌روزرسانی مدل پیش‌فرض به نسخه جدید درخواست شده
+    let chatModel = 'gemini-3.8-flash';
+    let imageModel = 'gemini-3.8-flash';
     let userToken = localStorage.getItem('ananas_user_token') || '';
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -383,7 +387,6 @@
       }
     });
 
-    // مدیریت وضعیت حساب و نمایش زمان باقی‌مانده پرو
     function updateAccountStatusBadge() {
       const badge = document.getElementById('accountStatusBadge');
       const actionBtnText = document.getElementById('actionBtnText');
@@ -436,8 +439,9 @@
       if (mode === 'image') {
         imgBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-emerald-500 text-ananas-dark';
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
-        input.placeholder = 'توصیف تصویری که می‌خواهید جمنای بسازد را بنویسید...';
-        hint.textContent = '🎨 حالت ساخت تصویر فعال است؛ تصویر تولیدشده مستقیماً از جمنای تحویل و قابل دانلود می‌شود.';
+        // تغییر عبارت باکس مربوط به تصویر
+        input.placeholder = 'چه تصویری می‌خواهی آناناس برات درست کنه؟';
+        hint.textContent = '🎨 حالت ساخت تصویر فعال است.';
       } else {
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-ananas-500 text-ananas-dark';
         imgBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
@@ -588,7 +592,7 @@
           if (generatedImgBase64) {
             currentSession.messages.push({
               role: 'model',
-              text: accompanyingText.trim() || 'تصویر درخواستی شما با موفقیت توسط جمنای ساخته شد:',
+              text: accompanyingText.trim() || 'تصویر درخواستی شما با موفقیت ساخته شد:',
               generatedImage: `data:${generatedMime};base64,${generatedImgBase64}`
             });
           } else {
@@ -834,7 +838,6 @@
       userToken = inputVal;
       localStorage.setItem('ananas_user_token', userToken);
       
-      // ثبت زمان شروع فعال‌سازی برای محاسبه ۳۰ روز اعتبار
       if (!localStorage.getItem(`ananas_token_time_${userToken}`)) {
         localStorage.setItem(`ananas_token_time_${userToken}`, Date.now());
       }
