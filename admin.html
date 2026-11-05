@@ -2,43 +2,77 @@
 <html lang="fa" dir="rtl" class="dark">
 <head>
   <meta charset="UTF-8">
-  <title>مدیریت کدهای فعال‌سازی | AnanasAI</title>
-  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>مدیریت کدهای پرو | آناناس (AnanasAI)</title>
+  
+  <!-- فونت فارسی وزیرمتن -->
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <style> * { font-family: 'Vazirmatn', sans-serif; } </style>
+  
+  <style>
+    * { font-family: 'Vazirmatn', sans-serif; }
+    body { background-color: #0b0f17; color: #f3f4f6; }
+  </style>
 </head>
-<body class="bg-[#0b0f17] text-white h-screen flex flex-col items-center justify-center p-4">
-  <div id="loginBox" class="bg-[#151c28] border border-[#232f46] p-6 rounded-2xl max-w-sm w-full space-y-4 shadow-xl">
-    <h2 class="text-lg font-bold text-center">ورود به پنل ادمین آناناس</h2>
-    <input id="adminPassInput" type="password" placeholder="رمز عبور ادمین" class="w-full bg-[#0b0f17] border border-[#232f46] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
-    <button onclick="checkLogin()" class="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold py-2 rounded-xl text-sm transition">ورود</button>
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
+
+  <!-- کادر ورود به پنل ادمین -->
+  <div id="loginBox" class="bg-[#151c28] border border-[#232f46] p-6 rounded-2xl max-w-sm w-full space-y-4 shadow-2xl">
+    <div class="text-center space-y-1">
+      <span class="text-3xl">🍍</span>
+      <h2 class="text-lg font-bold text-white">ورود به پنل مدیریت آناناس</h2>
+      <p class="text-xs text-gray-400">رمز عبور ادمین را وارد کنید</p>
+    </div>
+    <input id="adminPassInput" type="password" placeholder="رمز عبور ادمین" class="w-full bg-[#0b0f17] border border-[#232f46] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500 text-white">
+    <button onclick="checkLogin()" class="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold py-2.5 rounded-xl text-sm transition shadow-lg shadow-amber-500/20">ورود به پنل</button>
   </div>
 
-  <div id="panelBox" class="hidden bg-[#151c28] border border-[#232f46] p-6 rounded-2xl max-w-xl w-full space-y-4 shadow-xl">
-    <h2 class="text-lg font-bold flex items-center justify-between">
-      <span>مدیریت کدهای پرو (AnanasAI)</span>
-      <button onclick="loadTokens()" class="text-xs text-amber-400 hover:underline">بروزرسانی لیست</button>
-    </h2>
-    <div class="flex gap-2">
-      <input id="newTokenInput" type="text" placeholder="مثلاً: pro-user-1405" class="flex-1 bg-[#0b0f17] border border-[#232f46] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
-      <button onclick="createToken()" class="bg-amber-500 hover:bg-amber-400 text-black font-bold px-4 py-2 rounded-xl text-sm transition">ساخت کد جدید</button>
+  <!-- محتوای اصلی پنل ادمین -->
+  <div id="panelBox" class="hidden bg-[#151c28] border border-[#232f46] p-6 rounded-2xl max-w-2xl w-full space-y-5 shadow-2xl">
+    <div class="flex items-center justify-between border-b border-[#232f46] pb-4">
+      <div class="flex items-center gap-2">
+        <span class="text-xl">🍍</span>
+        <h2 class="font-bold text-white text-base">مدیریت کدهای پرو (AnanasAI)</h2>
+      </div>
+      <button onclick="loadTokens()" class="text-xs text-amber-400 hover:underline flex items-center gap-1">
+        <span>🔄 بروزرسانی لیست</span>
+      </button>
     </div>
-    <div class="max-h-60 overflow-y-auto border border-[#232f46] rounded-xl p-2 space-y-2" id="tokenList">
-      <!-- لیست کدها اینجا بارگذاری می‌شود -->
+
+    <!-- بخش ساخت کد جدید -->
+    <div class="space-y-2">
+      <label class="block text-xs font-medium text-gray-300">ساخت کد فعال‌سازی ۳۰ روزه جدید:</label>
+      <div class="flex gap-2">
+        <input id="newTokenInput" type="text" placeholder="مثلاً: pro-user-1405 یا کد دلخواه" class="flex-1 bg-[#0b0f17] border border-[#232f46] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500 text-white dir-ltr text-left">
+        <button onclick="createToken()" class="bg-amber-500 hover:bg-amber-400 text-black font-bold px-5 py-2 rounded-xl text-sm transition shrink-0 shadow-md">ساخت کد</button>
+      </div>
+    </div>
+
+    <!-- لیست کدها و مدت زمان باقی‌مانده -->
+    <div class="space-y-2">
+      <div class="flex items-center justify-between text-xs text-gray-400 px-1">
+        <span>کدهای فعال پرو</span>
+        <span>وضعیت اعتبار / مدت باقی‌مانده</span>
+      </div>
+      <div class="max-h-72 overflow-y-auto border border-[#232f46] rounded-xl p-2 space-y-2 bg-[#0b0f17]/50" id="tokenList">
+        <!-- لیست کدها اینجا بارگذاری می‌شود -->
+      </div>
     </div>
   </div>
 
   <script>
     let pass = "";
+
     async function checkLogin() {
-      pass = document.getElementById('adminPassInput').value;
+      pass = document.getElementById('adminPassInput').value.trim();
       const res = await fetch('/api/admin/list-tokens', { headers: { 'X-Admin-Password': pass } });
       if (res.ok) {
         document.getElementById('loginBox').classList.add('hidden');
         document.getElementById('panelBox').classList.remove('hidden');
         loadTokens();
       } else {
-        alert('رمز عبور اشتباه است!');
+        alert('رمز عبور ادمین اشتباه است!');
       }
     }
 
@@ -46,31 +80,67 @@
       const res = await fetch('/api/admin/list-tokens', { headers: { 'X-Admin-Password': pass } });
       const data = await res.json();
       const listEl = document.getElementById('tokenList');
+      
       if (!data.tokens || data.tokens.length === 0) {
-        listEl.innerHTML = '<p class="text-xs text-gray-500 text-center py-4">هنوز کدی ساخته نشده است</p>';
+        listEl.innerHTML = '<p class="text-xs text-gray-500 text-center py-6">هنوز کدی ساخته نشده است</p>';
         return;
       }
-      listEl.innerHTML = data.tokens.map(t => `
-        <div class="flex items-center justify-between bg-[#0b0f17] px-3 py-2 rounded-lg text-xs">
-          <span class="font-mono text-amber-400">${t.name}</span>
-          <span class="text-gray-400">تاریخ ساخت: ${new Date(t.data.created).toLocaleDateString('fa-IR')}</span>
-        </div>
-      `).join('');
+
+      const now = Date.now();
+      const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+
+      listEl.innerHTML = data.tokens.map(t => {
+        const createdTime = t.data.created || now;
+        const expireTime = createdTime + thirtyDaysMs;
+        const timeLeftMs = expireTime - now;
+        
+        let timeRemainingText = '';
+        let badgeColor = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30';
+
+        if (timeLeftMs <= 0) {
+          timeRemainingText = 'منقضی شده';
+          badgeColor = 'text-red-400 bg-red-500/10 border-red-500/30';
+        } else {
+          const daysLeft = Math.floor(timeLeftMs / (1000 * 60 * 60 * 24));
+          const hoursLeft = Math.floor((timeLeftMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+          if (daysLeft > 0) {
+            timeRemainingText = `${daysLeft} روز و ${hoursLeft} ساعت باقی‌مانده`;
+          } else {
+            timeRemainingText = `${hoursLeft} ساعت باقی‌مانده`;
+          }
+        }
+
+        const expireDateStr = new Date(expireTime).toLocaleDateString('fa-IR');
+
+        return `
+          <div class="flex items-center justify-between bg-[#151c28] border border-[#232f46] px-3.5 py-2.5 rounded-xl text-xs">
+            <div>
+              <span class="font-mono text-amber-400 font-bold text-sm tracking-wide">${t.name}</span>
+              <p class="text-[11px] text-gray-400 mt-0.5">انقضا تا: ${expireDateStr}</p>
+            </div>
+            <span class="px-2.5 py-1 rounded-full border text-[11px] font-medium ${badgeColor}">
+              ${timeRemainingText}
+            </span>
+          </div>
+        `;
+      }).join('');
     }
 
     async function createToken() {
       const token = document.getElementById('newTokenInput').value.trim();
-      if (!token) return alert('لطفاً نام کد را وارد کنید');
+      if (!token) return alert('لطفاً نام یا متن کد را وارد کنید');
+      
       const res = await fetch('/api/admin/create-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Admin-Password': pass },
         body: JSON.stringify({ token })
       });
+      
       if (res.ok) {
         document.getElementById('newTokenInput').value = '';
         loadTokens();
       } else {
-        alert('خطا در ساخت کد');
+        alert('خطا در ساخت کد. لطفاً دوباره تلاش کنید.');
       }
     }
   </script>
