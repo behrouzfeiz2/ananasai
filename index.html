@@ -298,7 +298,7 @@
             class="w-full bg-transparent text-white placeholder-gray-400 text-sm focus:outline-none resize-none py-2 px-1 max-h-36 leading-relaxed"
           ></textarea>
 
-          <!-- دکمه ارسال -->
+          <!-- دکمه ارسال (اصلاح جهت با کلاس rotate-180) -->
           <button id="sendBtn" type="submit" class="p-2.5 rounded-xl bg-ananas-500 hover:bg-ananas-400 text-ananas-dark font-bold transition shrink-0 flex items-center justify-center shadow-md shadow-ananas-500/20">
             <svg class="w-5 h-5 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
           </button>
@@ -310,6 +310,16 @@
         </div>
       </div>
     </div>
+
+    <!-- فوتر طراح سایت در جای درست (پایین صفحه چت) -->
+    <footer class="py-2.5 px-4 border-t border-ananas-border bg-ananas-dark text-center text-[11px] text-gray-400">
+      <div class="max-w-3xl mx-auto flex items-center justify-center gap-1">
+        <span>طراحی و پیاده‌سازی توسط</span>
+        <a href="https://branex.ir" target="_blank" class="text-ananas-400 font-bold hover:underline transition">
+          Branex
+        </a>
+      </div>
+    </footer>
   </main>
 
   <!-- مودال وارد کردن کد فعال‌سازی پرو -->
@@ -426,7 +436,6 @@
       document.getElementById('attachmentPreview').classList.add('hidden');
     }
 
-    // ارسال درخواست به بک‌اند کلودفلر همراه با ارسال کد فعال‌سازی توکن کاربر
     async function callGeminiAPI(selectedModel, requestPayload, isImgReq) {
       const headers = {
         'Content-Type': 'application/json'
@@ -793,22 +802,9 @@
       closeSettingsModal();
     }
 
-    function escapeHtml(str) {
-      return (str || '').replace(/[&<>"']/g, m => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-      }[m]));
-    }
+    let escapeHtml = (str) => (str || '').replace(/[&<>"']/g, m => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[m]));
   </script>
-
-  <!-- بخش فوتر / طراح سایت -->
-<footer class="py-4 px-4 border-t border-ananas-border bg-ananas-dark/60 text-center text-xs text-gray-400">
-  <div class="max-w-3xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-1">
-    <span>طراحی و پیاده‌سازی توسط</span>
-    <a href="https://branex.ir" target="_blank" class="text-ananas-400 font-bold hover:underline transition">
-      Branex
-    </a>
-  </div>
-</footer>
-  
 </body>
 </html>
