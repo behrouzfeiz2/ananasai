@@ -258,7 +258,7 @@
             <p class="text-xs text-gray-300">برنامه هفتگی یادگیری پایتون به زبان فارسی</p>
           </button>
 
-          <button onclick="quickPrompt('image', 'A cute futuristic neon pineapple wearing sunglasses on a tropical cyber beach, digital art, high quality')" class="p-3.5 rounded-2xl bg-ananas-card hover:bg-ananas-card/80 border border-ananas-border hover:border-ananas-leaf/50 transition group">
+          <button onclick="quickPrompt('image', 'یک آناناس نئونی آینده‌نگر با عینک دودی در ساحل سایبرپانکی')" class="p-3.5 rounded-2xl bg-ananas-card hover:bg-ananas-card/80 border border-ananas-border hover:border-ananas-leaf/50 transition group">
             <div class="flex items-center justify-between mb-1">
               <span class="text-xs font-bold text-emerald-400">🎨 تولید تصویر هوشمند</span>
               <span class="text-gray-500 group-hover:translate-x-[-3px] transition">←</span>
@@ -372,14 +372,8 @@
     let attachedImage = null;
     let isGenerating = false;
 
-    // مدل پیش‌فرض چت و تحلیل تصویر
-    let chatModel = 'gemini-2.5-flash';
-    // لیست مدل‌های تصویرساز بومی جمنای به ترتیب اولویت (حذف مدل منسوخ شده exp)
-    const imageModels = [
-      'gemini-2.5-flash-image',
-      'gemini-2.5-flash-image-preview',
-      'gemini-2.0-flash-preview-image-generation'
-    ];
+    // مدل پایدار جمنای در تیر رایگان (هم برای چت و هم برای مهندسی پرامپت تصویر)
+    let chatModel = 'gemini-3.8-flash';
     let userToken = localStorage.getItem('ananas_user_token') || '';
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -552,58 +546,33 @@
 
       try {
         if (wantImage) {
-          const parts = [];
-          if (userMsg.text) {
-            parts.push({ text: `Generate a high-quality image: ${userMsg.text}` });
-          }
+          // مرحله ۱: ارسال به جمنای با پرچم isImageRequest=true
+          // هم سهمیه عکس کاربر در gemini.js بررسی و کسر می‌شود، هم پرامپت فارسی (یا عکس پیوست‌شده) توسط جمنای به یک پرامپت حرفه‌ای انگلیسی تبدیل می‌گردد
+          const promptParts = [];
           if (userMsg.imageData && userMsg.imageMime) {
-            parts.push({ inlineData: { mimeType: userMsg.imageMime, data: userMsg.imageData } });
+            promptParts.push({ inlineData: { mimeType: userMsg.imageMime, data: userMsg.imageData } });
           }
+          promptParts.push({
+            text: `Convert the following user request (and attached image if any) into a single, detailed, high-quality English image generation prompt (max 45 words, cinematic lighting, 8k, masterpiece). Output ONLY the English prompt without quotes or extra explanation:\n\nUser request: ${userMsg.text || 'Recreate this image in high quality digital art style'}`
+          });
 
-          const imagePayload = {
-            contents: [{ role: 'user', parts }],
-            generationConfig: {
-              responseModalities: ['TEXT', 'IMAGE']
-            }
+          const promptEnhancerPayload = {
+            contents: [{ role: 'user', parts: promptParts }]
           };
 
-          let generatedImageUrl = null;
-          let replyText = '';
-          let lastError = null;
+          // فراخوانی API جمنای با isImageRequest = true برای اعمال محدودیت سهمیه عکس در سرور
+          const geminiRes = await callGeminiAPI(chatModel, promptEnhancerPayload, true);
+          const enhancedPrompt = geminiRes?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || userMsg.text || 'A creative digital art masterpiece';
 
-          // تست ترتیبی مدل‌های تصویرساز جمنای برای جلوگیری از خطای 404
-          for (const modelName of imageModels) {
-            try {
-              const result = await callGeminiAPI(modelName, imagePayload, true);
-              const candidateParts = result?.candidates?.[0]?.content?.parts || [];
-
-              for (const part of candidateParts) {
-                if (part.inlineData && part.inlineData.data) {
-                  const mime = part.inlineData.mimeType || 'image/png';
-                  generatedImageUrl = `data:${mime};base64,${part.inlineData.data}`;
-                } else if (part.text) {
-                  replyText += part.text + '\n';
-                }
-              }
-
-              if (generatedImageUrl) break;
-            } catch (err) {
-              lastError = err;
-              // اگر خطا مربوط به اتمام سهمیه روزانه یا توکن کاربر در KV بود، حلقه متوقف شود
-              if (err.message && (err.message.includes('سهمیه') || err.message.includes('کد فعال‌سازی') || err.message.includes('محدودیت'))) {
-                throw err;
-              }
-            }
-          }
-
-          if (!generatedImageUrl) {
-            throw new Error(lastError ? lastError.message : 'مدل تصویرساز جمنای پاسخ نداد.');
-          }
+          // مرحله ۲: رندر تصویر با کیفیت بالا بر اساس پرامپت مهندسی‌شده توسط جمنای
+          const seed = Math.floor(Math.random() * 1000000);
+          const encodedPrompt = encodeURIComponent(enhancedPrompt);
+          const generatedImageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&model=flux&seed=${seed}`;
 
           removeLoadingBubble();
           currentSession.messages.push({
             role: 'model',
-            text: replyText.trim() || 'تصویر درخواستی شما با موفقیت ساخته شد:',
+            text: `✨ **تصویر درخواستی شما با موتور هوشمند آناناس ساخته شد:**`,
             generatedImage: generatedImageUrl
           });
 
@@ -716,7 +685,7 @@
       bubble.innerHTML = `
         <div class="rounded-2xl bg-ananas-card border border-ananas-border px-4 py-3 text-xs text-gray-300 flex items-center gap-2.5">
           <span class="text-lg animate-bounce">🍍</span>
-          <span>${isImage ? 'آناناس در حال خلق تصویر است...' : 'آناناس در حال نوشتن پاسخ است...'}</span>
+          <span>${isImage ? 'آناناس در حال پردازش پرامپت و خلق تصویر است...' : 'آناناس در حال نوشتن پاسخ است...'}</span>
         </div>
       `;
       container.appendChild(bubble);
@@ -759,7 +728,6 @@
             role: m.role,
             text: m.text,
             isError: m.isError,
-            // جلوگیری از پر شدن حافظه localStorage توسط تصاویر سنگین Base64
             generatedImage: (m.generatedImage && !m.generatedImage.startsWith('data:')) ? m.generatedImage : null
           }))
         }));
