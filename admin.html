@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <title>مدیریت کدهای فعال‌سازی | AnanasAI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style> * { font-family: 'Vazirmatn', sans-serif; } </style>
+</head>
+<body class="bg-[#0b0f17] text-white h-screen flex flex-col items-center justify-center p-4">
+  <div id="loginBox" class="bg-[#151c28] border border-[#232f46] p-6 rounded-2xl max-w-sm w-full space-y-4 shadow-xl">
+    <h2 class="text-lg font-bold text-center">ورود به پنل ادمین آناناس</h2>
+    <input id="adminPassInput" type="password" placeholder="رمز عبور ادمین" class="w-full bg-[#0b0f17] border border-[#232f46] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+    <button onclick="checkLogin()" class="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold py-2 rounded-xl text-sm transition">ورود</button>
+  </div>
+
+  <div id="panelBox" class="hidden bg-[#151c28] border border-[#232f46] p-6 rounded-2xl max-w-xl w-full space-y-4 shadow-xl">
+    <h2 class="text-lg font-bold flex items-center justify-between">
+      <span>مدیریت کدهای پرو (AnanasAI)</span>
+      <button onclick="loadTokens()" class="text-xs text-amber-400 hover:underline">بروزرسانی لیست</button>
+    </h2>
+    <div class="flex gap-2">
+      <input id="newTokenInput" type="text" placeholder="مثلاً: pro-user-1405" class="flex-1 bg-[#0b0f17] border border-[#232f46] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-500">
+      <button onclick="createToken()" class="bg-amber-500 hover:bg-amber-400 text-black font-bold px-4 py-2 rounded-xl text-sm transition">ساخت کد جدید</button>
+    </div>
+    <div class="max-h-60 overflow-y-auto border border-[#232f46] rounded-xl p-2 space-y-2" id="tokenList">
+      <!-- لیست کدها اینجا بارگذاری می‌شود -->
+    </div>
+  </div>
+
+  <script>
+    let pass = "";
+    async function checkLogin() {
+      pass = document.getElementById('adminPassInput').value;
+      const res = await fetch('/api/admin/list-tokens', { headers: { 'X-Admin-Password': pass } });
+      if (res.ok) {
+        document.getElementById('loginBox').classList.add('hidden');
+        document.getElementById('panelBox').classList.remove('hidden');
+        loadTokens();
+      } else {
+        alert('رمز عبور اشتباه است!');
+      }
+    }
+
+    async function loadTokens() {
+      const res = await fetch('/api/admin/list-tokens', { headers: { 'X-Admin-Password': pass } });
+      const data = await res.json();
+      const listEl = document.getElementById('tokenList');
+      if (!data.tokens || data.tokens.length === 0) {
+        listEl.innerHTML = '<p class="text-xs text-gray-500 text-center py-4">هنوز کدی ساخته نشده است</p>';
+        return;
+      }
+      listEl.innerHTML = data.tokens.map(t => `
+        <div class="flex items-center justify-between bg-[#0b0f17] px-3 py-2 rounded-lg text-xs">
+          <span class="font-mono text-amber-400">${t.name}</span>
+          <span class="text-gray-400">تاریخ ساخت: ${new Date(t.data.created).toLocaleDateString('fa-IR')}</span>
+        </div>
+      `).join('');
+    }
+
+    async function createToken() {
+      const token = document.getElementById('newTokenInput').value.trim();
+      if (!token) return alert('لطفاً نام کد را وارد کنید');
+      const res = await fetch('/api/admin/create-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Password': pass },
+        body: JSON.stringify({ token })
+      });
+      if (res.ok) {
+        document.getElementById('newTokenInput').value = '';
+        loadTokens();
+      } else {
+        alert('خطا در ساخت کد');
+      }
+    }
+  </script>
+</body>
+</html>
