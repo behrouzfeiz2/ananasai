@@ -347,7 +347,6 @@
     const chatModel = 'gemini-3.5-flash-lite';
     let userToken = localStorage.getItem('ananas_user_token') || '';
 
-    // تولید یا دریافت شناسه یکتای دیوایس (UUID) از LocalStorage
     let deviceUUID = localStorage.getItem('ananas_device_uuid') || '';
     if (!deviceUUID) {
       deviceUUID = 'dev_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
@@ -644,7 +643,7 @@
       renderMessages();
       renderHistoryList();
 
-      // بررسی سوالات بازار و نرخ ارز
+      // بررسی سوالات بازار و نرخ ارز (بدون مصرف سهمیه جمنای)
       const lowerText = userText.toLowerCase();
       const isMarketQuery = 
         lowerText.includes('دلار') || 
@@ -664,10 +663,10 @@
           
           removeLoadingBubble();
 
-          let replyText = "📊 **آخرین نرخ‌های بازار (برگرفته از منابع زنده):**\n\n";
+          let replyText = "📊 **آخرین نرخ‌های بازار:**\n\n";
           if (marketResult.success && marketResult.data && marketResult.data.items) {
             marketResult.data.items.forEach(item => {
-              replyText += `🔹 **${item.title}:** ${item.price} (${item.change})\n`;
+              replyText += `🔹 **${item.title}:** ${item.price} ${item.unit}\n`;
             });
             replyText += `\n⏱ *به‌روزرسانی: ${marketResult.data.updated_at}*`;
           } else {
