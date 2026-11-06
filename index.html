@@ -6,6 +6,8 @@
   <title>آناناس | دستیار هوشمند و کدنویس (AnanasAI)</title>
   
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍍</text></svg>">
+  <link rel="canonical" href="https://ananas.ai/home" />
+  <meta name="robots" content="noindex, follow" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -120,7 +122,7 @@
     
     <div class="p-4 border-b border-ananas-border flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <div class="relative w-11 h-11 rounded-2xl bg-gradient-to-tr from-ananas-600 via-ananas-400 to-ananas-leaf p-0.5 shadow-lg shadow-ananas-500/20">
+        <a href="home.html" class="relative w-11 h-11 rounded-2xl bg-gradient-to-tr from-ananas-600 via-ananas-400 to-ananas-leaf p-0.5 shadow-lg shadow-ananas-500/20 block">
           <div class="w-full h-full bg-ananas-dark rounded-[14px] flex items-center justify-center">
             <svg class="w-7 h-7" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M32 6C28 14 22 16 18 15C22 20 26 22 32 22C38 22 42 20 46 15C42 16 36 14 32 6Z" fill="#10B981"/>
@@ -135,10 +137,10 @@
               </defs>
             </svg>
           </div>
-        </div>
+        </a>
         <div>
           <div class="flex items-center gap-1.5">
-            <h1 class="font-bold text-lg tracking-tight text-white">آناناس</h1>
+            <a href="home.html" class="font-bold text-lg tracking-tight text-white hover:text-ananas-400 transition">آناناس</a>
             <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-ananas-500/15 text-ananas-400 border border-ananas-500/30">AnanasAI</span>
           </div>
           <p class="text-xs text-gray-400">هوش مصنوعی شخصی شما</p>
@@ -149,11 +151,14 @@
       </button>
     </div>
 
-    <div class="p-3">
+    <div class="p-3 space-y-2">
       <button onclick="startNewChat()" class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-l from-ananas-500 to-ananas-600 hover:from-ananas-400 hover:to-ananas-500 text-ananas-dark font-bold text-sm shadow-lg shadow-ananas-500/15 flex items-center justify-center gap-2 transition">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 4v16m8-8H4"/></svg>
         <span>گفتگوی تازه با آناناس</span>
       </button>
+      <a href="home.html" class="w-full py-2 px-3 rounded-xl bg-ananas-dark border border-ananas-border hover:border-ananas-500/50 text-gray-300 hover:text-white text-xs flex items-center justify-center gap-2 transition">
+        <span>🏠 صفحه اصلی (Home)</span>
+      </a>
     </div>
 
     <div class="px-3 py-1 text-xs font-medium text-gray-400 flex items-center justify-between">
@@ -187,6 +192,11 @@
           <span id="proTimeRemainingText">۳۰ روز باقی‌مانده</span>
         </div>
       </div>
+
+      <!-- دکمه ارتقا به حساب پرو در حالت رایگان (لینک به pro.html) -->
+      <a id="upgradeProLinkBtn" href="pro.html" class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-l from-ananas-500 to-ananas-400 hover:from-ananas-400 hover:to-ananas-500 text-ananas-dark font-extrabold text-xs flex items-center justify-center gap-2 transition shadow-md shadow-ananas-500/15">
+        <span>🚀 ارتقا به حساب پرو</span>
+      </a>
 
       <button id="actionAccountBtn" onclick="openSettingsModal()" class="w-full py-2 px-3 rounded-xl border border-ananas-border hover:border-ananas-500/50 text-gray-300 hover:text-white text-xs flex items-center justify-center gap-2 transition">
         <svg class="w-4 h-4 text-ananas-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
@@ -264,12 +274,10 @@
           
           <input type="file" id="fileInput" accept="image/*,.txt,.js,.py,.html,.css,.json,.pdf,.php,.sql,.cs,.cpp,.java,.ts,.md" class="hidden" onchange="handleFileSelect(event)" />
           
-          <!-- دکمه پیوست فایل -->
           <button type="button" onclick="triggerAttachmentClick()" title="پیوست فایل و بررسی کد (ویژه حساب پرو)" class="p-2.5 rounded-xl text-gray-400 hover:text-ananas-400 hover:bg-ananas-dark/60 transition shrink-0 relative">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
           </button>
 
-          <!-- دکمه تایپ صوتی (میکروفون) -->
           <button type="button" id="micBtn" onclick="toggleSpeechRecognition()" title="تایپ صوتی" class="p-2.5 rounded-xl text-gray-400 hover:text-ananas-400 hover:bg-ananas-dark/60 transition shrink-0 relative">
             <svg id="micIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
           </button>
@@ -407,6 +415,7 @@
       const quotaCounterText = document.getElementById('quotaCounterText');
       const quotaProgressBar = document.getElementById('quotaProgressBar');
       const coderLockIcon = document.getElementById('coderLockIcon');
+      const upgradeBtn = document.getElementById('upgradeProLinkBtn');
 
       const isProActive = Boolean(userToken) && quotaState.isPro !== false;
       const limit = isProActive ? 100 : 10;
@@ -421,6 +430,7 @@
         badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> حساب پرو (Pro)';
         badge.className = 'flex items-center gap-1.5 text-amber-400 font-bold';
         actionBtnText.textContent = 'مدیریت کد فعال‌سازی ⚙️';
+        if (upgradeBtn) upgradeBtn.classList.add('hidden'); // پنهان کردن دکمه ارتقا برای کاربران پرو
         if (coderLockIcon) coderLockIcon.classList.add('hidden');
 
         let tokenTimeKey = `ananas_token_time_${userToken}`;
@@ -444,9 +454,10 @@
           timeContainer.classList.remove('hidden');
         }
       } else {
-        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-gray-400"></span> نسخه رایگان (دیوایس)';
+        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-gray-400"></span> نسخه رایگان';
         badge.className = 'flex items-center gap-1.5 text-gray-300 font-medium';
         actionBtnText.textContent = 'وارد کردن کد فعال‌سازی پرو 🔑';
+        if (upgradeBtn) upgradeBtn.classList.remove('hidden'); // نمایش دکمه ارتقا در نسخه رایگان
         timeContainer.classList.add('hidden');
         if (coderLockIcon) coderLockIcon.classList.remove('hidden');
 
@@ -569,7 +580,6 @@
       document.getElementById('attachmentPreview').classList.add('hidden');
     }
 
-    // ==================== قابلیت تایپ صوتی (Speech-to-Text) ====================
     let recognition = null;
     let isRecording = false;
 
@@ -590,7 +600,7 @@
       }
 
       recognition = new SpeechRecognition();
-      recognition.lang = 'fa-IR'; // تنظیم زبان روی فارسی
+      recognition.lang = 'fa-IR';
       recognition.continuous = false; 
       recognition.interimResults = true; 
 
@@ -645,7 +655,6 @@
         inputEl.placeholder = 'پیام خود را برای آناناس بنویسید (یا صحبت کنید)...';
       }
     }
-    // =========================================================================
 
     async function callGeminiAPI(selectedModel, requestPayload) {
       const headers = { 
@@ -730,7 +739,6 @@
 
       const lowerText = userText.toLowerCase();
 
-      // ۱. بررسی هوشمند برای سوالات خبری و رویدادهای روز
       const isNewsQuery = 
         lowerText.includes('خبر') || 
         lowerText.includes('انتخابات') || 
@@ -774,7 +782,6 @@
         return;
       }
 
-      // ۲. بررسی سوالات بازار و نرخ ارز (بدون مصرف سهمیه جمنای)
       const isMarketQuery = 
         lowerText.includes('دلار') || 
         lowerText.includes('طلا') || 
@@ -786,7 +793,7 @@
 
       if (isMarketQuery && !attachedFile) {
         isGenerating = true;
-        appendLoadingBubble(false, true); // فعال‌سازی لودینگ مخصوص استعلام بازار
+        appendLoadingBubble(false, true);
         try {
           const res = await fetch('/api/nerkh');
           const marketResult = await res.json();
