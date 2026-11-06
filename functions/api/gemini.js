@@ -1,16 +1,16 @@
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, X-User-Token",
+  "Access-Control-Allow-Headers": "Content-Type, X-User-Token, X-Device-UUID",
   "Content-Type": "application/json; charset=utf-8"
 };
 
 async function getUserStatusAndQuota(request, env) {
-  const clientIP = request.headers.get("CF-Connecting-IP") || "unknown";
   const userToken = (request.headers.get("X-User-Token") || "").trim();
+  const deviceUUID = (request.headers.get("X-Device-UUID") || "unknown_device").trim();
 
   let isPro = false;
-  let limitText = 10; // سهمیه روزانه اکانت رایگان: ۱۰ پیام
+  let limitText = 10; // سهمیه روزانه اکانت رایگان بر اساس دیوایس: ۱۰ پیام
 
   if (userToken !== "") {
     if (env.ANANAS_KV) {
@@ -25,7 +25,8 @@ async function getUserStatusAndQuota(request, env) {
   }
 
   const today = new Date().toISOString().split("T")[0];
-  const storageKey = `usage_${isPro ? "pro_" : "free_"}${isPro ? userToken : clientIP}_${today}`;
+  // کلید ذخیره‌سازی در KV: برای پرو بر اساس توکن، برای رایگان بر اساس UUID یکتای دیوایس
+  const storageKey = `usage_${isPro ? "pro_" : "device_"}${isPro ? userToken : deviceUUID}_${today}`;
 
   let usedText = 0;
   if (env.ANANAS_KV) {
@@ -46,7 +47,6 @@ async function getUserStatusAndQuota(request, env) {
   };
 }
 
-// دریافت وضعیت اکانت و سهمیه مصرف‌شده هنگام باز شدن صفحه
 export async function onRequestGet(context) {
   const { request, env } = context;
   try {
@@ -76,7 +76,6 @@ export async function onRequestGet(context) {
   }
 }
 
-// ارسال پیام و بررسی محدودیت‌های اکانت رایگان و پرو
 export async function onRequestPost(context) {
   const { request, env } = context;
 
@@ -100,12 +99,10 @@ export async function onRequestPost(context) {
       );
     }
 
-    // بررسی وجود فایل ضمیمه در پیام ارسالی
     const hasAttachment = (payload?.contents || []).some(c =>
       (c.parts || []).some(p => p.inlineData)
     );
 
-    // محدودیت امنیتی سمت سرور: ضمیمه فایل و بخش کدنویس فقط برای کاربران پرو
     if (!quota.isPro && (hasAttachment || mode === "coder")) {
       return new Response(
         JSON.stringify({
@@ -116,7 +113,6 @@ export async function onRequestPost(context) {
       );
     }
 
-    // بررسی اتمام سهمیه پیام روزانه
     if (quota.usedText >= quota.limitText) {
       return new Response(
         JSON.stringify({
@@ -153,7 +149,6 @@ export async function onRequestPost(context) {
       return new Response(responseText, { status: response.status, headers: corsHeaders });
     }
 
-    // اگر پاسخ گوگل موفقیت‌آمیز بود، ۱ واحد به مصرف روزانه اضافه کن
     if (response.ok) {
       quota.usedText += 1;
       if (env.ANANAS_KV) {
@@ -163,7 +158,6 @@ export async function onRequestPost(context) {
       }
     }
 
-    // ارسال اطلاعات به‌روز سهمیه همراه با پاسخ گوگل به فرانت‌اند
     responseJson.quota = {
       isPro: quota.isPro,
       used: quota.usedText,
