@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>تشکر از پرداخت و ثبت سفارش | آناناس (AnanasAI)</title>
+  
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍍</text></svg>">
+  <meta name="robots" content="noindex, nofollow" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Vazirmatn', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            ananas: {
+              50: '#fffbeb',
+              100: '#fef3c7',
+              400: '#fbbf24',
+              500: '#f59e0b',
+              600: '#d97706',
+              leaf: '#10b981',
+              dark: '#0b0f17',
+              card: '#151c28',
+              border: '#232f46'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    * {
+      font-family: 'Vazirmatn', sans-serif;
+      box-sizing: border-box;
+    }
+    body {
+      background-color: #0b0f17;
+      color: #f3f4f6;
+      overflow-x: hidden;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0f17;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #232f46;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #f59e0b;
+    }
+    .success-glow {
+      box-shadow: 0 0 55px -12px rgba(16, 185, 129, 0.25);
+    }
+    @keyframes pulse-ring {
+      0% { transform: scale(0.9); opacity: 0.8; }
+      70% { transform: scale(1.25); opacity: 0; }
+      100% { transform: scale(1.25); opacity: 0; }
+    }
+    .animate-ring::before {
+      content: '';
+      position: absolute;
+      inset: -8px;
+      border-radius: 9999px;
+      border: 2px solid #10b981;
+      animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between relative">
+
+  <!-- افکت نوری پس‌زمینه -->
+  <div class="fixed top-0 left-1/2 -translate-x-1/2 w-[550px] h-[300px] bg-emerald-500/10 blur-[130px] pointer-events-none -z-10"></div>
+  <div class="fixed bottom-0 left-1/2 -translate-x-1/2 w-[450px] h-[250px] bg-ananas-500/10 blur-[130px] pointer-events-none -z-10"></div>
+
+  <!-- پوشش تیره منوی موبایل -->
+  <div id="menuOverlay" onclick="toggleMobileMenu(false)" class="fixed inset-0 bg-black/70 backdrop-blur-xs z-40 hidden transition-opacity"></div>
+
+  <!-- منوی کشویی همبرگری -->
+  <aside id="mobileDrawer" class="fixed top-0 right-0 bottom-0 w-72 bg-ananas-card border-l border-ananas-border z-50 transform translate-x-full transition-transform duration-300 flex flex-col justify-between p-5">
+    <div class="space-y-6">
+      <div class="flex items-center justify-between border-b border-ananas-border pb-4">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-ananas-dark border border-ananas-500/40 flex items-center justify-center text-xl">🍍</div>
+          <div>
+            <span class="font-extrabold text-white text-base">آناناس</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-ananas-500/15 text-ananas-400 border border-ananas-500/30 font-bold mr-1">AnanasAI</span>
+          </div>
+        </div>
+        <button onclick="toggleMobileMenu(false)" class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-ananas-dark">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <nav class="space-y-2 text-sm font-medium">
+        <a href="home.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-300 hover:bg-ananas-dark hover:text-white transition">
+          <span>🏠</span>
+          <span>صفحه اصلی (Home)</span>
+        </a>
+        <a href="index.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-300 hover:bg-ananas-dark hover:text-white transition">
+          <span>💬</span>
+          <span>ورود به محیط چت و کدنویس</span>
+        </a>
+        <a href="pro.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-ananas-500/15 text-amber-400 border border-amber-500/30 font-bold">
+          <span>🚀</span>
+          <span>خرید اکانت پرو و دانلود اپ</span>
+        </a>
+        <a href="about.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-300 hover:bg-ananas-dark hover:text-white transition">
+          <span>ℹ️</span>
+          <span>درباره آناناس AI</span>
+        </a>
+      </nav>
+    </div>
+
+    <div class="space-y-3 pt-4 border-t border-ananas-border">
+      <a href="index.html" class="w-full py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs flex items-center justify-center gap-2 transition">
+        <span>رایگان شروع کنید</span>
+      </a>
+      <a href="home.html" class="w-full py-2.5 px-4 rounded-xl bg-ananas-card border border-ananas-border text-gray-300 text-xs flex items-center justify-center gap-2 transition">
+        <span>بازگشت به خانه</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- هدر صفحه -->
+  <header class="h-16 border-b border-ananas-border px-4 lg:px-12 flex items-center justify-between bg-ananas-dark/80 backdrop-blur-md sticky top-0 z-30">
+    <div class="flex items-center gap-3">
+      <button onclick="toggleMobileMenu(true)" aria-label="منو" class="p-2 rounded-xl bg-ananas-card hover:bg-ananas-border/70 border border-ananas-border text-gray-200 transition flex items-center justify-center">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+
+      <a href="home.html" class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-ananas-card border border-ananas-500/40 flex items-center justify-center text-xl shadow">
+          🍍
+        </div>
+        <div>
+          <span class="font-bold text-white text-base">آناناس</span>
+          <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-ananas-500/15 text-ananas-400 border border-ananas-500/30 mr-1">AnanasAI</span>
+        </div>
+      </a>
+    </div>
+
+    <nav class="hidden md:flex items-center gap-6 text-xs font-bold text-gray-300">
+      <a href="home.html" class="hover:text-white transition">صفحه اصلی</a>
+      <a href="index.html" class="hover:text-white transition">محیط چت</a>
+      <a href="pro.html" class="text-amber-400">نسخه پرو</a>
+      <a href="about.html" class="hover:text-white transition">درباره ما</a>
+    </nav>
+
+    <a href="index.html" class="px-4 py-2 rounded-xl bg-ananas-card hover:bg-ananas-border/60 border border-ananas-border text-xs font-bold text-gray-200 flex items-center gap-2 transition">
+      <span>محیط چت</span>
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+    </a>
+  </header>
+
+  <!-- محتوای اصلی تشکر از پرداخت -->
+  <main class="max-w-2xl w-full mx-auto px-4 py-10 sm:py-14 flex items-center justify-center">
+    
+    <div class="w-full rounded-3xl bg-gradient-to-b from-[#182334] to-ananas-card border-2 border-emerald-500/40 p-6 sm:p-10 text-center space-y-7 success-glow relative overflow-hidden">
+      
+      <!-- آیکون تیک سبز متحرک -->
+      <div class="relative w-20 h-20 mx-auto rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center text-emerald-400 animate-ring">
+        <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.8" d="M5 13l4 4L19 7"/>
+        </svg>
+      </div>
+
+      <!-- عنوان و پیام تشکر -->
+      <div class="space-y-2.5">
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-bold">
+          <span>🍍</span>
+          <span>اطلاعات پرداخت با موفقیت ثبت شد</span>
+        </div>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-white">
+          از خرید و اعتماد شما سپاسگزاریم!
+        </h1>
+        <p class="text-xs sm:text-sm text-gray-300 leading-relaxed max-w-lg mx-auto">
+          مشخصات واریزی شما برای اشتراک <b class="text-ananas-400">آناناس پرو (450.000 تومان)</b> با موفقیت در سیستم ثبت گردید.
+        </p>
+      </div>
+
+      <!-- باکس توضیح پردازش خودکار ربات و ارسال پیامک -->
+      <div class="rounded-2xl bg-ananas-dark/80 border border-ananas-border p-5 text-right space-y-4">
+        
+        <div class="flex items-start gap-3.5">
+          <div class="w-10 h-10 rounded-xl bg-ananas-500/15 border border-ananas-500/30 flex items-center justify-center text-xl shrink-0">
+            🤖
+          </div>
+          <div class="space-y-1">
+            <h2 class="text-sm font-extrabold text-white">پردازش خودکار توسط ربات (۱ الی ۴ ساعت)</h2>
+            <p class="text-xs text-gray-300 leading-relaxed">
+              تمامی واریزی‌ها بین <b class="text-ananas-400">۱ الی ۴ ساعت</b> توسط ربات هوشمند به صورت کاملاً خودکار استعلام و پردازش می‌شوند.
+            </p>
+          </div>
+        </div>
+
+        <div class="border-t border-ananas-border/70 pt-4 flex items-start gap-3.5">
+          <div class="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-xl shrink-0">
+            💬
+          </div>
+          <div class="space-y-1">
+            <h2 class="text-sm font-extrabold text-white">ارسال پیامکی کد فعال‌سازی حالت پرو</h2>
+            <p class="text-xs text-gray-300 leading-relaxed">
+              بلافاصله پس از تایید تراکنش، <b class="text-emerald-400">کد فعال‌سازی حالت پرو (Token)</b> به شماره همراهی که در فرم وارد کرده‌اید <span id="userPhoneBadge" class="font-mono text-ananas-400 font-bold" dir="ltr"></span> پیامک خواهد شد.
+            </p>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- خلاصه اطلاعات ثبت شده کاربر (در صورت وجود در مرورگر) -->
+      <div id="receiptSummary" class="hidden rounded-2xl bg-ananas-card/90 border border-ananas-border px-4 py-3 text-xs text-gray-300 flex-wrap items-center justify-between gap-2">
+        <div>نام واریزکننده: <b id="summaryName" class="text-white">---</b></div>
+        <div>شماره همراه: <b id="summaryPhone" dir="ltr" class="text-emerald-400 font-mono">---</b></div>
+        <div>مبلغ: <b class="text-ananas-400">450.000 تومان</b></div>
+      </div>
+
+      <!-- راهنمای نحوه استفاده از کد -->
+      <p class="text-[11px] sm:text-xs text-gray-400 leading-relaxed">
+        پس از دریافت پیامک حاوی کد فعال‌سازی، کافی است وارد <a href="index.html" class="text-ananas-400 font-bold hover:underline">محیط چت آناناس</a> شوید و در بخش <b>«مدیریت اشتراک پرو»</b> کد خود را وارد کنید.
+      </p>
+
+      <!-- دکمه‌های بازگشت -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+        <a href="index.html" class="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-l from-ananas-500 to-ananas-400 hover:from-ananas-400 hover:to-ananas-500 text-ananas-dark font-extrabold text-xs sm:text-sm shadow-lg shadow-ananas-500/20 flex items-center justify-center gap-2 transition">
+          <span>ورود به محیط چت و کدنویس</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+        </a>
+        <a href="home.html" class="w-full py-3.5 px-5 rounded-2xl bg-ananas-dark hover:bg-ananas-border/60 border border-ananas-border text-gray-200 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition">
+          <span>بازگشت به صفحه اصلی</span>
+        </a>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- فوتر -->
+  <footer class="py-3.5 px-4 border-t border-ananas-border bg-ananas-dark text-center text-xs text-gray-400 shrink-0">
+    <div class="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div class="flex items-center justify-center gap-1">
+        <span>طراحی و پیاده‌سازی توسط</span>
+        <a href="https://branex.ir" target="_blank" class="text-ananas-400 font-bold hover:underline transition">
+          Branex
+        </a>
+      </div>
+      <div class="flex items-center gap-4 text-[11px] text-gray-400">
+        <a href="home.html" class="hover:text-white transition">صفحه اصلی</a>
+        <span>•</span>
+        <a href="index.html" class="hover:text-white transition">محیط چت</a>
+        <span>•</span>
+        <a href="about.html" class="hover:text-white transition">درباره ما</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    function toggleMobileMenu(show) {
+      const drawer = document.getElementById('mobileDrawer');
+      const overlay = document.getElementById('menuOverlay');
+      if (show) {
+        drawer.classList.remove('translate-x-full');
+        overlay.classList.remove('hidden');
+      } else {
+        drawer.classList.add('translate-x-full');
+        overlay.classList.add('hidden');
+      }
+    }
+
+    // نمایش شماره موبایل و نام وارد شده توسط کاربر برای حس اطمینان بیشتر
+    window.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      const phone = params.get('phone') || sessionStorage.getItem('ananas_payer_phone');
+      const name = sessionStorage.getItem('ananas_payer_name');
+
+      if (phone) {
+        const badge = document.getElementById('userPhoneBadge');
+        if (badge) badge.innerText = `(${phone})`;
+      }
+
+      if (name || phone) {
+        const summaryBox = document.getElementById('receiptSummary');
+        summaryBox.classList.remove('hidden');
+        summaryBox.classList.add('flex');
+        if (name) document.getElementById('summaryName').innerText = name;
+        if (phone) document.getElementById('summaryPhone').innerText = phone;
+      }
+    });
+  </script>
+
+</body>
+</html>
