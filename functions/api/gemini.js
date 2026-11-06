@@ -55,28 +55,17 @@ export async function onRequestPost(context) {
 
     await env.ANANAS_KV.put(storageKey, JSON.stringify(usage), { expirationTtl: 86400 });
 
-    // به‌روزرسانی مدل‌ها به نسخه جدید و پایدار gemini-3.8-flash
-    const modelsToTry = [model || "gemini-3.8-flash", "gemini-2.5-flash"];
-    let response = null;
-    let responseDataText = "";
+    // انتخاب مدل دقیق بر اساس نوع درخواست (تصویر یا گفتگو)
+    const targetModel = model || (isImageRequest ? "gemini-3.1-flash-lite-image" : "gemini-3.5-flash-lite");
+    const googleApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(targetModel)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+    
+    const response = await fetch(googleApiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
 
-    for (const currentModel of modelsToTry) {
-      const googleApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(currentModel)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-      
-      response = await fetch(googleApiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-
-      responseDataText = await response.text();
-
-      // اگر پاسخ موفق بود یا خطا مربوط به شلوغی سرور (high demand) نبود، از حلقه خارج شو
-      if (response.ok || (!responseDataText.includes("high demand") && !responseDataText.includes("not available"))) {
-        break;
-      }
-    }
-
+    const responseDataText = await response.text();
     return new Response(responseDataText, { status: response.status, headers: corsHeaders });
 
   } catch (err) {
