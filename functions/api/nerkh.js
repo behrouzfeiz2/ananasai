@@ -9,26 +9,46 @@ export async function onRequestGet(context) {
   try {
     const response = await fetch("https://nerkhara.com/", {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AnanasAI-Bot/1.0"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36"
       }
     });
 
     if (!response.ok) {
-      throw new Error("خطا در ارتباط با منبع نرخ‌ارز.");
+      throw new Error("خطا در دریافت اطلاعات از سایت مرجع.");
     }
 
     const html = await response.text();
 
-    // ساختار نمونه داده‌های بازار برای نمایش به کاربر
+    // تابع کمکی برای استخراج قیمت‌ها از متن HTML سایت نرخ‌آرا
+    function extractPrice(keyword) {
+      try {
+        // جستجوی کلمه کلیدی در متن و پیدا کردن اعداد یا قیمت بعد از آن
+        const index = html.indexOf(keyword);
+        if (index === -1) return "نامشخص";
+        
+        const snippet = html.slice(index, index + 300);
+        // پیدا کردن الگوهای عددی قیمت
+        const match = snippet.match(/([0-9,]{4,})/);
+        return match ? match[1] : "به‌روز";
+      } catch (e) {
+        return "نامشخص";
+      }
+    }
+
+    // استخراج نرخ‌های اصلی به صورت پویا از HTML
+    const dollarPrice = extractPrice("دلار آزاد") !== "نامشخص" ? extractPrice("دلار آزاد") : extractPrice("دلار");
+    const euroPrice = extractPrice("یورو");
+    const goldPrice = extractPrice("طلا");
+    const oilPrice = extractPrice("نفت");
+
     const marketData = {
       source: "nerkhara.com",
       updated_at: new Date().toLocaleTimeString("fa-IR", { hour: '2-digit', minute: '2-digit' }),
       items: [
-        { title: "دلار آزاد", price: "در حال استعلام زنده", change: "بازار آزاد" },
-        { title: "یورو", price: "به‌روزرسانی خودکار", change: "ارز اروپا" },
-        { title: "پوند", price: "به‌روزرسانی خودکار", change: "ارز انگلستان" },
-        { title: "طلا (۱۸ عیار)", price: "به‌روزرسانی خودکار", change: "گرمی" },
-        { title: "نفت برنت", price: "به‌روزرسانی خودکار", change: "خام" }
+        { title: "دلار آزاد", price: dollarPrice, change: "تومان" },
+        { title: "یورو", price: euroPrice, change: "تومان" },
+        { title: "طلا (۱۸ عیار)", price: goldPrice, change: "تومان" },
+        { title: "نفت برنت", price: oilPrice, change: "خام" }
       ]
     };
 
