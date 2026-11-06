@@ -263,14 +263,21 @@
         <form onsubmit="handleSubmit(event)" class="relative flex items-end gap-2 bg-ananas-card border border-ananas-border focus-within:border-ananas-500/70 rounded-2xl p-2 shadow-lg">
           
           <input type="file" id="fileInput" accept="image/*,.txt,.js,.py,.html,.css,.json,.pdf,.php,.sql,.cs,.cpp,.java,.ts,.md" class="hidden" onchange="handleFileSelect(event)" />
+          
+          <!-- دکمه پیوست فایل -->
           <button type="button" onclick="triggerAttachmentClick()" title="پیوست فایل و بررسی کد (ویژه حساب پرو)" class="p-2.5 rounded-xl text-gray-400 hover:text-ananas-400 hover:bg-ananas-dark/60 transition shrink-0 relative">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+          </button>
+
+          <!-- دکمه تایپ صوتی (میکروفون) -->
+          <button type="button" id="micBtn" onclick="toggleSpeechRecognition()" title="تایپ صوتی" class="p-2.5 rounded-xl text-gray-400 hover:text-ananas-400 hover:bg-ananas-dark/60 transition shrink-0 relative">
+            <svg id="micIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
           </button>
 
           <textarea
             id="promptInput"
             rows="1"
-            placeholder="پیام خود را برای آناناس بنویسید..."
+            placeholder="پیام خود را برای آناناس بنویسید (یا صحبت کنید)..."
             onkeydown="handleEnterKey(event)"
             oninput="autoResizeTextarea(this)"
             class="w-full bg-transparent text-white placeholder-gray-400 text-sm focus:outline-none resize-none py-2 px-1 max-h-36 leading-relaxed"
@@ -470,7 +477,7 @@
       } else {
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-ananas-500 text-ananas-dark';
         coderBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
-        input.placeholder = 'پیام خود را برای آناناس بنویسید...';
+        input.placeholder = 'پیام خود را برای آناناس بنویسید (یا صحبت کنید)...';
         hint.textContent = userToken
           ? '💬 حالت گفتگو فعال است (برای سوالات برنامه‌نویسی، روی «کد نویس» کلیک کنید)'
           : '💬 حالت گفتگو فعال است (بخش «کد نویس» و پیوست فایل ویژه کاربران پرو است)';
@@ -561,6 +568,84 @@
       document.getElementById('fileInput').value = '';
       document.getElementById('attachmentPreview').classList.add('hidden');
     }
+
+    // ==================== قابلیت تایپ صوتی (Speech-to-Text) ====================
+    let recognition = null;
+    let isRecording = false;
+
+    function toggleSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      
+      if (!SpeechRecognition) {
+        alert('مرورگر شما از قابلیت تبدیل صوت به متن پشتیبانی نمی‌کند. لطفاً از گوگل کروم استفاده کنید.');
+        return;
+      }
+
+      const micBtn = document.getElementById('micBtn');
+      const inputEl = document.getElementById('promptInput');
+
+      if (isRecording) {
+        if (recognition) recognition.stop();
+        return;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.lang = 'fa-IR'; // تنظیم زبان روی فارسی
+      recognition.continuous = false; 
+      recognition.interimResults = true; 
+
+      recognition.onstart = () => {
+        isRecording = true;
+        micBtn.classList.add('text-red-500', 'bg-red-500/15', 'animate-pulse');
+        inputEl.placeholder = 'در حال گوش دادن... صحبت کنید...';
+      };
+
+      recognition.onresult = (event) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+
+        if (finalTranscript) {
+          inputEl.value += (inputEl.value ? ' ' : '') + finalTranscript;
+          autoResizeTextarea(inputEl);
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error', event.error);
+        stopRecordingState();
+      };
+
+      recognition.onend = () => {
+        stopRecordingState();
+      };
+
+      try {
+        recognition.start();
+      } catch (e) {
+        stopRecordingState();
+      }
+    }
+
+    function stopRecordingState() {
+      isRecording = false;
+      const micBtn = document.getElementById('micBtn');
+      const inputEl = document.getElementById('promptInput');
+      if (micBtn) {
+        micBtn.classList.remove('text-red-500', 'bg-red-500/15', 'animate-pulse');
+      }
+      if (inputEl) {
+        inputEl.placeholder = 'پیام خود را برای آناناس بنویسید (یا صحبت کنید)...';
+      }
+    }
+    // =========================================================================
 
     async function callGeminiAPI(selectedModel, requestPayload) {
       const headers = { 
@@ -755,16 +840,7 @@
             };
           });
 
-        let systemPrompt = 'نام تو «آناناس» (AnanasAI) است؛ یک دستیار هوش مصنوعی فارسی‌زبان، صمیمی، دقیق و حرفه‌ای که به موتور Google Gemini متصل است. پاسخ‌هایت را به زبان فارسی روان، ساختاریافته و با فرمت Markdown ارائه بده.';
-        
-        if (currentMode === 'coder') {
-          systemPrompt += ' شما در حال حاضر در نقش یک «کد نویس» و مهندس ارشد نرم‌افزار هستید. به سوالات برنامه‌نویسی، دیباگ، تحلیل فایل‌های کد، الگوریتم‌نویسی و توسعه وب به صورت تخصصی، با کدهای تمیز و توضیحات دقیق پاسخ دهید.';
-        }
-
         const payload = {
-          systemInstruction: {
-            parts: [{ text: systemPrompt }]
-          },
           contents: historyContents
         };
 
