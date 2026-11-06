@@ -10,14 +10,14 @@ async function getUserStatusAndQuota(request, env) {
   const deviceUUID = (request.headers.get("X-Device-UUID") || "unknown_device").trim();
 
   let isPro = false;
-  let limitText = 10; // سهمیه روزانه اکانت رایگان بر اساس دیوایس: ۱۰ پیام
+  let limitText = 10; // سهمیه رایگان روزانه بر اساس دیوایس: ۱۰ پیام
 
   if (userToken !== "") {
     if (env.ANANAS_KV) {
       const tokenData = await env.ANANAS_KV.get(`token_${userToken}`);
       if (tokenData) {
         isPro = true;
-        limitText = 100; // سهمیه روزانه اکانت پرو: ۱۰۰ پیام
+        limitText = 100; // سهمیه پرو روزانه: ۱۰۰ پیام
       } else {
         return { error: "کد فعال‌سازی نامعتبر یا منقضی شده است.", status: 401 };
       }
@@ -25,7 +25,6 @@ async function getUserStatusAndQuota(request, env) {
   }
 
   const today = new Date().toISOString().split("T")[0];
-  // کلید ذخیره‌سازی در KV: برای پرو بر اساس توکن، برای رایگان بر اساس UUID یکتای دیوایس
   const storageKey = `usage_${isPro ? "pro_" : "device_"}${isPro ? userToken : deviceUUID}_${today}`;
 
   let usedText = 0;
@@ -128,6 +127,26 @@ export async function onRequestPost(context) {
     const targetModel = model || "gemini-3.5-flash-lite";
     const cleanName = targetModel.replace(/^models\//, "");
     const googleApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(cleanName)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+    // تزریق تاریخ و سال جاری (2026) به دستورات سیستمی مدل
+    const todayStr = new Date().toLocaleDateString('fa-IR', { year: 'numeric', month: 'long', day: 'numeric' });
+    const currentYear = new Date().getFullYear();
+
+    let dynamicSystemPrompt = `نام تو «آناناس» (AnanasAI) است؛ یک دستیار هوش مصنوعی فارسی‌زبان، صمیمی، دقیق و حرفه‌ای که به موتور Google Gemini متصل است. تاریخ امروز ${todayStr} و سال جاری میلادی ${currentYear} است. همیشه زمان، تاریخ و رویدادها را بر اساس همین اطلاعات دقیق و به‌روز پاسخ بده. پاسخ‌هایت را به زبان فارسی روان، ساختاریافته و با فرمت Markdown ارائه بده.`;
+
+    if (mode === 'coder') {
+      dynamicSystemPrompt += ' شما در حال حاضر در نقش یک «کد نویس» و مهندس ارشد نرم‌افزار هستید. به سوالات برنامه‌نویسی، دیباگ، تحلیل فایل‌های کد، الگوریتم‌نویسی و توسعه وب به صورت تخصصی، با کدهای تمیز و توضیحات دقیق پاسخ دهید.';
+    }
+
+    if (payload && payload.systemInstruction) {
+      if (payload.systemInstruction.parts && payload.systemInstruction.parts[0]) {
+        payload.systemInstruction.parts[0].text = dynamicSystemPrompt + " " + payload.systemInstruction.parts[0].text;
+      }
+    } else {
+      payload.systemInstruction = {
+        parts: [{ text: dynamicSystemPrompt }]
+      };
+    }
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 25000);
