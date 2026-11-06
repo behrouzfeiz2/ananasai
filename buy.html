@@ -226,10 +226,10 @@
       </div>
     </div>
 
-    <!-- شبکه دو ستونه: فقط کارت سه بعدی + فرم ثبت واریزی -->
+    <!-- شبکه دو ستونه: کارت سه بعدی + فرم ثبت واریزی -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
 
-      <!-- ستون راست: فقط کارت سه بعدی بانک ملت -->
+      <!-- ستون راست: کارت سه بعدی بانک ملت -->
       <div class="lg:col-span-6 flex flex-col items-center justify-center">
         
         <div class="perspective-container w-full max-w-[440px]">
@@ -322,7 +322,7 @@
             <span class="px-3 py-1 rounded-xl bg-ananas-500/15 text-ananas-400 text-xs font-bold border border-ananas-500/30 shrink-0">450.000 تومان</span>
           </div>
 
-          <!-- فرم متصل به formsubmit.io با کد اختصاصی شما -->
+          <!-- فرم متصل به formsubmit.io با توکن اختصاصی -->
           <form 
             id="paymentNotifyForm" 
             action="https://formsubmit.io/send/6f5c9ff4-561e-4968-82a7-1362ca4635bc" 
@@ -330,7 +330,7 @@
             onsubmit="return validateCardBeforeSubmit(event)" 
             class="space-y-5"
           >
-            <!-- فیلد ضد اسپم مخصوص formsubmit.io (نباید پر شود) -->
+            <!-- فیلد ضد اسپم مخصوص formsubmit.io -->
             <input name="_formsubmit_id" type="text" style="display:none" />
             <input type="hidden" name="amount" value="450.000 تومان" />
 
