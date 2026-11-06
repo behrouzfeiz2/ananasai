@@ -21,24 +21,23 @@ export async function onRequestGet(context) {
     const json = await response.json();
     const data = json.current || {};
 
-    function getItem(key) {
+    function getPrice(key) {
       if (data[key] && data[key].p) {
         return data[key].p;
       }
       return "نامشخص";
     }
 
-    // استخراج و تمیزسازی قیمت‌ها (نمایش بر حسب ریال یا تومان بر اساس نیاز)
     const marketData = {
       source: "tgju.org",
       updated_at: new Date().toLocaleTimeString("fa-IR", { hour: '2-digit', minute: '2-digit' }),
       items: [
-        { title: "دلار", price: getItem("price_dollar_rl"), unit: "ریال" },
-        { title: "یورو", price: getItem("price_eur"), unit: "ریال" },
-        { title: "پوند", price: getItem("price_gbp"), unit: "ریال" },
-        { title: "طلا (۱۸ عیار)", price: getItem("geram18"), unit: "ریال" },
-        { title: "سکه امامی", price: getItem("sekee"), unit: "ریال" },
-        { title: "نفت برنت", price: getItem("oil_brent"), unit: "دلار" }
+        { title: "دلار آزاد", price: getPrice("price_dollar_rl"), unit: "ریال" },
+        { title: "یورو", price: getPrice("price_eur"), unit: "ریال" },
+        { title: "پوند", price: getPrice("price_gbp"), unit: "ریال" },
+        { title: "طلا (۱۸ عیار)", price: getPrice("geram18"), unit: "ریال" },
+        { title: "سکه امامی", price: getPrice("sekee"), unit: "ریال" },
+        { title: "نفت برنت", price: getPrice("oil_brent"), unit: "دلار" }
       ]
     };
 
