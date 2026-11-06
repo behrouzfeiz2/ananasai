@@ -802,15 +802,23 @@
       scrollToBottom();
     }
 
-    function appendLoadingBubble(isCoder) {
+    function appendLoadingBubble(isCoder, isMarket = false) {
       const container = document.getElementById('chatMessages');
       const bubble = document.createElement('div');
       bubble.id = 'loadingBubble';
       bubble.className = 'flex items-start gap-3 justify-end';
+      
+      let loadingText = 'آناناس در حال نوشتن پاسخ است...';
+      if (isCoder) {
+        loadingText = 'آناناس در حال نوشتن و تحلیل کد است...';
+      } else if (isMarket) {
+        loadingText = 'آناناس در حال استعلام نرخ‌های بازار است...';
+      }
+
       bubble.innerHTML = `
         <div class="rounded-2xl bg-ananas-card border border-ananas-border px-4 py-3 text-xs text-gray-300 flex items-center gap-2.5">
           <span class="text-lg animate-bounce">🍍</span>
-          <span>${isCoder ? 'آناناس در حال نوشتن و تحلیل کد است...' : 'آناناس در حال استعلام نرخ‌های بازار است...'}</span>
+          <span>${loadingText}</span>
         </div>
       `;
       container.appendChild(bubble);
