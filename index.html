@@ -5,18 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>آناناس | دستیار هوشمند و کدنویس (AnanasAI)</title>
   
-  <!-- فاوآیکون آناناس -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍍</text></svg>">
 
-  <!-- فونت فارسی وزیرمتن (Vazirmatn) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&display=swap" rel="stylesheet">
 
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- کتابخانه رندر Markdown -->
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
   <script>
@@ -118,13 +113,11 @@
 </head>
 <body class="h-screen w-screen flex select-none md:select-auto">
 
-  <!-- پس‌زمینه موبایل برای سایدبار -->
   <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-30 hidden lg:hidden"></div>
 
   <!-- سایدبار سمت راست -->
   <aside id="sidebar" class="fixed lg:static inset-y-0 right-0 z-40 w-72 bg-ananas-card border-l border-ananas-border flex flex-col transition-transform duration-300 translate-x-full lg:translate-x-0">
     
-    <!-- هدر لوگو آناناس -->
     <div class="p-4 border-b border-ananas-border flex items-center justify-between">
       <div class="flex items-center gap-3">
         <div class="relative w-11 h-11 rounded-2xl bg-gradient-to-tr from-ananas-600 via-ananas-400 to-ananas-leaf p-0.5 shadow-lg shadow-ananas-500/20">
@@ -156,7 +149,6 @@
       </button>
     </div>
 
-    <!-- دکمه گفتگوی جدید -->
     <div class="p-3">
       <button onclick="startNewChat()" class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-l from-ananas-500 to-ananas-600 hover:from-ananas-400 hover:to-ananas-500 text-ananas-dark font-bold text-sm shadow-lg shadow-ananas-500/15 flex items-center justify-center gap-2 transition">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 4v16m8-8H4"/></svg>
@@ -164,14 +156,12 @@
       </button>
     </div>
 
-    <!-- تاریخچه گفتگوها -->
     <div class="px-3 py-1 text-xs font-medium text-gray-400 flex items-center justify-between">
       <span>تاریخچه گفتگوها</span>
       <button onclick="clearAllHistory()" class="text-[11px] text-red-400 hover:underline">حذف همه</button>
     </div>
     <div id="chatHistoryList" class="flex-1 overflow-y-auto px-3 space-y-1.5 py-2"></div>
 
-    <!-- فوتر سایدبار و مدیریت اشتراک پرو -->
     <div class="p-3 border-t border-ananas-border space-y-2 bg-ananas-dark/40">
       <div id="accountStatusCard" class="flex flex-col gap-2 p-3 rounded-xl bg-ananas-card border border-ananas-border text-xs">
         <div class="flex items-center justify-between">
@@ -208,7 +198,6 @@
   <!-- بخش اصلی چت -->
   <main class="flex-1 flex flex-col h-full bg-ananas-dark relative overflow-hidden">
     
-    <!-- نوار بالای صفحه -->
     <header class="h-16 border-b border-ananas-border px-4 lg:px-8 flex items-center justify-between bg-ananas-dark/80 backdrop-blur-md z-20 shrink-0">
       <div class="flex items-center gap-3">
         <button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-xl bg-ananas-card border border-ananas-border text-gray-300">
@@ -220,7 +209,6 @@
         </div>
       </div>
 
-      <!-- کلید تغییر حالت چت / کد نویس -->
       <div class="flex items-center bg-ananas-card p-1 rounded-xl border border-ananas-border">
         <button id="modeChatBtn" onclick="setMode('chat')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-ananas-500 text-ananas-dark">
           <span>💬</span>
@@ -234,10 +222,8 @@
       </div>
     </header>
 
-    <!-- محفظه پیام‌ها -->
     <div id="messagesContainer" class="flex-1 overflow-y-auto px-4 lg:px-8 py-6 space-y-6">
       
-      <!-- صفحه خوش‌آمدگویی اولیه -->
       <div id="welcomeScreen" class="max-w-2xl mx-auto text-center py-16 space-y-6">
         <div class="relative mx-auto w-20 h-20 flex items-center justify-center">
           <div class="absolute inset-0 rounded-full bg-ananas-500/20 blur-xl pineapple-glow"></div>
@@ -255,15 +241,12 @@
         </div>
       </div>
 
-      <!-- لیست پیام‌های گفتگو -->
       <div id="chatMessages" class="max-w-3xl mx-auto space-y-5"></div>
     </div>
 
-    <!-- بخش ورودی پیام در پایین صفحه -->
     <div class="p-3 sm:p-4 border-t border-ananas-border bg-ananas-dark/95 backdrop-blur-md shrink-0">
       <div class="max-w-3xl mx-auto">
         
-        <!-- پیش‌نمایش فایل یا عکس پیوست‌شده -->
         <div id="attachmentPreview" class="hidden mb-2 p-2 rounded-xl bg-ananas-card border border-ananas-border flex items-center justify-between">
           <div class="flex items-center gap-2.5">
             <div id="attachmentIconBox" class="w-11 h-11 rounded-lg bg-ananas-dark border border-ananas-500/40 flex items-center justify-center text-lg">📄</div>
@@ -277,7 +260,6 @@
           </button>
         </div>
 
-        <!-- کادر تایپ -->
         <form onsubmit="handleSubmit(event)" class="relative flex items-end gap-2 bg-ananas-card border border-ananas-border focus-within:border-ananas-500/70 rounded-2xl p-2 shadow-lg">
           
           <input type="file" id="fileInput" accept="image/*,.txt,.js,.py,.html,.css,.json,.pdf,.php,.sql,.cs,.cpp,.java,.ts,.md" class="hidden" onchange="handleFileSelect(event)" />
@@ -306,7 +288,6 @@
       </div>
     </div>
 
-    <!-- فوتر طراح سایت -->
     <footer class="py-2.5 px-4 border-t border-ananas-border bg-ananas-dark text-center text-[11px] text-gray-400 shrink-0">
       <div class="max-w-3xl mx-auto flex items-center justify-center gap-1">
         <span>طراحی و پیاده‌سازی توسط</span>
@@ -317,7 +298,6 @@
     </footer>
   </main>
 
-  <!-- مودال مدیریت کد فعال‌سازی پرو -->
   <div id="settingsModal" class="fixed inset-0 bg-black/75 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
     <div class="bg-ananas-card border border-ananas-border rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
       <div class="flex items-center justify-between border-b border-ananas-border pb-3">
@@ -357,7 +337,6 @@
     </div>
   </div>
 
-  <!-- جاوااسکریپت برنامه -->
   <script>
     let currentMode = 'chat';
     let sessions = JSON.parse(localStorage.getItem('ananas_sessions') || '[]');
@@ -367,6 +346,14 @@
 
     const chatModel = 'gemini-3.5-flash-lite';
     let userToken = localStorage.getItem('ananas_user_token') || '';
+
+    // تولید یا دریافت شناسه یکتای دیوایس (UUID) از LocalStorage
+    let deviceUUID = localStorage.getItem('ananas_device_uuid') || '';
+    if (!deviceUUID) {
+      deviceUUID = 'dev_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+      localStorage.setItem('ananas_device_uuid', deviceUUID);
+    }
+
     let quotaState = {
       isPro: Boolean(userToken),
       used: 0,
@@ -386,7 +373,7 @@
 
     async function fetchQuotaFromServer() {
       try {
-        const headers = {};
+        const headers = { 'X-Device-UUID': deviceUUID };
         if (userToken) headers['X-User-Token'] = userToken;
         const res = await fetch('/api/gemini', { method: 'GET', headers });
         const data = await res.json();
@@ -451,7 +438,7 @@
           timeContainer.classList.remove('hidden');
         }
       } else {
-        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-gray-400"></span> نسخه رایگان';
+        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-gray-400"></span> نسخه رایگان (دیوایس)';
         badge.className = 'flex items-center gap-1.5 text-gray-300 font-medium';
         actionBtnText.textContent = 'وارد کردن کد فعال‌سازی پرو 🔑';
         timeContainer.classList.add('hidden');
@@ -577,7 +564,10 @@
     }
 
     async function callGeminiAPI(selectedModel, requestPayload) {
-      const headers = { 'Content-Type': 'application/json' };
+      const headers = { 
+        'Content-Type': 'application/json',
+        'X-Device-UUID': deviceUUID
+      };
       if (userToken) headers['X-User-Token'] = userToken;
 
       const response = await fetch('/api/gemini', {
@@ -654,7 +644,7 @@
       renderMessages();
       renderHistoryList();
 
-      // === بررسی هوشمند برای سوالات نرخ ارز و بازار (بدون مصرف سهمیه جمنای) ===
+      // بررسی سوالات بازار و نرخ ارز
       const lowerText = userText.toLowerCase();
       const isMarketQuery = 
         lowerText.includes('دلار') || 
@@ -681,7 +671,7 @@
             });
             replyText += `\n⏱ *به‌روزرسانی: ${marketResult.data.updated_at}*`;
           } else {
-            replyText = "⚠️ در حال حاضر ارتباط با مرکز نرخ‌دهی با مشکل مواجه شده است. لطفاً چند لحظه دیگر تلاش کنید.";
+            replyText = "⚠️ در حال حاضر ارتباط با مرکز نرخ‌دهی با مشکل مواجه شده است.";
           }
 
           currentSession.messages.push({
@@ -702,7 +692,6 @@
         }
         return;
       }
-      // ====================================================================
 
       isGenerating = true;
       appendLoadingBubble(currentMode === 'coder');
