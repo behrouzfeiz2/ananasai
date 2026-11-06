@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>درباره ما | هوش مصنوعی آناناس (AnanasAI)</title>
+  
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍍</text></svg>">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Vazirmatn', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            ananas: {
+              50: '#fffbeb',
+              100: '#fef3c7',
+              400: '#fbbf24',
+              500: '#f59e0b',
+              600: '#d97706',
+              leaf: '#10b981',
+              dark: '#0b0f17',
+              card: '#151c28',
+              border: '#232f46'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    * {
+      font-family: 'Vazirmatn', sans-serif;
+      box-sizing: border-box;
+    }
+    body {
+      background-color: #0b0f17;
+      color: #f3f4f6;
+      overflow-x: hidden;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0f17;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #232f46;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #f59e0b;
+    }
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.35; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.06); }
+    }
+    .pineapple-glow {
+      animation: pulseGlow 4s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between relative">
+
+  <!-- افکت نوری پس‌زمینه -->
+  <div class="fixed top-0 left-1/2 -translate-x-1/2 w-[550px] h-[300px] bg-ananas-500/10 blur-[130px] pointer-events-none -z-10"></div>
+
+  <!-- هدر صفحه -->
+  <header class="h-16 border-b border-ananas-border px-4 lg:px-12 flex items-center justify-between bg-ananas-dark/80 backdrop-blur-md sticky top-0 z-30">
+    <a href="index.html" class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-xl bg-ananas-card border border-ananas-500/40 flex items-center justify-center text-xl shadow">
+        🍍
+      </div>
+      <div>
+        <span class="font-bold text-white text-base">آناناس</span>
+        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-ananas-500/15 text-ananas-400 border border-ananas-500/30 mr-1">AnanasAI</span>
+      </div>
+    </a>
+
+    <div class="flex items-center gap-2">
+      <a href="pro.html" class="px-3.5 py-2 rounded-xl bg-ananas-500/15 hover:bg-ananas-500/25 border border-ananas-500/30 text-xs font-bold text-ananas-400 transition">
+        اشتراک پرو 🚀
+      </a>
+      <a href="index.html" class="px-4 py-2 rounded-xl bg-ananas-card hover:bg-ananas-border/60 border border-ananas-border text-xs font-bold text-gray-200 flex items-center gap-2 transition">
+        <span>محیط چت</span>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+      </a>
+    </div>
+  </header>
+
+  <!-- محتوای اصلی -->
+  <main class="max-w-4xl w-full mx-auto px-4 py-10 sm:py-14 space-y-10">
+
+    <!-- هدر معرفی و لوگو -->
+    <div class="text-center space-y-4">
+      <div class="relative mx-auto w-20 h-20 flex items-center justify-center">
+        <div class="absolute inset-0 rounded-full bg-ananas-500/25 blur-xl pineapple-glow"></div>
+        <div class="relative w-16 h-16 rounded-3xl bg-ananas-card border border-ananas-500/40 flex items-center justify-center text-4xl shadow-xl">
+          🍍
+        </div>
+      </div>
+      <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-ananas-500/10 border border-ananas-500/30 text-ananas-400 text-xs font-bold">
+        <span>دستیار هوشمند، خلاق و دانش‌محور</span>
+      </div>
+      <h1 class="text-2xl sm:text-4xl font-extrabold text-white">
+        درباره <span class="text-ananas-400">آناناس AI</span>
+      </h1>
+    </div>
+
+    <!-- بخش اول و دوم متن اصلی در قالب کارت شاخص -->
+    <div class="rounded-3xl bg-ananas-card border border-ananas-border p-6 sm:p-9 space-y-6 shadow-xl relative overflow-hidden">
+      <div class="absolute top-0 right-0 w-1.5 h-full bg-gradient-to-b from-ananas-400 via-ananas-500 to-ananas-leaf"></div>
+
+      <p class="text-sm sm:text-base text-gray-200 leading-8 sm:leading-9 text-justify">
+        <strong class="text-ananas-400 font-bold">آناناس AI</strong> یک استارتاپ هوش مصنوعی با هدف ساده‌سازی دسترسی به دانش، توسعه خلاقیت و افزایش بهره‌وری در دنیای دیجیتال است. این پلتفرم با طراحی و توسعه تیم <a href="https://branex.ir" target="_blank" class="text-ananas-400 font-bold hover:underline">برانکس (Branex)</a> و با مدیریت <strong class="text-white font-bold">بهروز فیض</strong> شکل گرفته تا بستری هوشمند، کاربردی و قابل اعتماد برای پاسخ‌گویی به نیازهای علمی، تخصصی و محتوایی فراهم کند؛ بستری که از تولید و ترجمه متون گرفته تا پژوهش، تحلیل اطلاعات، کار با اسناد و داکیومنت‌ها و کدنویسی حرفه‌ای در زبان‌های برنامه‌نویسی مختلف را پوشش می‌دهد.
+      </p>
+
+      <div class="border-t border-ananas-border/70 pt-6">
+        <p class="text-sm sm:text-base text-gray-300 leading-8 sm:leading-9 text-justify">
+          آناناس AI تلاش می‌کند فراتر از یک ابزار پرسش و پاسخ معمولی عمل کند؛ همراهی هوشمند برای ایده‌پردازی، یادگیری، حل مسائل پیچیده، تولید محتوای باکیفیت و انجام امور دانش‌محور. هدف ما فراهم کردن تجربه‌ای روان و هوشمند است تا کاربران بتوانند زمان کمتری صرف کارهای تکراری کنند و تمرکز بیشتری بر خلاقیت، تصمیم‌گیری و توسعه ایده‌های خود داشته باشند.
+        </p>
+      </div>
+
+      <!-- محورهای کلیدی خدمات -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+        <div class="p-3.5 rounded-2xl bg-ananas-dark/70 border border-ananas-border/80 text-center space-y-1.5">
+          <div class="text-xl">✍️</div>
+          <div class="text-xs font-bold text-white">تولید و ترجمه متون</div>
+        </div>
+        <div class="p-3.5 rounded-2xl bg-ananas-dark/70 border border-ananas-border/80 text-center space-y-1.5">
+          <div class="text-xl">🔬</div>
+          <div class="text-xs font-bold text-white">پژوهش و تحلیل داده</div>
+        </div>
+        <div class="p-3.5 rounded-2xl bg-ananas-dark/70 border border-ananas-border/80 text-center space-y-1.5">
+          <div class="text-xl">📂</div>
+          <div class="text-xs font-bold text-white">تحلیل اسناد و مدارک</div>
+        </div>
+        <div class="p-3.5 rounded-2xl bg-ananas-dark/70 border border-ananas-border/80 text-center space-y-1.5">
+          <div class="text-xl">💻</div>
+          <div class="text-xs font-bold text-white">کدنویسی حرفه‌ای</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- بخش ویژه کودکان و نوجوانان -->
+    <div class="rounded-3xl bg-gradient-to-br from-emerald-950/40 via-ananas-card to-ananas-card border border-emerald-500/30 p-6 sm:p-9 space-y-5 shadow-xl relative overflow-hidden">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center text-2xl shrink-0">
+          🌱
+        </div>
+        <div>
+          <h2 class="text-base sm:text-lg font-extrabold text-white">تجربه ویژه کودکان و نوجوانان؛ پرورش ذهن‌های پرسشگر</h2>
+          <p class="text-xs text-emerald-400 mt-0.5">یادگیری فعال، خلاقانه و گام‌به‌گام</p>
+        </div>
+      </div>
+
+      <p class="text-sm sm:text-base text-gray-200 leading-8 sm:leading-9 text-justify">
+        در کنار امکانات تخصصی، آناناس AI دنیای ویژه‌ای برای کودکان و نوجوانان نیز در نظر گرفته است. در این تجربه، هوش مصنوعی به‌جای ارائه پاسخ‌های طولانی و آماده، با طرح پرسش‌های هوشمندانه، ایجاد کنجکاوی و پیشنهاد راهکارهای مرحله‌ای، ذهن کودکان را به فکر کردن و کشف پاسخ تشویق می‌کند. پاسخ‌ها کوتاه، قابل فهم و متناسب با سن مخاطب طراحی می‌شوند تا کودک به‌جای دریافت صرف اطلاعات، یاد بگیرد سؤال بپرسد، فکر کند، راه‌حل پیدا کند و با اشتیاق بیشتری به دنیای یادگیری قدم بگذارد.
+      </p>
+
+      <div class="p-4 rounded-2xl bg-ananas-dark/80 border border-emerald-500/30 flex items-center justify-center text-center">
+        <p class="text-xs sm:text-sm font-bold text-emerald-300">
+          «باور ما این است که بهترین هوش مصنوعی، فقط پاسخ‌دهنده نیست؛ بلکه ذهن‌های پرسشگر می‌سازد.»
+        </p>
+      </div>
+    </div>
+
+    <!-- کارت شناسنامه پروژه و فراخوان -->
+    <div class="rounded-3xl bg-ananas-card border border-ananas-border p-6 sm:p-7 flex flex-col sm:flex-row items-center justify-between gap-6">
+      <div class="space-y-1.5 text-center sm:text-right">
+        <div class="text-xs text-gray-400">طراحی، توسعه و راهبری</div>
+        <div class="text-sm sm:text-base font-extrabold text-white">
+          تیم دیجیتال <a href="https://branex.ir" target="_blank" class="text-ananas-400 hover:underline">برانکس (Branex)</a> — به مدیریت بهروز فیض
+        </div>
+        <div class="text-xs text-gray-400">
+          ارتباط و پشتیبانی در تلگرام: <a href="https://t.me/branex_ir" target="_blank" class="text-ananas-400 font-mono hover:underline">@branex_ir</a>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 w-full sm:w-auto justify-center">
+        <a href="index.html" class="px-5 py-3 rounded-2xl bg-ananas-500 hover:bg-ananas-400 text-ananas-dark font-extrabold text-xs sm:text-sm shadow-lg shadow-ananas-500/20 transition text-center flex-1 sm:flex-initial">
+          شروع گفتگو با آناناس 🍍
+        </a>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- فوتر -->
+  <footer class="py-4 px-4 border-t border-ananas-border bg-ananas-dark text-center text-xs text-gray-400">
+    <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div>
+        <span>طراحی و پیاده‌سازی توسط </span>
+        <a href="https://branex.ir" target="_blank" class="text-ananas-400 font-bold hover:underline">Branex</a>
+      </div>
+      <div class="flex items-center gap-4 text-[11px] text-gray-400">
+        <a href="index.html" class="hover:text-white transition">صفحه اصلی چت</a>
+        <span>•</span>
+        <a href="pro.html" class="hover:text-white transition">اشتراک پرو و دانلود اپ</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
