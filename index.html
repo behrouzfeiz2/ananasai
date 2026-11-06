@@ -499,7 +499,14 @@
         })
       });
 
-      const data = await response.json();
+      const rawText = await response.text();
+      let data;
+      try {
+        data = JSON.parse(rawText);
+      } catch (err) {
+        throw new Error(`پاسخ سرور نامعتبر یا زمان درخواست تمام شد (کد وضعیت: ${response.status}). لطفاً یک گفتگوی تازه باز کنید و مجدداً امتحان کنید.`);
+      }
+
       if (!response.ok || data.error) {
         const errMsg = data?.error?.message || `خطای ارتباط با سرور (${response.status})`;
         throw new Error(errMsg);
