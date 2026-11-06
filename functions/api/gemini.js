@@ -1,16 +1,88 @@
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, X-User-Token",
+  "Content-Type": "application/json; charset=utf-8"
+};
+
+async function getUserStatusAndQuota(request, env) {
+  const clientIP = request.headers.get("CF-Connecting-IP") || "unknown";
+  const userToken = (request.headers.get("X-User-Token") || "").trim();
+
+  let isPro = false;
+  let limitText = 10; // سهمیه روزانه اکانت رایگان: ۱۰ پیام
+
+  if (userToken !== "") {
+    if (env.ANANAS_KV) {
+      const tokenData = await env.ANANAS_KV.get(`token_${userToken}`);
+      if (tokenData) {
+        isPro = true;
+        limitText = 100; // سهمیه روزانه اکانت پرو: ۱۰۰ پیام
+      } else {
+        return { error: "کد فعال‌سازی نامعتبر یا منقضی شده است.", status: 401 };
+      }
+    }
+  }
+
+  const today = new Date().toISOString().split("T")[0];
+  const storageKey = `usage_${isPro ? "pro_" : "free_"}${isPro ? userToken : clientIP}_${today}`;
+
+  let usedText = 0;
+  if (env.ANANAS_KV) {
+    try {
+      const rawUsage = await env.ANANAS_KV.get(storageKey);
+      if (rawUsage) {
+        const parsed = JSON.parse(rawUsage);
+        usedText = Number(parsed.text || 0);
+      }
+    } catch (e) {}
+  }
+
+  return {
+    isPro,
+    limitText,
+    usedText,
+    storageKey
+  };
+}
+
+// دریافت وضعیت اکانت و سهمیه مصرف‌شده هنگام باز شدن صفحه
+export async function onRequestGet(context) {
+  const { request, env } = context;
+  try {
+    const quota = await getUserStatusAndQuota(request, env);
+    if (quota.error) {
+      return new Response(
+        JSON.stringify({ error: { message: quota.error } }),
+        { status: quota.status, headers: corsHeaders }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        quota: {
+          isPro: quota.isPro,
+          used: quota.usedText,
+          limit: quota.limitText
+        }
+      }),
+      { status: 200, headers: corsHeaders }
+    );
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ error: { message: `خطای سرور: ${err.message}` } }),
+      { status: 500, headers: corsHeaders }
+    );
+  }
+}
+
+// ارسال پیام و بررسی محدودیت‌های اکانت رایگان و پرو
 export async function onRequestPost(context) {
   const { request, env } = context;
 
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, X-User-Token",
-    "Content-Type": "application/json; charset=utf-8"
-  };
-
   try {
     const body = await request.json();
-    const { model, payload } = body;
+    const { model, payload, mode } = body;
 
     const apiKey = env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -20,45 +92,41 @@ export async function onRequestPost(context) {
       );
     }
 
-    const clientIP = request.headers.get("CF-Connecting-IP") || "unknown";
-    const userToken = request.headers.get("X-User-Token");
+    const quota = await getUserStatusAndQuota(request, env);
+    if (quota.error) {
+      return new Response(
+        JSON.stringify({ error: { message: quota.error } }),
+        { status: quota.status, headers: corsHeaders }
+      );
+    }
 
-    let isPro = false;
-    let limitText = 20;
+    // بررسی وجود فایل ضمیمه در پیام ارسالی
+    const hasAttachment = (payload?.contents || []).some(c =>
+      (c.parts || []).some(p => p.inlineData)
+    );
 
-    if (env.ANANAS_KV) {
-      try {
-        if (userToken && userToken.trim() !== "") {
-          const cleanToken = userToken.trim();
-          const tokenData = await env.ANANAS_KV.get(`token_${cleanToken}`);
+    // محدودیت امنیتی سمت سرور: ضمیمه فایل و بخش کدنویس فقط برای کاربران پرو
+    if (!quota.isPro && (hasAttachment || mode === "coder")) {
+      return new Response(
+        JSON.stringify({
+          error: { message: "امکان ضمیمه کردن فایل و استفاده از بخش تخصصی «کد نویس» ویژه کاربران پرو است." },
+          quota: { isPro: quota.isPro, used: quota.usedText, limit: quota.limitText }
+        }),
+        { status: 403, headers: corsHeaders }
+      );
+    }
 
-          if (tokenData) {
-            isPro = true;
-            limitText = 100;
-          } else {
-            return new Response(
-              JSON.stringify({ error: { message: "کد فعال‌سازی نامعتبر یا منقضی شده است." } }),
-              { status: 401, headers: corsHeaders }
-            );
-          }
-        }
-
-        const today = new Date().toISOString().split('T')[0];
-        const storageKey = `usage_${isPro ? 'pro_' : 'free_'}${userToken || clientIP}_${today}`;
-        let usage = JSON.parse((await env.ANANAS_KV.get(storageKey)) || '{"text": 0}');
-
-        if (usage.text >= limitText) {
-          return new Response(
-            JSON.stringify({ error: { message: "سهمیه پیام‌های امروز شما به پایان رسیده است." } }),
-            { status: 429, headers: corsHeaders }
-          );
-        }
-        usage.text += 1;
-
-        context.waitUntil(
-          env.ANANAS_KV.put(storageKey, JSON.stringify(usage), { expirationTtl: 86400 })
-        );
-      } catch (kvErr) {}
+    // بررسی اتمام سهمیه پیام روزانه
+    if (quota.usedText >= quota.limitText) {
+      return new Response(
+        JSON.stringify({
+          error: {
+            message: `سهمیه پیام‌های امروز شما (${quota.limitText} از ${quota.limitText}) به پایان رسیده است.${!quota.isPro ? " برای ارتقا به ۱۰۰ پیام روزانه، کد فعال‌سازی پرو تهیه کنید." : ""}`
+          },
+          quota: { isPro: quota.isPro, used: quota.usedText, limit: quota.limitText }
+        }),
+        { status: 429, headers: corsHeaders }
+      );
     }
 
     const targetModel = model || "gemini-3.5-flash-lite";
@@ -78,7 +146,31 @@ export async function onRequestPost(context) {
     clearTimeout(timeoutId);
     const responseText = await response.text();
 
-    return new Response(responseText, { status: response.status, headers: corsHeaders });
+    let responseJson = {};
+    try {
+      responseJson = JSON.parse(responseText);
+    } catch {
+      return new Response(responseText, { status: response.status, headers: corsHeaders });
+    }
+
+    // اگر پاسخ گوگل موفقیت‌آمیز بود، ۱ واحد به مصرف روزانه اضافه کن
+    if (response.ok) {
+      quota.usedText += 1;
+      if (env.ANANAS_KV) {
+        context.waitUntil(
+          env.ANANAS_KV.put(quota.storageKey, JSON.stringify({ text: quota.usedText }), { expirationTtl: 86400 })
+        );
+      }
+    }
+
+    // ارسال اطلاعات به‌روز سهمیه همراه با پاسخ گوگل به فرانت‌اند
+    responseJson.quota = {
+      isPro: quota.isPro,
+      used: quota.usedText,
+      limit: quota.limitText
+    };
+
+    return new Response(JSON.stringify(responseJson), { status: response.status, headers: corsHeaders });
 
   } catch (err) {
     return new Response(
@@ -91,10 +183,6 @@ export async function onRequestPost(context) {
 export async function onRequestOptions() {
   return new Response(null, {
     status: 204,
-    headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, X-User-Token"
-    }
+    headers: corsHeaders
   });
 }
