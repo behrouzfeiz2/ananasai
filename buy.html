@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>پرداخت و ثبت سفارش اشتراک پرو | آناناس (AnanasAI)</title>
+  
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍍</text></svg>">
+  <link rel="canonical" href="https://ananas.ai/buy" />
+  <meta name="robots" content="noindex, nofollow" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Vazirmatn', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            ananas: {
+              50: '#fffbeb',
+              100: '#fef3c7',
+              400: '#fbbf24',
+              500: '#f59e0b',
+              600: '#d97706',
+              leaf: '#10b981',
+              dark: '#0b0f17',
+              card: '#151c28',
+              border: '#232f46'
+            },
+            mellat: {
+              red: '#d31145',
+              darkRed: '#7a0522',
+              deep: '#3b0210'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    * {
+      font-family: 'Vazirmatn', sans-serif;
+      box-sizing: border-box;
+    }
+    body {
+      background-color: #0b0f17;
+      color: #f3f4f6;
+      overflow-x: hidden;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b0f17;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #232f46;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #f59e0b;
+    }
+
+    /* استایل‌های سه بعدی کارت بانک ملت */
+    .perspective-container {
+      perspective: 1200px;
+    }
+    .bank-card-3d {
+      transform-style: preserve-3d;
+      transition: transform 0.15s ease-out, box-shadow 0.3s ease;
+      background: linear-gradient(135deg, #b90e3b 0%, #6d0722 50%, #2a0410 100%);
+      box-shadow: 
+        0 25px 50px -12px rgba(211, 17, 69, 0.35),
+        0 0 25px rgba(245, 158, 11, 0.12),
+        inset 0 1px 2px rgba(255, 255, 255, 0.35);
+    }
+    .bank-card-3d:hover {
+      box-shadow: 
+        0 30px 60px -12px rgba(211, 17, 69, 0.5),
+        0 0 35px rgba(245, 158, 11, 0.2),
+        inset 0 1px 2px rgba(255, 255, 255, 0.45);
+    }
+    .card-depth-element {
+      transform: translateZ(28px);
+    }
+    .card-depth-high {
+      transform: translateZ(42px);
+    }
+    .card-glare {
+      background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.25), transparent 65%);
+      mix-blend-mode: overlay;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .mellat-pattern {
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(245, 158, 11, 0.14) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(255, 255, 255, 0.08) 0%, transparent 45%),
+        repeating-linear-gradient(45deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 2px, transparent 2px, transparent 10px);
+    }
+    .golden-chip {
+      background: linear-gradient(135deg, #fde68a 0%, #f59e0b 50%, #b45309 100%);
+      box-shadow: inset 0 1px 2px rgba(255,255,255,0.6), 0 2px 6px rgba(0,0,0,0.4);
+    }
+    .card-number-shadow {
+      text-shadow: 0 3px 6px rgba(0, 0, 0, 0.65);
+      letter-spacing: 0.14em;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between relative">
+
+  <!-- افکت نوری پس‌زمینه -->
+  <div class="fixed top-0 left-1/2 -translate-x-1/2 w-[550px] h-[300px] bg-ananas-500/10 blur-[130px] pointer-events-none -z-10"></div>
+  <div class="fixed bottom-10 right-10 w-[350px] h-[250px] bg-rose-600/10 blur-[130px] pointer-events-none -z-10"></div>
+
+  <!-- پوشش تیره منوی موبایل -->
+  <div id="menuOverlay" onclick="toggleMobileMenu(false)" class="fixed inset-0 bg-black/70 backdrop-blur-xs z-40 hidden transition-opacity"></div>
+
+  <!-- منوی کشویی همبرگری -->
+  <aside id="mobileDrawer" class="fixed top-0 right-0 bottom-0 w-72 bg-ananas-card border-l border-ananas-border z-50 transform translate-x-full transition-transform duration-300 flex flex-col justify-between p-5">
+    <div class="space-y-6">
+      <div class="flex items-center justify-between border-b border-ananas-border pb-4">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-ananas-dark border border-ananas-500/40 flex items-center justify-center text-xl">🍍</div>
+          <div>
+            <span class="font-extrabold text-white text-base">آناناس</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-ananas-500/15 text-ananas-400 border border-ananas-500/30 font-bold mr-1">AnanasAI</span>
+          </div>
+        </div>
+        <button onclick="toggleMobileMenu(false)" class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-ananas-dark">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <nav class="space-y-2 text-sm font-medium">
+        <a href="home.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-300 hover:bg-ananas-dark hover:text-white transition">
+          <span>🏠</span>
+          <span>صفحه اصلی (Home)</span>
+        </a>
+        <a href="index.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-300 hover:bg-ananas-dark hover:text-white transition">
+          <span>💬</span>
+          <span>ورود به محیط چت و کدنویس</span>
+        </a>
+        <a href="pro.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-ananas-500/15 text-amber-400 border border-amber-500/30 font-bold">
+          <span>🚀</span>
+          <span>خرید اکانت پرو و دانلود اپ</span>
+        </a>
+        <a href="about.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-300 hover:bg-ananas-dark hover:text-white transition">
+          <span>ℹ️</span>
+          <span>درباره آناناس AI</span>
+        </a>
+      </nav>
+    </div>
+
+    <div class="space-y-3 pt-4 border-t border-ananas-border">
+      <a href="index.html" class="w-full py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs flex items-center justify-center gap-2 transition">
+        <span>رایگان شروع کنید</span>
+      </a>
+      <a href="home.html" class="w-full py-2.5 px-4 rounded-xl bg-ananas-card border border-ananas-border text-gray-300 text-xs flex items-center justify-center gap-2 transition">
+        <span>بازگشت به خانه</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- هدر صفحه -->
+  <header class="h-16 border-b border-ananas-border px-4 lg:px-12 flex items-center justify-between bg-ananas-dark/80 backdrop-blur-md sticky top-0 z-30">
+    <div class="flex items-center gap-3">
+      <button onclick="toggleMobileMenu(true)" aria-label="منو" class="p-2 rounded-xl bg-ananas-card hover:bg-ananas-border/70 border border-ananas-border text-gray-200 transition flex items-center justify-center">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+
+      <a href="home.html" class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-ananas-card border border-ananas-500/40 flex items-center justify-center text-xl shadow">
+          🍍
+        </div>
+        <div>
+          <span class="font-bold text-white text-base">آناناس</span>
+          <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-ananas-500/15 text-ananas-400 border border-ananas-500/30 mr-1">AnanasAI</span>
+        </div>
+      </a>
+    </div>
+
+    <nav class="hidden md:flex items-center gap-6 text-xs font-bold text-gray-300">
+      <a href="home.html" class="hover:text-white transition">صفحه اصلی</a>
+      <a href="index.html" class="hover:text-white transition">محیط چت</a>
+      <a href="pro.html" class="text-amber-400">نسخه پرو</a>
+      <a href="about.html" class="hover:text-white transition">درباره ما</a>
+    </nav>
+
+    <a href="index.html" class="px-4 py-2 rounded-xl bg-ananas-card hover:bg-ananas-border/60 border border-ananas-border text-xs font-bold text-gray-200 flex items-center gap-2 transition">
+      <span>محیط چت</span>
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+    </a>
+  </header>
+
+  <!-- محتوای اصلی -->
+  <main class="max-w-6xl w-full mx-auto px-4 py-8 sm:py-12 space-y-10">
+
+    <!-- عنوان صفحه و نمایش مبلغ قابل پرداخت -->
+    <div class="text-center space-y-4 max-w-2xl mx-auto">
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-ananas-500/10 border border-ananas-500/30 text-ananas-400 text-xs font-bold">
+        <span>💳</span>
+        <span>درگاه کارت به کارت و فعال‌سازی سریع اشتراک</span>
+      </div>
+      <h1 class="text-2xl sm:text-4xl font-extrabold text-white leading-tight">
+        پرداخت و ارتقا به <span class="text-ananas-400">نسخه پرو (Pro)</span>
+      </h1>
+      <p class="text-xs sm:text-sm text-gray-400 leading-relaxed">
+        مبلغ اشتراک را به شماره کارت زیر واریز کرده و سپس مشخصات پرداخت خود را در فرم ثبت نمایید تا کد فعال‌سازی اختصاصی برایتان پیامک شود.
+      </p>
+
+      <!-- بنر برجسته مبلغ قابل پرداخت -->
+      <div class="inline-flex flex-wrap items-center justify-center gap-3 px-6 py-3 rounded-2xl bg-ananas-card border-2 border-ananas-500/40 shadow-lg">
+        <span class="text-xs sm:text-sm text-gray-300 font-medium">مبلغ قابل پرداخت جهت اشتراک پرو:</span>
+        <span class="text-xl sm:text-2xl font-black text-ananas-400 tracking-tight">450.000 تومان</span>
+      </div>
+    </div>
+
+    <!-- شبکه دو ستونه: کارت سه بعدی + فرم ثبت واریزی -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
+
+      <!-- ستون راست: کارت سه بعدی بانک ملت و راهنمای کپی -->
+      <div class="lg:col-span-6 space-y-6 flex flex-col items-center">
+        
+        <div class="perspective-container w-full max-w-[430px]">
+          <div id="mellatCard" class="bank-card-3d mellat-pattern relative w-full aspect-[1.586/1] rounded-3xl p-6 sm:p-7 flex flex-col justify-between overflow-hidden select-none border border-white/20 cursor-pointer">
+            
+            <div id="cardGlare" class="card-glare absolute inset-0 opacity-0"></div>
+
+            <div class="absolute -left-12 -bottom-12 w-48 h-48 rounded-full bg-gradient-to-tr from-amber-500/20 to-rose-500/5 blur-xl pointer-events-none"></div>
+            <div class="absolute -right-10 -top-10 w-36 h-36 rounded-full bg-white/5 blur-lg pointer-events-none"></div>
+
+            <!-- ردیف بالای کارت -->
+            <div class="card-depth-element flex items-center justify-between z-10">
+              <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 rounded-2xl bg-white/15 backdrop-blur-md border border-white/25 flex items-center justify-center shadow-inner">
+                  <svg class="w-6 h-6 text-amber-400" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2L15.5 8.5L22 12L15.5 15.5L12 22L8.5 15.5L2 12L8.5 8.5L12 2Z" />
+                    <circle cx="12" cy="12" r="3" fill="#b90e3b"/>
+                  </svg>
+                </div>
+                <div>
+                  <h2 class="text-base sm:text-lg font-black text-white tracking-tight leading-none">بانک ملت</h2>
+                  <span class="text-[10px] text-amber-200/80 font-semibold tracking-widest uppercase">Bank Mellat</span>
+                </div>
+              </div>
+
+              <div class="flex flex-col items-end">
+                <span class="px-2.5 py-0.5 rounded-lg bg-black/25 border border-white/15 text-[10px] font-bold text-amber-300">کارت ملت</span>
+                <span class="text-[9px] text-white/60 mt-0.5">SHETAB</span>
+              </div>
+            </div>
+
+            <!-- ردیف میانی: تراشه هوشمند و مبلغ -->
+            <div class="card-depth-element flex items-center justify-between my-auto z-10 px-1">
+              <div class="flex items-center gap-3">
+                <div class="golden-chip w-12 h-9 rounded-lg relative overflow-hidden border border-amber-200/50 flex items-center justify-center">
+                  <div class="w-full h-[1px] bg-amber-900/40 absolute top-1/3"></div>
+                  <div class="w-full h-[1px] bg-amber-900/40 absolute bottom-1/3"></div>
+                  <div class="h-full w-[1px] bg-amber-900/40 absolute left-1/3"></div>
+                  <div class="h-full w-[1px] bg-amber-900/40 absolute right-1/3"></div>
+                  <div class="w-4 h-4 rounded-xs border border-amber-900/40"></div>
+                </div>
+                <svg class="w-6 h-6 text-white/70 -rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/>
+                </svg>
+              </div>
+              <span class="text-xs text-white/90 font-medium bg-black/25 px-2.5 py-1 rounded-lg border border-white/10">
+                مبلغ: <b class="text-amber-300 font-extrabold">450.000 تومان</b>
+              </span>
+            </div>
+
+            <!-- شماره ۱۶ رقمی کارت -->
+            <div class="card-depth-high z-10 text-center my-1">
+              <div dir="ltr" onclick="copyCardNumber()" title="برای کپی کلیک کنید" class="card-number-shadow font-mono text-xl sm:text-2xl md:text-[26px] font-black text-white tracking-wider py-1.5 px-3 rounded-xl bg-black/20 hover:bg-black/35 border border-white/10 transition flex items-center justify-center gap-2.5 sm:gap-3.5">
+                <span>6104</span>
+                <span>3379</span>
+                <span>8685</span>
+                <span>5177</span>
+              </div>
+            </div>
+
+            <!-- ردیف پایین: نام صاحب حساب -->
+            <div class="card-depth-element flex items-end justify-between z-10 pt-1 border-t border-white/15">
+              <div>
+                <span class="text-[10px] text-rose-200/75 block">نام صاحب حساب:</span>
+                <span class="text-sm sm:text-base font-extrabold text-white tracking-wide">بهروز فیض</span>
+              </div>
+              <div class="text-left">
+                <span class="text-[10px] text-rose-200/75 block">بانک مقصد:</span>
+                <span class="text-xs font-bold text-amber-300">ملت (شتاب)</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- دکمه کپی سریع و باکس اطلاعات متنی کارت -->
+        <div class="w-full max-w-[430px] rounded-3xl bg-ananas-card border border-ananas-border p-5 space-y-4 shadow-lg">
+          <div class="flex items-center justify-between">
+            <div class="space-y-0.5">
+              <span class="text-xs text-gray-400 block">شماره کارت جهت کپی سریع:</span>
+              <span dir="ltr" class="font-mono text-sm sm:text-base font-bold text-white tracking-wider">6104 - 3379 - 8685 - 5177</span>
+            </div>
+            <button type="button" onclick="copyCardNumber()" id="copyBtn" class="px-4 py-2.5 rounded-xl bg-ananas-500/15 hover:bg-ananas-500/25 text-ananas-400 border border-ananas-500/30 text-xs font-bold flex items-center gap-2 transition cursor-pointer shrink-0">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+              <span id="copyBtnText">کپی شماره کارت</span>
+            </button>
+          </div>
+
+          <div class="border-t border-ananas-border pt-3 flex items-center justify-between text-xs text-gray-300">
+            <span>صاحب حساب: <b class="text-white">بهروز فیض</b></span>
+            <span>مبلغ قابل پرداخت: <b class="text-emerald-400 text-sm">450.000 تومان</b></span>
+          </div>
+
+          <p class="text-[11px] text-gray-400 leading-relaxed bg-ananas-dark/60 p-3 rounded-xl border border-ananas-border/60">
+            💡 <b>نکته:</b> لطفاً دقیقاً مبلغ <b>450.000 تومان</b> را به شماره کارت بالا به نام <b>«بهروز فیض»</b> واریز کرده و سپس فرم روبرو را تکمیل کنید.
+          </p>
+        </div>
+
+      </div>
+
+      <!-- ستون چپ: فرم اطلاع از پرداخت متصل به FormSubmit -->
+      <div class="lg:col-span-6">
+        <div class="rounded-3xl bg-gradient-to-b from-[#1c2436] to-ananas-card border border-ananas-border p-6 sm:p-8 space-y-6 shadow-2xl relative">
+          
+          <div class="flex items-center justify-between border-b border-ananas-border pb-4">
+            <div>
+              <h2 class="text-lg sm:text-xl font-extrabold text-white flex items-center gap-2">
+                <span>📝</span>
+                <span>فرم اطلاع از پرداخت</span>
+              </h2>
+              <p class="text-xs text-gray-400 mt-1">مشخصات واریز مبلغ 450.000 تومان را جهت دریافت کد فعال‌سازی وارد کنید</p>
+            </div>
+            <span class="px-3 py-1 rounded-xl bg-ananas-500/15 text-ananas-400 text-xs font-bold border border-ananas-500/30 shrink-0">450.000 تومان</span>
+          </div>
+
+          <!-- فرم متصل به سرویس FormSubmit با ایمیل behrouz.feiz@gmail.com -->
+          <form 
+            id="paymentNotifyForm" 
+            action="https://formsubmit.co/behrouz.feiz@gmail.com" 
+            method="POST" 
+            onsubmit="handlePaymentSubmit(event)" 
+            class="space-y-5"
+          >
+            <!-- فیلدهای مخفی تنظیمات FormSubmit -->
+            <input type="hidden" name="_subject" value="🍍 ثبت واریزی جدید اشتراک آناناس پرو (450.000 تومان)" />
+            <input type="hidden" name="_captcha" value="false" />
+            <input type="hidden" name="_template" value="table" />
+            <input type="hidden" name="مبلغ_واریزی" value="450.000 تومان" />
+
+            <!-- نام کامل -->
+            <div class="space-y-2">
+              <label for="fullName" class="block text-xs sm:text-sm font-bold text-gray-200">
+                نام کامل (واریزکننده) <span class="text-rose-400">*</span>
+              </label>
+              <div class="relative">
+                <input 
+                  type="text" 
+                  id="fullName" 
+                  name="نام_کامل" 
+                  required 
+                  placeholder="مثال: علی محمدی"
+                  class="w-full rounded-2xl bg-ananas-dark border border-ananas-border focus:border-ananas-500 focus:ring-2 focus:ring-ananas-500/20 px-4 py-3.5 text-sm text-white placeholder-gray-500 outline-none transition"
+                />
+              </div>
+            </div>
+
+            <!-- شماره همراه -->
+            <div class="space-y-2">
+              <label for="phoneNumber" class="block text-xs sm:text-sm font-bold text-gray-200">
+                شماره همراه (جهت پیامک شدن کد فعال‌سازی پرو) <span class="text-rose-400">*</span>
+              </label>
+              <div class="relative">
+                <input 
+                  type="tel" 
+                  id="phoneNumber" 
+                  name="شماره_همراه" 
+                  dir="ltr"
+                  required 
+                  maxlength="11"
+                  pattern="09[0-9]{9}"
+                  placeholder="09123456789"
+                  oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                  class="w-full rounded-2xl bg-ananas-dark border border-ananas-border focus:border-ananas-500 focus:ring-2 focus:ring-ananas-500/20 px-4 py-3.5 text-sm text-white placeholder-gray-500 outline-none transition font-mono text-left"
+                />
+              </div>
+              <p class="text-[11px] text-gray-400">کد فعال‌سازی اشتراک پرو به این شماره پیامک خواهد شد.</p>
+            </div>
+
+            <!-- شماره کارتی که با آن واریز شده -->
+            <div class="space-y-2">
+              <label for="senderCard" class="block text-xs sm:text-sm font-bold text-gray-200">
+                شماره کارتی که با آن پول واریز شده است <span class="text-rose-400">*</span>
+              </label>
+              <div class="relative">
+                <input 
+                  type="text" 
+                  id="senderCard" 
+                  name="شماره_کارت_واریزکننده" 
+                  dir="ltr"
+                  required 
+                  maxlength="19"
+                  placeholder="xxxx - xxxx - xxxx - xxxx"
+                  oninput="formatCardInput(this)"
+                  class="w-full rounded-2xl bg-ananas-dark border border-ananas-border focus:border-ananas-500 focus:ring-2 focus:ring-ananas-500/20 px-4 py-3.5 text-base font-bold text-ananas-400 placeholder-gray-600 outline-none transition font-mono text-center tracking-widest"
+                />
+              </div>
+              <p class="text-[11px] text-gray-400">شماره ۱۶ رقمی کارت بانکی مبدا که مبلغ 450.000 تومان از آن واریز شده است.</p>
+            </div>
+
+            <!-- پیام وضعیت ثبت فرم -->
+            <div id="formAlert" class="hidden rounded-2xl p-4 text-xs leading-relaxed border"></div>
+
+            <!-- دکمه ثبت نهایی -->
+            <div class="pt-2">
+              <button 
+                type="submit" 
+                id="submitBtn"
+                class="w-full py-4 px-6 rounded-2xl bg-gradient-to-l from-ananas-500 to-ananas-400 hover:from-ananas-400 hover:to-ananas-500 text-ananas-dark font-extrabold text-sm shadow-lg shadow-ananas-500/25 flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-60"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                <span id="submitBtnText">ثبت اطلاعات پرداخت (450.000 تومان)</span>
+              </button>
+            </div>
+
+          </form>
+
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- فوتر -->
+  <footer class="py-3.5 px-4 border-t border-ananas-border bg-ananas-dark text-center text-xs text-gray-400 shrink-0">
+    <div class="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div class="flex items-center justify-center gap-1">
+        <span>طراحی و پیاده‌سازی توسط</span>
+        <a href="https://branex.ir" target="_blank" class="text-ananas-400 font-bold hover:underline transition">
+          Branex
+        </a>
+      </div>
+      <div class="flex items-center gap-4 text-[11px] text-gray-400">
+        <a href="home.html" class="hover:text-white transition">صفحه اصلی</a>
+        <span>•</span>
+        <a href="index.html" class="hover:text-white transition">محیط چت</a>
+        <span>•</span>
+        <a href="about.html" class="hover:text-white transition">درباره ما</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const FORMSUBMIT_EMAIL = "behrouz.feiz@gmail.com"; 
+    const TARGET_CARD_NUMBER = "6104337986855177";
+
+    function toggleMobileMenu(show) {
+      const drawer = document.getElementById('mobileDrawer');
+      const overlay = document.getElementById('menuOverlay');
+      if (show) {
+        drawer.classList.remove('translate-x-full');
+        overlay.classList.remove('hidden');
+      } else {
+        drawer.classList.add('translate-x-full');
+        overlay.classList.add('hidden');
+      }
+    }
+
+    // افکت چرخش سه بعدی کارت بانک ملت با حرکت موس
+    const card = document.getElementById('mellatCard');
+    const glare = document.getElementById('cardGlare');
+
+    if (card) {
+      card.addEventListener('mousemove', (e) => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+
+        const rotateX = ((y - centerY) / centerY) * -12;
+        const rotateY = ((x - centerX) / centerX) * 12;
+
+        card.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
+        
+        if (glare) {
+          const percentX = (x / rect.width) * 100;
+          const percentY = (y / rect.height) * 100;
+          glare.style.opacity = '1';
+          glare.style.background = `radial-gradient(circle at ${percentX}% ${percentY}%, rgba(255, 255, 255, 0.32), transparent 60%)`;
+        }
+      });
+
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = 'rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)';
+        if (glare) glare.style.opacity = '0';
+      });
+    }
+
+    function copyCardNumber() {
+      navigator.clipboard.writeText(TARGET_CARD_NUMBER).then(() => {
+        const btnText = document.getElementById('copyBtnText');
+        const btn = document.getElementById('copyBtn');
+        const oldText = btnText.innerText;
+        btnText.innerText = 'کپی شد! ✔';
+        btn.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border-emerald-500/40');
+        setTimeout(() => {
+          btnText.innerText = oldText;
+          btn.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'border-emerald-500/40');
+        }, 2200);
+      });
+    }
+
+    function formatCardInput(input) {
+      let digits = input.value.replace(/\D/g, '').substring(0, 16);
+      let formatted = digits.match(/.{1,4}/g)?.join('-') || digits;
+      input.value = formatted;
+    }
+
+    // ارسال فرم به سرویس FormSubmit و هدایت به صفحه tnx.html
+    async function handlePaymentSubmit(e) {
+      e.preventDefault();
+      const fullName = document.getElementById('fullName').value.trim();
+      const phone = document.getElementById('phoneNumber').value.trim();
+      const senderCardRaw = document.getElementById('senderCard').value.replace(/\D/g, '');
+      const alertBox = document.getElementById('formAlert');
+      const submitBtn = document.getElementById('submitBtn');
+      const submitBtnText = document.getElementById('submitBtnText');
+
+      if (senderCardRaw.length !== 16) {
+        alertBox.className = "rounded-2xl p-4 text-xs leading-relaxed border bg-rose-500/15 border-rose-500/40 text-rose-300 block";
+        alertBox.innerHTML = "❌ لطفاً شماره کارت ۱۶ رقمی که با آن واریز انجام شده است را به صورت کامل وارد نمایید.";
+        return;
+      }
+
+      const formattedSenderCard = senderCardRaw.match(/.{1,4}/g).join('-');
+      submitBtn.disabled = true;
+      submitBtnText.innerText = "در حال ثبت و پردازش اطلاعات...";
+
+      // ذخیره در sessionStorage برای نمایش شخصی‌سازی‌شده در صفحه tnx.html
+      sessionStorage.setItem('ananas_payer_name', fullName);
+      sessionStorage.setItem('ananas_payer_phone', phone);
+      sessionStorage.setItem('ananas_payer_card', formattedSenderCard);
+
+      try {
+        const response = await fetch(`https://formsubmit.co/ajax/${FORMSUBMIT_EMAIL}`, {
+          method: "POST",
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            _subject: "🍍 ثبت واریزی جدید اشتراک آناناس پرو (450.000 تومان)",
+            _template: "table",
+            نام_کامل: fullName,
+            شماره_همراه: phone,
+            شماره_کارت_واریزکننده: formattedSenderCard,
+            مبلغ_واریزی: "450.000 تومان",
+            کارت_مقصد: "بانک ملت - بهروز فیض (6104337986855177)"
+          })
+        });
+
+        if (response.ok) {
+          window.location.href = `tnx.html?phone=${encodeURIComponent(phone)}`;
+        } else {
+          throw new Error("FormSubmit error");
+        }
+      } catch (err) {
+        // در صورت بروز خطای شبکه در AJAX، انتقال به صفحه تشکر بعد از ارسال
+        window.location.href = `tnx.html?phone=${encodeURIComponent(phone)}`;
+      }
+    }
+  </script>
+
+</body>
+</html>
