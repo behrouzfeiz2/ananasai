@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>آناناس | دستیار هوشمند و کدنویس جمنای (AnanasAI)</title>
+  <title>آناناس | دستیار هوشمند و کدنویس (AnanasAI)</title>
   
   <!-- فاوآیکون آناناس -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍍</text></svg>">
@@ -182,7 +182,6 @@
           </span>
         </div>
 
-        <!-- نمایش وضعیت مصرف محدودیت روزانه -->
         <div class="pt-1.5 border-t border-ananas-border/60 space-y-1.5">
           <div class="flex items-center justify-between text-[11px]">
             <span class="text-gray-400">سهمیه پیام امروز:</span>
@@ -193,7 +192,6 @@
           </div>
         </div>
 
-        <!-- مدت زمان باقی‌مانده پرو -->
         <div id="proTimeRemainingContainer" class="hidden text-[11px] text-amber-400 font-medium pt-1.5 border-t border-ananas-border/60 flex items-center justify-between">
           <span>⏳ اعتبار پرو:</span>
           <span id="proTimeRemainingText">۳۰ روز باقی‌مانده</span>
@@ -282,7 +280,6 @@
         <!-- کادر تایپ -->
         <form onsubmit="handleSubmit(event)" class="relative flex items-end gap-2 bg-ananas-card border border-ananas-border focus-within:border-ananas-500/70 rounded-2xl p-2 shadow-lg">
           
-          <!-- دکمه پیوست فایل‌های برنامه‌نویسی (مخصوص اکانت پرو) -->
           <input type="file" id="fileInput" accept="image/*,.txt,.js,.py,.html,.css,.json,.pdf,.php,.sql,.cs,.cpp,.java,.ts,.md" class="hidden" onchange="handleFileSelect(event)" />
           <button type="button" onclick="triggerAttachmentClick()" title="پیوست فایل و بررسی کد (ویژه حساب پرو)" class="p-2.5 rounded-xl text-gray-400 hover:text-ananas-400 hover:bg-ananas-dark/60 transition shrink-0 relative">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
@@ -362,7 +359,7 @@
 
   <!-- جاوااسکریپت برنامه -->
   <script>
-    let currentMode = 'chat'; // 'chat' or 'coder'
+    let currentMode = 'chat';
     let sessions = JSON.parse(localStorage.getItem('ananas_sessions') || '[]');
     let activeSessionId = null;
     let attachedFile = null;
@@ -379,7 +376,6 @@
     window.addEventListener('DOMContentLoaded', () => {
       updateAccountStatusBadge();
       renderHistoryList();
-      // اگر سشن قبلی دارای پیام بود لود شود، در غیر این صورت صفحه خوش‌آمدگویی نمایش داده شود
       if (sessions.length > 0 && sessions[0].messages && sessions[0].messages.length > 0) {
         loadSession(sessions[0].id);
       } else {
@@ -396,7 +392,6 @@
         const data = await res.json();
 
         if (res.status === 401 && userToken) {
-          // اگر توکن در سرور معتبر نبود، به حالت رایگان برگردد
           userToken = '';
           localStorage.removeItem('ananas_user_token');
           quotaState = { isPro: false, used: 0, limit: 10 };
@@ -523,10 +518,9 @@
             <p class="text-gray-300 leading-relaxed">آناناس می‌تونه در این بخش‌ها کمک شما باشه:</p>
             <ul class="list-disc pr-5 space-y-1.5 text-gray-300">
               <li><b>برنامه‌نویسی وب:</b> HTML, CSS, JavaScript, React, Node.js و...</li>
-              <li><b>زبان‌های همه‌منظوره و اسکریپت‌نویسی:</b> Python (برای هوش مصنوعی، اتومیشن، جنگو و...), C++, C#, Java, PHP</li>
+              <li><b>زبان‌های همه‌منظوره و اسکریپت‌نویسی:</b> Python, C++, C#, Java, PHP</li>
               <li><b>پایگاه داده:</b> SQL, MongoDB</li>
-              <li><b>دیباگ کردن و پیداکردن باگ‌ها:</b> کافی است کدت و اروری که می‌گیری را برای من بفرستی.</li>
-              <li><b>الگوریتم‌نویسی و بهینه‌سازی کد</b></li>
+              <li><b>دیباگ کردن و پیداکردن باگ‌ها و الگوریتم‌نویسی</b></li>
             </ul>
           `;
           container.appendChild(infoDiv);
@@ -660,6 +654,56 @@
       renderMessages();
       renderHistoryList();
 
+      // === بررسی هوشمند برای سوالات نرخ ارز و بازار (بدون مصرف سهمیه جمنای) ===
+      const lowerText = userText.toLowerCase();
+      const isMarketQuery = 
+        lowerText.includes('دلار') || 
+        lowerText.includes('طلا') || 
+        lowerText.includes('ارز') || 
+        lowerText.includes('یورو') || 
+        lowerText.includes('پوند') || 
+        lowerText.includes('نفت') ||
+        lowerText.includes('سکه');
+
+      if (isMarketQuery && !attachedFile) {
+        isGenerating = true;
+        appendLoadingBubble(false);
+        try {
+          const res = await fetch('/api/nerkh');
+          const marketResult = await res.json();
+          
+          removeLoadingBubble();
+
+          let replyText = "📊 **آخرین نرخ‌های بازار (برگرفته از منابع زنده):**\n\n";
+          if (marketResult.success && marketResult.data && marketResult.data.items) {
+            marketResult.data.items.forEach(item => {
+              replyText += `🔹 **${item.title}:** ${item.price} (${item.change})\n`;
+            });
+            replyText += `\n⏱ *به‌روزرسانی: ${marketResult.data.updated_at}*`;
+          } else {
+            replyText = "⚠️ در حال حاضر ارتباط با مرکز نرخ‌دهی با مشکل مواجه شده است. لطفاً چند لحظه دیگر تلاش کنید.";
+          }
+
+          currentSession.messages.push({
+            role: 'model',
+            text: replyText
+          });
+
+        } catch (err) {
+          removeLoadingBubble();
+          currentSession.messages.push({
+            role: 'model',
+            text: "⚠️ خطا در دریافت اطلاعات نرخ‌های بازار."
+          });
+        } finally {
+          isGenerating = false;
+          saveSessions();
+          renderMessages();
+        }
+        return;
+      }
+      // ====================================================================
+
       isGenerating = true;
       appendLoadingBubble(currentMode === 'coder');
 
@@ -778,7 +822,7 @@
       bubble.innerHTML = `
         <div class="rounded-2xl bg-ananas-card border border-ananas-border px-4 py-3 text-xs text-gray-300 flex items-center gap-2.5">
           <span class="text-lg animate-bounce">🍍</span>
-          <span>${isCoder ? 'آناناس در حال نوشتن و تحلیل کد است...' : 'آناناس در حال نوشتن پاسخ است...'}</span>
+          <span>${isCoder ? 'آناناس در حال نوشتن و تحلیل کد است...' : 'آناناس در حال استعلام نرخ‌های بازار است...'}</span>
         </div>
       `;
       container.appendChild(bubble);
@@ -917,7 +961,7 @@
       }
 
       closeSettingsModal();
-      alert('کد فعال‌سازی پرو با موفقیت اعمال شد! اکنون به ۱۰۰ پیام روزانه، بخش کد نویس و پیوست فایل دسترسی دارید.');
+      alert('کد فعال‌سازی پرو با موفقیت اعمال شد!');
     }
 
     function removeUserToken() {
