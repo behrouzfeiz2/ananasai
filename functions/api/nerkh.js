@@ -21,35 +21,24 @@ export async function onRequestGet(context) {
     const json = await response.json();
     const data = json.current || {};
 
-    // تابع کمکی برای خواندن قیمت و تغییرات از ساختار JSON سایت TGJU
     function getItem(key) {
       if (data[key] && data[key].p) {
-        return {
-          price: data[key].p, // قیمت
-          change: data[key].diff || "۰" // میزان تغییرات
-        };
+        return data[key].p;
       }
-      return { price: "نامشخص", change: "" };
+      return "نامشخص";
     }
 
-    // استخراج اقلام مهم بازار (کلیدهای استاندارد در ساختار TGJU)
-    const dolar = getItem("price_dollar_rl"); // دلار آزاد
-    const euro = getItem("price_eur");       // یورو
-    const pound = getItem("price_gbp");      // پوند
-    const gold18 = getItem("geram18");       // طلا ۱۸ عیار
-    const SekheImami = getItem("sekee");     // سکه امامی
-    const oil = getItem("oil_brent");        // نفت برنت
-
+    // استخراج و تمیزسازی قیمت‌ها (نمایش بر حسب ریال یا تومان بر اساس نیاز)
     const marketData = {
       source: "tgju.org",
       updated_at: new Date().toLocaleTimeString("fa-IR", { hour: '2-digit', minute: '2-digit' }),
       items: [
-        { title: "دلار آزاد", price: dolar.price, change: `تومان (${dolar.change})` },
-        { title: "یورو", price: euro.price, change: `تومان (${euro.change})` },
-        { title: "پوند", price: pound.price, change: `تومان (${pound.change})` },
-        { title: "طلا (۱۸ عیار)", price: gold18.price, change: `تومان (${gold18.change})` },
-        { title: "سکه امامی", price: SekheImami.price, change: `تومان (${SekheImami.change})` },
-        { title: "نفت برنت", price: oil.price, change: `دلار (${oil.change})` }
+        { title: "دلار", price: getItem("price_dollar_rl"), unit: "ریال" },
+        { title: "یورو", price: getItem("price_eur"), unit: "ریال" },
+        { title: "پوند", price: getItem("price_gbp"), unit: "ریال" },
+        { title: "طلا (۱۸ عیار)", price: getItem("geram18"), unit: "ریال" },
+        { title: "سکه امامی", price: getItem("sekee"), unit: "ریال" },
+        { title: "نفت برنت", price: getItem("oil_brent"), unit: "دلار" }
       ]
     };
 
