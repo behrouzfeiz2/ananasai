@@ -6,6 +6,8 @@
   <title>آناناس AI | پلتفرم هوش مصنوعی و دستیار ارشد برنامه‌نویسی</title>
   
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍍</text></svg>">
+  <link rel="canonical" href="https://ananas.ai/home" />
+  <meta name="robots" content="index, follow" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -63,7 +65,6 @@
       background: #f59e0b;
     }
 
-    /* شبکه پس‌زمینه سایبرپانک / مهندسی */
     .bg-grid-pattern {
       background-image: 
         linear-gradient(to right, rgba(35, 47, 70, 0.25) 1px, transparent 1px),
@@ -71,7 +72,6 @@
       background-size: 38px 38px;
     }
 
-    /* انیمیشن‌های سه‌بعدی و معلق */
     @keyframes floatSlow {
       0%, 100% { transform: translateY(0px) rotateX(8deg) rotateY(-8deg); }
       50% { transform: translateY(-16px) rotateX(2deg) rotateY(-2deg); }
@@ -108,11 +108,9 @@
 </head>
 <body class="min-h-screen flex flex-col justify-between relative bg-grid-pattern">
 
-  <!-- هاله‌های نوری پس‌زمینه -->
   <div class="fixed top-[-80px] right-[10%] w-[420px] h-[420px] bg-ananas-500/15 blur-[140px] rounded-full pointer-events-none -z-10"></div>
   <div class="fixed bottom-[10%] left-[5%] w-[380px] h-[380px] bg-emerald-500/10 blur-[140px] rounded-full pointer-events-none -z-10"></div>
 
-  <!-- پوشش تیره منوی موبایل -->
   <div id="menuOverlay" onclick="toggleMobileMenu(false)" class="fixed inset-0 bg-black/70 backdrop-blur-xs z-40 hidden transition-opacity"></div>
 
   <!-- منوی کشویی همبرگری -->
@@ -138,15 +136,15 @@
         </a>
         <a href="index.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-300 hover:bg-ananas-dark hover:text-white transition">
           <span>💬</span>
-          <span>ورود به محیط چت و کدنویس</span>
+          <span>محیط چت هوشمند</span>
         </a>
         <a href="pro.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-amber-400 hover:bg-ananas-dark transition font-bold">
           <span>🚀</span>
-          <span>خرید اکانت پرو و دانلود اپ</span>
+          <span>تعرفه‌ها و نسخه پرو</span>
         </a>
         <a href="about.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-300 hover:bg-ananas-dark hover:text-white transition">
           <span>ℹ️</span>
-          <span>درباره آناناس AI</span>
+          <span>درباره ما</span>
         </a>
       </nav>
     </div>
@@ -161,10 +159,9 @@
     </div>
   </aside>
 
-  <!-- هدر بالایی با دکمه همبرگری -->
+  <!-- هدر صفحه بدون منوی وسط -->
   <header class="h-16 border-b border-ananas-border/80 px-4 lg:px-12 flex items-center justify-between bg-ananas-dark/80 backdrop-blur-md sticky top-0 z-30">
     <div class="flex items-center gap-3">
-      <!-- دکمه منوی همبرگری -->
       <button onclick="toggleMobileMenu(true)" aria-label="منو" class="p-2 rounded-xl bg-ananas-card hover:bg-ananas-border/70 border border-ananas-border text-gray-200 transition flex items-center justify-center">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
@@ -180,13 +177,7 @@
       </a>
     </div>
 
-    <!-- لینک‌های سریع دسکتاپ -->
-    <nav class="hidden md:flex items-center gap-6 text-xs font-bold text-gray-300">
-      <a href="home.html" class="text-ananas-400">صفحه اصلی</a>
-      <a href="index.html" class="hover:text-white transition">محیط چت هوشمند</a>
-      <a href="pro.html" class="hover:text-ananas-400 transition">تعرفه‌ها و نسخه پرو</a>
-      <a href="about.html" class="hover:text-white transition">درباره ما</a>
-    </nav>
+    <!-- منوی وسط کاملاً حذف شد -->
 
     <div class="flex items-center gap-2">
       <a href="about.html" class="hidden sm:inline-flex px-3 py-1.5 rounded-xl border border-ananas-border hover:border-gray-600 text-xs text-gray-300 hover:text-white transition">
@@ -198,12 +189,8 @@
     </div>
   </header>
 
-  <!-- بخش اصلی (Hero + 3D Visuals) -->
   <main class="flex-1 flex flex-col justify-center max-w-6xl w-full mx-auto px-4 py-10 sm:py-16 space-y-16">
-
-    <!-- بخش مرکزی: معرفی و دکمه‌های بزرگ فراخوان -->
     <div class="text-center space-y-6 max-w-3xl mx-auto">
-      
       <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-ananas-card border border-ananas-500/30 text-ananas-400 text-xs font-bold shadow-sm">
         <span class="w-2 h-2 rounded-full bg-ananas-400 animate-ping"></span>
         <span>نسل جدید دستیار هوش مصنوعی فارسی و مهندس ارشد کدنویسی</span>
@@ -217,24 +204,18 @@
         از توسعه سیستم‌های پیشرفته با <b>Rust</b>، <b>Python</b> و <b>JavaScript</b> تا طراحی بانک‌های اطلاعاتی، تحلیل اسناد، استعلام زنده بازار و پاسخ‌گویی صوتی؛ همه در یک محیط سریع و یکپارچه.
       </p>
 
-      <!-- دو دکمه بزرگ در مرکز صفحه طبق درخواست -->
       <div class="pt-3 flex flex-col sm:flex-row items-center justify-center gap-4">
-        
-        <!-- دکمه بزرگ رایگان شروع کنید -->
         <a href="index.html" class="w-full sm:w-auto min-w-[230px] py-4 px-8 rounded-2xl bg-white hover:bg-gray-100 text-ananas-dark font-black text-sm sm:text-base shadow-xl shadow-white/10 flex items-center justify-center gap-2.5 transform hover:-translate-y-0.5 transition">
           <span>رایگان شروع کنید</span>
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
         </a>
 
-        <!-- دکمه زرد رنگ خرید اکانت پرو لینک به pro.html -->
         <a href="pro.html" class="w-full sm:w-auto min-w-[230px] py-4 px-8 rounded-2xl bg-gradient-to-l from-ananas-400 to-ananas-500 hover:from-ananas-400 hover:to-ananas-400 text-ananas-dark font-black text-sm sm:text-base shadow-xl shadow-ananas-500/30 border border-amber-300/60 flex items-center justify-center gap-2.5 transform hover:-translate-y-0.5 transition">
           <span>🔑</span>
           <span>خرید اکانت پرو</span>
         </a>
-
       </div>
 
-      <!-- لینک‌های کمکی زیر دکمه‌ها -->
       <div class="flex items-center justify-center gap-5 pt-1 text-xs text-gray-400">
         <span>✨ ۱۰ پیام روزانه رایگان</span>
         <span>•</span>
@@ -242,13 +223,9 @@
       </div>
     </div>
 
-    <!-- ویترین سه‌بعدی (3D Visual Showcase) با تمرکز بر هوش مصنوعی و برنامه‌نویسی -->
     <div class="scene-3d relative max-w-4xl w-full mx-auto pt-4 pb-8">
-      
-      <!-- هاله نوری پشت سازه سه‌بعدی -->
       <div class="absolute inset-0 bg-gradient-to-r from-ananas-500/20 via-cyan-500/15 to-emerald-500/20 blur-3xl -z-10 core-glow rounded-full"></div>
 
-      <!-- بج سه‌بعدی معلق ۱: زبان Rust و کدنویسی سیستم -->
       <div class="hidden sm:flex badge-3d-float absolute -top-6 -right-4 z-20 items-center gap-3 px-4 py-3 rounded-2xl bg-ananas-card/95 backdrop-blur-md border border-ananas-500/40 shadow-2xl">
         <div class="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-xl">🦀</div>
         <div class="text-right">
@@ -257,7 +234,6 @@
         </div>
       </div>
 
-      <!-- بج سه‌بعدی معلق ۲: معماری دیتابیس و اسناد -->
       <div class="hidden sm:flex badge-3d-float-delayed absolute -bottom-5 -left-4 z-20 items-center gap-3 px-4 py-3 rounded-2xl bg-ananas-card/95 backdrop-blur-md border border-cyan-500/40 shadow-2xl">
         <div class="w-10 h-10 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-xl">🗄️</div>
         <div class="text-right">
@@ -266,10 +242,7 @@
         </div>
       </div>
 
-      <!-- پنجره اصلی سه‌بعدی IDE و هسته هوش مصنوعی آناناس -->
       <div class="card-3d-main rounded-3xl bg-gradient-to-b from-[#182132] to-[#0e1420] border border-ananas-border overflow-hidden">
-        
-        <!-- نوار بالای پنجره کد -->
         <div class="px-4 py-3 bg-ananas-dark/90 border-b border-ananas-border flex items-center justify-between">
           <div class="flex items-center gap-2">
             <span class="w-3 h-3 rounded-full bg-red-500/80"></span>
@@ -280,14 +253,10 @@
           <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">AI Code Architect</span>
         </div>
 
-        <!-- محتوای دو ستونه داخل پنجره سه‌بعدی -->
         <div class="grid grid-cols-1 lg:grid-cols-12 p-5 sm:p-7 gap-6 items-center">
-          
-          <!-- ستون راست: هسته بصری آناناس سه‌بعدی -->
           <div class="lg:col-span-5 flex flex-col items-center text-center space-y-4 p-4 rounded-2xl bg-ananas-dark/60 border border-ananas-border/80 relative overflow-hidden">
             <div class="relative w-28 h-28 flex items-center justify-center">
               <div class="absolute inset-0 rounded-full bg-gradient-to-tr from-ananas-500/40 to-emerald-400/30 blur-xl core-glow"></div>
-              <!-- آیکون وکتور سه‌بعدی آناناس -->
               <div class="relative w-24 h-24 rounded-3xl bg-gradient-to-b from-[#1f293d] to-ananas-dark border border-ananas-500/50 flex items-center justify-center shadow-2xl">
                 <svg class="w-16 h-16" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M32 4C27 13 20 15 16 14C20 20 25 22 32 22C39 22 44 20 48 14C44 15 37 13 32 4Z" fill="#10B981"/>
@@ -310,15 +279,8 @@
               <div class="text-sm font-extrabold text-white">هسته پردازشی AnanasAI</div>
               <div class="text-[11px] text-gray-400">تحلیل کد، اسناد، صوت و داده‌های زنده</div>
             </div>
-            <div class="flex flex-wrap justify-center gap-1.5 pt-1">
-              <span class="px-2 py-0.5 rounded-md bg-ananas-500/15 text-ananas-400 text-[10px] font-mono">Rust</span>
-              <span class="px-2 py-0.5 rounded-md bg-cyan-500/15 text-cyan-400 text-[10px] font-mono">Python</span>
-              <span class="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 text-[10px] font-mono">TypeScript</span>
-              <span class="px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-300 text-[10px] font-mono">SQL</span>
-            </div>
           </div>
 
-          <!-- ستون چپ: نمایش زنده کدنویسی هوشمند -->
           <div class="lg:col-span-7 text-left font-mono text-xs sm:text-sm bg-[#090d14] border border-ananas-border rounded-2xl p-4 sm:p-5 space-y-2 overflow-x-auto" dir="ltr">
             <div class="text-gray-500">// AnanasAI Senior Code Generator (Rust + SQL)</div>
             <div><span class="text-purple-400">use</span> <span class="text-cyan-300">ananas_ai::prelude</span>::*;</div>
@@ -330,50 +292,36 @@
             <div class="pl-4 text-gray-300"><span class="text-cyan-300">Ok</span>(())</div>
             <div>}</div>
           </div>
-
         </div>
       </div>
     </div>
 
-    <!-- کارت‌های ویژگی‌های کلیدی پایین لندینگ -->
     <section class="grid grid-cols-1 md:grid-cols-3 gap-5">
-      
       <div class="rounded-2xl bg-ananas-card/90 border border-ananas-border p-5 space-y-2.5 hover:border-ananas-500/50 transition">
         <div class="w-10 h-10 rounded-xl bg-ananas-500/15 border border-ananas-500/30 flex items-center justify-center text-xl">💻</div>
         <h3 class="font-bold text-white text-sm sm:text-base">دستیار تخصصی کدنویس</h3>
-        <p class="text-xs text-gray-400 leading-relaxed">
-          توسعه و دیباگ کدهای پیچیده به زبان‌های Rust، پایتون، جاوااسکریپت، C++ و طراحی ساختار بهینه دیتابیس.
-        </p>
+        <p class="text-xs text-gray-400 leading-relaxed">توسعه و دیباگ کدهای پیچیده به زبان‌های Rust، پایتون، جاوااسکریپت، C++ و طراحی ساختار بهینه دیتابیس.</p>
       </div>
 
       <div class="rounded-2xl bg-ananas-card/90 border border-ananas-border p-5 space-y-2.5 hover:border-ananas-500/50 transition">
         <div class="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-xl">🎙️</div>
         <h3 class="font-bold text-white text-sm sm:text-base">تایپ صوتی و استعلام زنده</h3>
-        <p class="text-xs text-gray-400 leading-relaxed">
-          امکان ارسال پیام صوتی فارسی با میکروفون گوشی و دسترسی آنی به نرخ لحظه‌ای دلار، طلا، سکه و اخبار روز.
-        </p>
+        <p class="text-xs text-gray-400 leading-relaxed">امکان ارسال پیام صوتی فارسی با میکروفون گوشی و دسترسی آنی به نرخ لحظه‌ای دلار، طلا، سکه و اخبار روز.</p>
       </div>
 
       <div class="rounded-2xl bg-ananas-card/90 border border-ananas-border p-5 space-y-2.5 hover:border-ananas-500/50 transition">
         <div class="w-10 h-10 rounded-xl bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center text-xl">📂</div>
         <h3 class="font-bold text-white text-sm sm:text-base">تحلیل فایل‌ها و اسناد</h3>
-        <p class="text-xs text-gray-400 leading-relaxed">
-          آپلود مستقیم فایل‌های سورس‌کد، تصاویر و مستندات فنی در حساب پرو برای بررسی، خلاصه‌سازی و رفع خطا.
-        </p>
+        <p class="text-xs text-gray-400 leading-relaxed">آپلود مستقیم فایل‌های سورس‌کد، تصاویر و مستندات فنی در حساب پرو برای بررسی، خلاصه‌سازی و رفع خطا.</p>
       </div>
-
     </section>
-
   </main>
 
-  <!-- فوتر مشابه index -->
   <footer class="py-3.5 px-4 border-t border-ananas-border bg-ananas-dark text-center text-xs text-gray-400 shrink-0">
     <div class="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
       <div class="flex items-center justify-center gap-1">
         <span>طراحی و پیاده‌سازی توسط</span>
-        <a href="https://branex.ir" target="_blank" class="text-ananas-400 font-bold hover:underline transition">
-          Branex
-        </a>
+        <a href="https://branex.ir" target="_blank" class="text-ananas-400 font-bold hover:underline transition">Branex</a>
       </div>
       <div class="flex items-center gap-4 text-[11px] text-gray-400">
         <a href="index.html" class="hover:text-white transition">شروع رایگان چت</a>
@@ -398,6 +346,5 @@
       }
     }
   </script>
-
 </body>
 </html>
