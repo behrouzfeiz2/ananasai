@@ -226,14 +226,14 @@
       </div>
     </div>
 
-    <!-- شبکه دو ستونه: کارت سه بعدی + فرم ثبت واریزی -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
+    <!-- شبکه دو ستونه: فقط کارت سه بعدی + فرم ثبت واریزی -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
 
-      <!-- ستون راست: کارت سه بعدی بانک ملت و راهنمای کپی -->
-      <div class="lg:col-span-6 space-y-6 flex flex-col items-center">
+      <!-- ستون راست: فقط کارت سه بعدی بانک ملت -->
+      <div class="lg:col-span-6 flex flex-col items-center justify-center">
         
-        <div class="perspective-container w-full max-w-[430px]">
-          <div id="mellatCard" class="bank-card-3d mellat-pattern relative w-full aspect-[1.586/1] rounded-3xl p-6 sm:p-7 flex flex-col justify-between overflow-hidden select-none border border-white/20 cursor-pointer">
+        <div class="perspective-container w-full max-w-[440px]">
+          <div id="mellatCard" onclick="copyCardNumber()" title="برای کپی شماره کارت کلیک کنید" class="bank-card-3d mellat-pattern relative w-full aspect-[1.586/1] rounded-3xl p-6 sm:p-7 flex flex-col justify-between overflow-hidden select-none border border-white/20 cursor-pointer">
             
             <div id="cardGlare" class="card-glare absolute inset-0 opacity-0"></div>
 
@@ -256,7 +256,7 @@
               </div>
 
               <div class="flex flex-col items-end">
-                <span class="px-2.5 py-0.5 rounded-lg bg-black/25 border border-white/15 text-[10px] font-bold text-amber-300">کارت ملت</span>
+                <span id="copyBadge" class="px-2.5 py-0.5 rounded-lg bg-black/25 border border-white/15 text-[10px] font-bold text-amber-300 transition">کپی با کلیک 📋</span>
                 <span class="text-[9px] text-white/60 mt-0.5">SHETAB</span>
               </div>
             </div>
@@ -282,7 +282,7 @@
 
             <!-- شماره ۱۶ رقمی کارت -->
             <div class="card-depth-high z-10 text-center my-1">
-              <div dir="ltr" onclick="copyCardNumber()" title="برای کپی کلیک کنید" class="card-number-shadow font-mono text-xl sm:text-2xl md:text-[26px] font-black text-white tracking-wider py-1.5 px-3 rounded-xl bg-black/20 hover:bg-black/35 border border-white/10 transition flex items-center justify-center gap-2.5 sm:gap-3.5">
+              <div dir="ltr" class="card-number-shadow font-mono text-xl sm:text-2xl md:text-[26px] font-black text-white tracking-wider py-1.5 px-3 rounded-xl bg-black/20 hover:bg-black/35 border border-white/10 transition flex items-center justify-center gap-2.5 sm:gap-3.5">
                 <span>6104</span>
                 <span>3379</span>
                 <span>8685</span>
@@ -305,32 +305,9 @@
           </div>
         </div>
 
-        <!-- دکمه کپی سریع و باکس اطلاعات متنی کارت -->
-        <div class="w-full max-w-[430px] rounded-3xl bg-ananas-card border border-ananas-border p-5 space-y-4 shadow-lg">
-          <div class="flex items-center justify-between">
-            <div class="space-y-0.5">
-              <span class="text-xs text-gray-400 block">شماره کارت جهت کپی سریع:</span>
-              <span dir="ltr" class="font-mono text-sm sm:text-base font-bold text-white tracking-wider">6104 - 3379 - 8685 - 5177</span>
-            </div>
-            <button type="button" onclick="copyCardNumber()" id="copyBtn" class="px-4 py-2.5 rounded-xl bg-ananas-500/15 hover:bg-ananas-500/25 text-ananas-400 border border-ananas-500/30 text-xs font-bold flex items-center gap-2 transition cursor-pointer shrink-0">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-              <span id="copyBtnText">کپی شماره کارت</span>
-            </button>
-          </div>
-
-          <div class="border-t border-ananas-border pt-3 flex items-center justify-between text-xs text-gray-300">
-            <span>صاحب حساب: <b class="text-white">بهروز فیض</b></span>
-            <span>مبلغ قابل پرداخت: <b class="text-emerald-400 text-sm">450.000 تومان</b></span>
-          </div>
-
-          <p class="text-[11px] text-gray-400 leading-relaxed bg-ananas-dark/60 p-3 rounded-xl border border-ananas-border/60">
-            💡 <b>نکته:</b> لطفاً دقیقاً مبلغ <b>450.000 تومان</b> را به شماره کارت بالا به نام <b>«بهروز فیض»</b> واریز کرده و سپس فرم روبرو را تکمیل کنید.
-          </p>
-        </div>
-
       </div>
 
-      <!-- ستون چپ: فرم اطلاع از پرداخت متصل به FormSubmit -->
+      <!-- ستون چپ: فرم اطلاع از پرداخت متصل به formsubmit.io -->
       <div class="lg:col-span-6">
         <div class="rounded-3xl bg-gradient-to-b from-[#1c2436] to-ananas-card border border-ananas-border p-6 sm:p-8 space-y-6 shadow-2xl relative">
           
@@ -345,19 +322,17 @@
             <span class="px-3 py-1 rounded-xl bg-ananas-500/15 text-ananas-400 text-xs font-bold border border-ananas-500/30 shrink-0">450.000 تومان</span>
           </div>
 
-          <!-- فرم متصل به سرویس FormSubmit با ایمیل behrouz.feiz@gmail.com -->
+          <!-- فرم متصل به formsubmit.io با کد اختصاصی شما -->
           <form 
             id="paymentNotifyForm" 
-            action="https://formsubmit.co/behrouz.feiz@gmail.com" 
+            action="https://formsubmit.io/send/6f5c9ff4-561e-4968-82a7-1362ca4635bc" 
             method="POST" 
-            onsubmit="handlePaymentSubmit(event)" 
+            onsubmit="return validateCardBeforeSubmit(event)" 
             class="space-y-5"
           >
-            <!-- فیلدهای مخفی تنظیمات FormSubmit -->
-            <input type="hidden" name="_subject" value="🍍 ثبت واریزی جدید اشتراک آناناس پرو (450.000 تومان)" />
-            <input type="hidden" name="_captcha" value="false" />
-            <input type="hidden" name="_template" value="table" />
-            <input type="hidden" name="مبلغ_واریزی" value="450.000 تومان" />
+            <!-- فیلد ضد اسپم مخصوص formsubmit.io (نباید پر شود) -->
+            <input name="_formsubmit_id" type="text" style="display:none" />
+            <input type="hidden" name="amount" value="450.000 تومان" />
 
             <!-- نام کامل -->
             <div class="space-y-2">
@@ -368,7 +343,7 @@
                 <input 
                   type="text" 
                   id="fullName" 
-                  name="نام_کامل" 
+                  name="full_name" 
                   required 
                   placeholder="مثال: علی محمدی"
                   class="w-full rounded-2xl bg-ananas-dark border border-ananas-border focus:border-ananas-500 focus:ring-2 focus:ring-ananas-500/20 px-4 py-3.5 text-sm text-white placeholder-gray-500 outline-none transition"
@@ -385,7 +360,7 @@
                 <input 
                   type="tel" 
                   id="phoneNumber" 
-                  name="شماره_همراه" 
+                  name="phone_number" 
                   dir="ltr"
                   required 
                   maxlength="11"
@@ -407,7 +382,7 @@
                 <input 
                   type="text" 
                   id="senderCard" 
-                  name="شماره_کارت_واریزکننده" 
+                  name="sender_card_number" 
                   dir="ltr"
                   required 
                   maxlength="19"
@@ -419,7 +394,7 @@
               <p class="text-[11px] text-gray-400">شماره ۱۶ رقمی کارت بانکی مبدا که مبلغ 450.000 تومان از آن واریز شده است.</p>
             </div>
 
-            <!-- پیام وضعیت ثبت فرم -->
+            <!-- پیام خطای احتمالی -->
             <div id="formAlert" class="hidden rounded-2xl p-4 text-xs leading-relaxed border"></div>
 
             <!-- دکمه ثبت نهایی -->
@@ -463,7 +438,6 @@
   </footer>
 
   <script>
-    const FORMSUBMIT_EMAIL = "behrouz.feiz@gmail.com"; 
     const TARGET_CARD_NUMBER = "6104337986855177";
 
     function toggleMobileMenu(show) {
@@ -509,17 +483,18 @@
       });
     }
 
+    // کپی شماره کارت با کلیک روی کارت سه بعدی
     function copyCardNumber() {
       navigator.clipboard.writeText(TARGET_CARD_NUMBER).then(() => {
-        const btnText = document.getElementById('copyBtnText');
-        const btn = document.getElementById('copyBtn');
-        const oldText = btnText.innerText;
-        btnText.innerText = 'کپی شد! ✔';
-        btn.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border-emerald-500/40');
-        setTimeout(() => {
-          btnText.innerText = oldText;
-          btn.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'border-emerald-500/40');
-        }, 2200);
+        const badge = document.getElementById('copyBadge');
+        if (badge) {
+          badge.innerText = 'کپی شد! ✔';
+          badge.classList.replace('text-amber-300', 'text-emerald-300');
+          setTimeout(() => {
+            badge.innerText = 'کپی با کلیک 📋';
+            badge.classList.replace('text-emerald-300', 'text-amber-300');
+          }, 2000);
+        }
       });
     }
 
@@ -529,58 +504,23 @@
       input.value = formatted;
     }
 
-    // ارسال فرم به سرویس FormSubmit و هدایت به صفحه tnx.html
-    async function handlePaymentSubmit(e) {
-      e.preventDefault();
-      const fullName = document.getElementById('fullName').value.trim();
-      const phone = document.getElementById('phoneNumber').value.trim();
+    // بررسی ۱۶ رقمی بودن شماره کارت قبل از ارسال مستقیم به formsubmit.io
+    function validateCardBeforeSubmit(e) {
       const senderCardRaw = document.getElementById('senderCard').value.replace(/\D/g, '');
       const alertBox = document.getElementById('formAlert');
       const submitBtn = document.getElementById('submitBtn');
       const submitBtnText = document.getElementById('submitBtnText');
 
       if (senderCardRaw.length !== 16) {
+        e.preventDefault();
         alertBox.className = "rounded-2xl p-4 text-xs leading-relaxed border bg-rose-500/15 border-rose-500/40 text-rose-300 block";
         alertBox.innerHTML = "❌ لطفاً شماره کارت ۱۶ رقمی که با آن واریز انجام شده است را به صورت کامل وارد نمایید.";
-        return;
+        return false;
       }
 
-      const formattedSenderCard = senderCardRaw.match(/.{1,4}/g).join('-');
       submitBtn.disabled = true;
-      submitBtnText.innerText = "در حال ثبت و پردازش اطلاعات...";
-
-      // ذخیره در sessionStorage برای نمایش شخصی‌سازی‌شده در صفحه tnx.html
-      sessionStorage.setItem('ananas_payer_name', fullName);
-      sessionStorage.setItem('ananas_payer_phone', phone);
-      sessionStorage.setItem('ananas_payer_card', formattedSenderCard);
-
-      try {
-        const response = await fetch(`https://formsubmit.co/ajax/${FORMSUBMIT_EMAIL}`, {
-          method: "POST",
-          headers: { 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({
-            _subject: "🍍 ثبت واریزی جدید اشتراک آناناس پرو (450.000 تومان)",
-            _template: "table",
-            نام_کامل: fullName,
-            شماره_همراه: phone,
-            شماره_کارت_واریزکننده: formattedSenderCard,
-            مبلغ_واریزی: "450.000 تومان",
-            کارت_مقصد: "بانک ملت - بهروز فیض (6104337986855177)"
-          })
-        });
-
-        if (response.ok) {
-          window.location.href = `tnx.html?phone=${encodeURIComponent(phone)}`;
-        } else {
-          throw new Error("FormSubmit error");
-        }
-      } catch (err) {
-        // در صورت بروز خطای شبکه در AJAX، انتقال به صفحه تشکر بعد از ارسال
-        window.location.href = `tnx.html?phone=${encodeURIComponent(phone)}`;
-      }
+      submitBtnText.innerText = "در حال ارسال اطلاعات...";
+      return true;
     }
   </script>
 
