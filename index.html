@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>آناناس | دستیار هوشمند شما (AnanasAI)</title>
+  <title>آناناس | دستیار هوشمند و تصویرساز جمنای (AnanasAI)</title>
   
   <!-- فاوآیکون آناناس -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍍</text></svg>">
@@ -114,6 +114,13 @@
     .pineapple-glow {
       animation: pulseGlow 3s infinite ease-in-out;
     }
+    @keyframes shimmerSweep {
+      0% { transform: translateX(100%); }
+      100% { transform: translateX(-100%); }
+    }
+    .shimmer-bar {
+      animation: shimmerSweep 2s infinite linear;
+    }
   </style>
 </head>
 <body class="h-screen w-screen flex select-none md:select-auto">
@@ -181,14 +188,12 @@
             نسخه رایگان
           </span>
         </div>
-        <!-- مدت زمان باقی‌مانده پرو -->
         <div id="proTimeRemainingContainer" class="hidden text-[11px] text-amber-400 font-medium pt-1 border-t border-ananas-border/50 flex items-center justify-between">
           <span>⏳ اعتبار پرو:</span>
           <span id="proTimeRemainingText">۳۰ روز باقی‌مانده</span>
         </div>
       </div>
 
-      <!-- دکمه اکانت -->
       <button id="actionAccountBtn" onclick="openSettingsModal()" class="w-full py-2 px-3 rounded-xl border border-ananas-border hover:border-ananas-500/50 text-gray-300 hover:text-white text-xs flex items-center justify-center gap-2 transition">
         <svg class="w-4 h-4 text-ananas-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
         <span id="actionBtnText">وارد کردن کد فعال‌سازی پرو 🔑</span>
@@ -199,7 +204,7 @@
   <!-- بخش اصلی چت -->
   <main class="flex-1 flex flex-col h-full bg-ananas-dark relative overflow-hidden">
     
-    <!-- نوار بالای صفحه -->
+    <!-- نوار بالای صفحه (بدون نمایش نام مدل) -->
     <header class="h-16 border-b border-ananas-border px-4 lg:px-8 flex items-center justify-between bg-ananas-dark/80 backdrop-blur-md z-20">
       <div class="flex items-center gap-3">
         <button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-xl bg-ananas-card border border-ananas-border text-gray-300">
@@ -208,8 +213,6 @@
         <div class="flex items-center gap-2">
           <span class="text-xl">🍍</span>
           <span class="font-bold text-white text-sm sm:text-base">AnanasAI</span>
-          <!-- نام اختصاصی مدل در بالای صفحه -->
-         
         </div>
       </div>
 
@@ -242,7 +245,7 @@
             سلام! به هوش مصنوعی <span class="text-ananas-400">آناناس</span> خوش آمدید
           </h2>
           <p class="text-sm text-gray-400 max-w-md mx-auto leading-relaxed">
-            دستیار هوشمند شما برای تولید محتوا، کدنویسی و خلق تصاویر با نسل جدید جمنای
+            دستیار هوشمند شما برای تولید محتوا، کدنویسی و طراحی تصویر
           </p>
         </div>
 
@@ -256,7 +259,7 @@
             <p class="text-xs text-gray-300">برنامه هفتگی یادگیری پایتون به زبان فارسی</p>
           </button>
 
-          <button onclick="quickPrompt('image', 'یک آناناس نئونی آینده‌نگر با عینک دودی در ساحل سایبرپانکی با نورپردازی سینمایی')" class="p-3.5 rounded-2xl bg-ananas-card hover:bg-ananas-card/80 border border-ananas-border hover:border-ananas-leaf/50 transition group">
+          <button onclick="quickPrompt('image', 'یک آناناس نئونی آینده‌نگر با عینک دودی در ساحل سایبرپانکی')" class="p-3.5 rounded-2xl bg-ananas-card hover:bg-ananas-card/80 border border-ananas-border hover:border-ananas-leaf/50 transition group">
             <div class="flex items-center justify-between mb-1">
               <span class="text-xs font-bold text-emerald-400">🎨 تولید تصویر هوشمند</span>
               <span class="text-gray-500 group-hover:translate-x-[-3px] transition">←</span>
@@ -291,7 +294,6 @@
         <!-- کادر تایپ -->
         <form onsubmit="handleSubmit(event)" class="relative flex items-end gap-2 bg-ananas-card border border-ananas-border focus-within:border-ananas-500/70 rounded-2xl p-2 shadow-lg">
           
-          <!-- دکمه آپلود تصویر -->
           <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleFileSelect(event)" />
           <button type="button" onclick="document.getElementById('fileInput').click()" title="پیوست تصویر برای تحلیل یا ویرایش" class="p-2.5 rounded-xl text-gray-400 hover:text-ananas-400 hover:bg-ananas-dark/60 transition shrink-0">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
@@ -306,7 +308,6 @@
             class="w-full bg-transparent text-white placeholder-gray-400 text-sm focus:outline-none resize-none py-2 px-1 max-h-36 leading-relaxed"
           ></textarea>
 
-          <!-- دکمه ارسال با آیکون به سمت بالا -->
           <button id="sendBtn" type="submit" class="p-2.5 rounded-xl bg-ananas-500 hover:bg-ananas-400 text-ananas-dark font-bold transition shrink-0 flex items-center justify-center shadow-md shadow-ananas-500/20">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
           </button>
@@ -369,10 +370,9 @@
     let activeSessionId = null;
     let attachedImage = null;
     let isGenerating = false;
+    let imageTimerInterval = null;
 
-    // مدل‌های درخواستی شما برای چت و ساخت تصویر
     const chatModel = 'gemini-3.5-flash-lite';
-    const imageModel = 'gemini-2.5-flash-image';
     let userToken = localStorage.getItem('ananas_user_token') || '';
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -392,7 +392,6 @@
       if (userToken) {
         badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> حساب پرو (Pro)';
         badge.className = 'flex items-center gap-1.5 text-amber-400 font-bold';
-        
         actionBtnText.textContent = 'مدیریت کد فعال‌سازی ⚙️';
 
         let tokenTimeKey = `ananas_token_time_${userToken}`;
@@ -416,7 +415,6 @@
           timeText.textContent = `${daysLeft} روز و ${hoursLeft} ساعت باقی‌مانده`;
           timeContainer.classList.remove('hidden');
         }
-
       } else {
         badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-gray-400"></span> نسخه رایگان';
         badge.className = 'flex items-center gap-1.5 text-gray-300 font-medium';
@@ -431,20 +429,17 @@
       const imgBtn = document.getElementById('modeImageBtn');
       const input = document.getElementById('promptInput');
       const hint = document.getElementById('modeHintText');
-      const modelTag = document.getElementById('activeModelTag');
 
       if (mode === 'image') {
         imgBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-emerald-500 text-ananas-dark';
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
-        input.placeholder = 'چه تصویری می‌خواهی آناناس برات درست کنه؟';
-        hint.textContent = '🎨 حالت ساخت تصویر فعال است (مدل: gemini-3.1-flash-lite-image)';
-        if (modelTag) modelTag.textContent = imageModel;
+        input.placeholder = 'چه تصویری می‌خواهی آناناس برات طراحی کنه؟';
+        hint.textContent = '🎨 حالت ساخت تصویر فعال است.';
       } else {
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-ananas-500 text-ananas-dark';
         imgBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
         input.placeholder = 'پیام خود را برای آناناس بنویسید...';
         hint.textContent = '💬 حالت گفتگو فعال است (برای ساخت عکس، روی «ساخت تصویر» کلیک کنید)';
-        if (modelTag) modelTag.textContent = chatModel;
       }
     }
 
@@ -480,12 +475,8 @@
     }
 
     async function callGeminiAPI(selectedModel, requestPayload, isImgReq) {
-      const headers = {
-        'Content-Type': 'application/json'
-      };
-      if (userToken) {
-        headers['X-User-Token'] = userToken;
-      }
+      const headers = { 'Content-Type': 'application/json' };
+      if (userToken) headers['X-User-Token'] = userToken;
 
       const response = await fetch('/api/gemini', {
         method: 'POST',
@@ -502,7 +493,7 @@
       try {
         data = JSON.parse(rawText);
       } catch (err) {
-        throw new Error(`پاسخ سرور نامعتبر یا زمان درخواست تمام شد (کد وضعیت: ${response.status}). لطفاً یک گفتگوی تازه باز کنید و مجدداً امتحان کنید.`);
+        throw new Error(`پاسخ سرور نامعتبر یا زمان درخواست تمام شد (کد وضعیت: ${response.status}).`);
       }
 
       if (!response.ok || data.error) {
@@ -555,54 +546,50 @@
 
       try {
         if (wantImage) {
-          // تولید مستقیم تصویر با مدل gemini-3.1-flash-lite-image
           const promptParts = [];
           if (userMsg.imageData && userMsg.imageMime) {
             promptParts.push({ inlineData: { mimeType: userMsg.imageMime, data: userMsg.imageData } });
           }
           promptParts.push({
-            text: userMsg.text || 'Create a high quality artistic version of this image'
+            text: `Convert the following user request into a single, detailed, high-quality English image generation prompt (max 45 words, cinematic lighting, 8k, masterpiece). Output ONLY the English prompt without quotes or extra explanation:\n\nUser request: ${userMsg.text || 'Recreate this image in high quality digital art style'}`
           });
 
-          const imagePayload = {
-            contents: [{ role: 'user', parts: promptParts }],
-            generationConfig: {
-              responseModalities: ["IMAGE", "TEXT"]
-            }
+          const imageReqPayload = {
+            contents: [{ role: 'user', parts: promptParts }]
           };
 
-          const geminiRes = await callGeminiAPI(imageModel, imagePayload, true);
-          const candidateParts = geminiRes?.candidates?.[0]?.content?.parts || [];
-          
-          const imgPart = candidateParts.find(p => p.inlineData);
-          const textPart = candidateParts.find(p => p.text);
+          // فراخوانی سرور که خودش عکس را می‌سازد و به صورت Base64 برمی‌گرداند
+          const geminiRes = await callGeminiAPI(chatModel, imageReqPayload, true);
+          const imgPart = geminiRes?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
 
-          if (!imgPart) {
-            throw new Error(textPart?.text || 'تصویری از سرور دریافت نشد. لطفاً پرامپت دیگری امتحان کنید.');
+          if (!imgPart || !imgPart.inlineData?.data) {
+            throw new Error('امکان تولید تصویر در حال حاضر وجود ندارد. لطفاً دوباره تلاش کنید.');
           }
 
-          const generatedImageUrl = `data:${imgPart.inlineData.mimeType || 'image/png'};base64,${imgPart.inlineData.data}`;
+          const generatedImageDataUrl = `data:${imgPart.inlineData.mimeType || 'image/jpeg'};base64,${imgPart.inlineData.data}`;
 
           removeLoadingBubble();
           currentSession.messages.push({
             role: 'model',
-            text: textPart?.text || `✨ **تصویر درخواستی شما با موفقیت ساخته شد:**`,
-            generatedImage: generatedImageUrl
+            text: `✨ **تصویر درخواستی شما با موفقیت طراحی شد:**`,
+            generatedImage: generatedImageDataUrl
           });
 
         } else {
-          // حالت گفتگو و تحلیل تصویر با مدل gemini-3.5-flash-lite
-          const historyContents = currentSession.messages.map(m => {
-            const parts = [];
-            if (m.text) parts.push({ text: m.text });
-            if (m.imageData && m.imageMime) {
-              parts.push({ inlineData: { mimeType: m.imageMime, data: m.imageData } });
-            }
-            return {
-              role: m.role === 'user' ? 'user' : 'model',
-              parts
-            };
-          });
+          // حالت گفتگو با gemini-3.5-flash-lite
+          const historyContents = currentSession.messages
+            .filter(m => !m.isError)
+            .map(m => {
+              const parts = [];
+              if (m.text) parts.push({ text: m.text });
+              if (m.imageData && m.imageMime) {
+                parts.push({ inlineData: { mimeType: m.imageMime, data: m.imageData } });
+              }
+              return {
+                role: m.role === 'user' ? 'user' : 'model',
+                parts
+              };
+            });
 
           const payload = {
             systemInstruction: {
@@ -634,6 +621,28 @@
         isGenerating = false;
         saveSessions();
         renderMessages();
+      }
+    }
+
+    // دانلود مستقیم فایل با پنجره Save As مرورگر بدون افشای هیچ آدرسی
+    async function downloadGeneratedImage(idx) {
+      const currentSession = sessions.find(s => s.id === activeSessionId);
+      const msg = currentSession?.messages?.[idx];
+      if (!msg || !msg.generatedImage) return;
+
+      try {
+        const res = await fetch(msg.generatedImage);
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `AnanasAI-${Date.now()}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+      } catch (e) {
+        alert('خطا در ذخیره تصویر.');
       }
     }
 
@@ -670,15 +679,15 @@
                 </div>
                 <div class="prose-ananas text-sm text-gray-200">${parsedMd}</div>
                 ${msg.generatedImage ? `
-                  <div class="mt-3 space-y-2">
+                  <div class="mt-3 space-y-2.5">
                     <div class="relative group rounded-2xl overflow-hidden border border-ananas-500/30 bg-black/40">
-                      <img src="${msg.generatedImage}" class="w-full max-h-[420px] object-contain mx-auto" alt="تصویر تولید شده" />
+                      <img src="${msg.generatedImage}" class="w-full max-h-[420px] object-contain mx-auto" alt="تصویر تولید شده توسط آناناس" />
                     </div>
                     <div class="flex items-center justify-end">
-                      <a href="${msg.generatedImage}" download="AnanasAI-${Date.now()}.png" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-ananas-500 hover:bg-ananas-400 text-ananas-dark font-bold text-xs transition shadow-md">
+                      <button type="button" onclick="downloadGeneratedImage(${idx})" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-ananas-500 hover:bg-ananas-400 text-ananas-dark font-bold text-xs transition shadow-md cursor-pointer">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                         <span>دانلود تصویر باکیفیت</span>
-                      </a>
+                      </button>
                     </div>
                   </div>
                 ` : ''}
@@ -696,17 +705,75 @@
       const bubble = document.createElement('div');
       bubble.id = 'loadingBubble';
       bubble.className = 'flex items-start gap-3 justify-end';
+
+      if (!isImage) {
+        bubble.innerHTML = `
+          <div class="rounded-2xl bg-ananas-card border border-ananas-border px-4 py-3 text-xs text-gray-300 flex items-center gap-2.5">
+            <span class="text-lg animate-bounce">🍍</span>
+            <span>آناناس در حال نوشتن پاسخ است...</span>
+          </div>
+        `;
+        container.appendChild(bubble);
+        scrollToBottom();
+        return;
+      }
+
+      // انیمیشن اختصاصی ۴۵ ثانیه‌ای برای طراحی تصویر
       bubble.innerHTML = `
-        <div class="rounded-2xl bg-ananas-card border border-ananas-border px-4 py-3 text-xs text-gray-300 flex items-center gap-2.5">
-          <span class="text-lg animate-bounce">🍍</span>
-          <span>${isImage ? 'آناناس در حال خلق تصویر است...' : 'آناناس در حال نوشتن پاسخ است...'}</span>
+        <div class="w-full max-w-md rounded-2xl bg-ananas-card border border-emerald-500/40 p-4 text-xs text-gray-200 space-y-3 shadow-lg">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-xl animate-spin">🎨</span>
+              <span id="imgStatusStage" class="font-bold text-emerald-400">آناناس در حال پردازش ایده و شروع طراحی...</span>
+            </div>
+            <span id="imgTimerBadge" class="font-mono text-[11px] bg-ananas-dark px-2 py-0.5 rounded-lg border border-ananas-border text-amber-400">45s</span>
+          </div>
+
+          <div class="w-full h-2.5 bg-ananas-dark rounded-full overflow-hidden border border-ananas-border relative">
+            <div id="imgProgressBar" class="h-full bg-gradient-to-l from-emerald-400 via-ananas-400 to-ananas-500 transition-all duration-1000 ease-linear" style="width: 2%"></div>
+            <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent shimmer-bar"></div>
+          </div>
+
+          <div class="flex items-center justify-between text-[11px] text-gray-400">
+            <span>رندر باکیفیت ممکن است تا ۴۵ ثانیه زمان ببرد</span>
+            <span id="imgPercentText">2%</span>
+          </div>
         </div>
       `;
       container.appendChild(bubble);
       scrollToBottom();
+
+      let elapsed = 0;
+      const totalSeconds = 45;
+      if (imageTimerInterval) clearInterval(imageTimerInterval);
+
+      imageTimerInterval = setInterval(() => {
+        elapsed += 1;
+        const remaining = Math.max(0, totalSeconds - elapsed);
+        const percent = Math.min(98, Math.round((elapsed / totalSeconds) * 100));
+
+        const barEl = document.getElementById('imgProgressBar');
+        const timerEl = document.getElementById('imgTimerBadge');
+        const pctEl = document.getElementById('imgPercentText');
+        const stageEl = document.getElementById('imgStatusStage');
+
+        if (barEl) barEl.style.width = `${percent}%`;
+        if (timerEl) timerEl.textContent = remaining > 0 ? `${remaining}s` : `...`;
+        if (pctEl) pctEl.textContent = `${percent}%`;
+
+        if (stageEl) {
+          if (elapsed === 8) stageEl.textContent = 'در حال ترسیم ساختار اولیه تصویر...';
+          else if (elapsed === 20) stageEl.textContent = 'در حال اعمال جزئیات، رنگ‌بندی و نورپردازی...';
+          else if (elapsed === 35) stageEl.textContent = 'افزایش کیفیت و نهایی‌سازی تصویر...';
+        }
+      }, 1000);
     }
 
     function removeLoadingBubble() {
+      if (imageTimerInterval) {
+        clearInterval(imageTimerInterval);
+        imageTimerInterval = null;
+      }
       const el = document.getElementById('loadingBubble');
       if (el) el.remove();
     }
@@ -741,8 +808,7 @@
           messages: s.messages.map(m => ({
             role: m.role,
             text: m.text,
-            isError: m.isError,
-            generatedImage: (m.generatedImage && !m.generatedImage.startsWith('data:')) ? m.generatedImage : null
+            isError: m.isError
           }))
         }));
         localStorage.setItem('ananas_sessions', JSON.stringify(lightSessions));
