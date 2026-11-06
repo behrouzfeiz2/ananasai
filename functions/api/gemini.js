@@ -73,26 +73,22 @@ export async function onRequestPost(context) {
       } catch (kvErr) {}
     }
 
-    // اولویت‌بندی مدل‌های ساخت تصویر شامل gemini-nano-banana-2.1 و شناسه‌های جایگزین در API
+    // فقط مدل‌های تاییدشده و موجود در اکانت شما
     let modelsToTry = isImageRequest
       ? [
-          model || "gemini-nano-banana-2.1",
+          model || "gemini-3.1-flash-lite-image",
           "gemini-nano-banana-2.1",
-          "gemini-3.1-flash-image-preview",
           "gemini-3.1-flash-image",
-          "gemini-2.5-flash-image",
-          "gemini-2.0-flash-preview-image-generation"
+          "gemini-2.5-flash-image"
         ]
       : [
           model || "gemini-3.5-flash-lite",
-          "gemini-3.5-flash-lite-preview",
-          "gemini-3.8-flash"
+          "gemini-3.5-flash-lite-preview"
         ];
 
-    // حذف موارد تکراری
     modelsToTry = [...new Set(modelsToTry)];
 
-    let lastError = "پاسخی از سرور گوگل دریافت نشد.";
+    let errorsLog = [];
     let lastStatus = 500;
 
     for (const currentModel of modelsToTry) {
@@ -118,58 +114,23 @@ export async function onRequestPost(context) {
         }
 
         lastStatus = response.status;
+        let errMsg = responseText;
         try {
           const errJson = JSON.parse(responseText);
-          lastError = errJson?.error?.message || responseText;
-        } catch {
-          lastError = responseText;
-        }
+          errMsg = errJson?.error?.message || responseText;
+        } catch {}
 
-        if (response.status === 404 || response.status === 400 || response.status === 503 || response.status === 429) {
-          continue;
-        } else {
-          break;
-        }
+        errorsLog.push(`[${cleanModelName}: ${errMsg}]`);
+
       } catch (fetchErr) {
         clearTimeout(timeoutId);
-        lastError = fetchErr.name === "AbortError"
-          ? "زمان پاسخگویی سرور گوگل بیش از حد طولانی شد (Timeout)."
-          : fetchErr.message;
+        const msg = fetchErr.name === "AbortError" ? "Timeout" : fetchErr.message;
+        errorsLog.push(`[${cleanModelName}: ${msg}]`);
       }
     }
 
-    // اگر در حالت تصویر همه نام‌های بالا 404 دادند، خودکار از ListModels گوگل مدل تصویر فعال را پیدا کن
-    if (isImageRequest && lastStatus === 404) {
-      try {
-        const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`);
-        if (listRes.ok) {
-          const listData = await listRes.json();
-          const availableImageModels = (listData.models || [])
-            .filter(m => m.name && (m.name.includes("image") || m.name.includes("banana")) && (m.supportedGenerationMethods || []).includes("generateContent"))
-            .map(m => m.name.replace(/^models\//, ""));
-
-          for (const autoModel of availableImageModels) {
-            const autoUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(autoModel)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-            const autoRes = await fetch(autoUrl, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload)
-            });
-            if (autoRes.ok) {
-              const autoText = await autoRes.text();
-              return new Response(autoText, { status: 200, headers: corsHeaders });
-            }
-          }
-
-          if (availableImageModels.length > 0) {
-            lastError += ` | مدل‌های تصویر یافت‌شده در اکانت شما: ${availableImageModels.join(", ")}`;
-          }
-        }
-      } catch (e) {}
-    }
-
     return new Response(
-      JSON.stringify({ error: { message: lastError } }),
+      JSON.stringify({ error: { message: errorsLog.join(" | ") } }),
       { status: lastStatus, headers: corsHeaders }
     );
 
