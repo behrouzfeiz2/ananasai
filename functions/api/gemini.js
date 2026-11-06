@@ -24,7 +24,8 @@ async function getUserStatusAndQuota(request, env) {
     }
   }
 
-  const today = new Date().toISOString().split("T")[0];
+  // تنظیم تاریخ روز بر اساس منطقه زمانی ایران برای ریست دقیق سهمیه
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tehran' }).format(new Date());
   const storageKey = `usage_${isPro ? "pro_" : "device_"}${isPro ? userToken : deviceUUID}_${today}`;
 
   let usedText = 0;
@@ -128,14 +129,27 @@ export async function onRequestPost(context) {
     const cleanName = targetModel.replace(/^models\//, "");
     const googleApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(cleanName)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
-    // تزریق تاریخ و سال جاری (2026) به دستورات سیستمی مدل
-    const todayStr = new Date().toLocaleDateString('fa-IR', { year: 'numeric', month: 'long', day: 'numeric' });
-    const currentYear = new Date().getFullYear();
+    // استخراج دقیق روز هفته، تاریخ شمسی، تاریخ میلادی به وقت تهران
+    const now = new Date();
+    const todayStr = now.toLocaleDateString('fa-IR', { 
+      timeZone: 'Asia/Tehran', 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+    const gregorianStr = now.toLocaleDateString('en-US', {
+      timeZone: 'Asia/Tehran',
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
 
-    let dynamicSystemPrompt = `نام تو «آناناس» (AnanasAI) است؛ یک دستیار هوش مصنوعی فارسی‌زبان، صمیمی، دقیق و حرفه‌ای که به موتور Google Gemini متصل است. تاریخ امروز ${todayStr} و سال جاری میلادی ${currentYear} است. همیشه زمان، تاریخ و رویدادها را بر اساس همین اطلاعات دقیق و به‌روز پاسخ بده. پاسخ‌هایت را به زبان فارسی روان، ساختاریافته و با فرمت Markdown ارائه بده.`;
+    let dynamicSystemPrompt = `نام تو «آناناس» (AnanasAI) است؛ یک دستیار هوش مصنوعی فارسی‌زبان، صمیمی، دقیق و حرفه‌ای که به موتور Google Gemini متصل است. امروز دقیقاً «${todayStr}» (مصادف با ${gregorianStr}) به وقت تهران است. همیشه برای پاسخ به سوالات مربوط به زمان، روز هفته و تاریخ، دقیقاً از همین عبارت استفاده کن و هرگز روز هفته را خودت حدس نزن. پاسخ‌هایت را به زبان فارسی روان، ساختاریافته و با فرمت Markdown ارائه بده.`;
 
     if (mode === 'coder') {
-      dynamicSystemPrompt += ' شما در حال حاضر در نقش یک «کد نویس» و مهندس ارشد نرم‌افزار هستید. به سوالات برنامه‌نویسی، دیباگ، تحلیل فایل‌های کد، الگوریتم‌نویسی و توسعه وب به صورت تخصصی، با کدهای تمیز و توضیحات دقیق پاسخ دهید.';
+      dynamicSystemPrompt += ' شما در حال حاضر در نقش یک «کد نویس» و مهندس ارشد نرم‌افزار هستید. به سوالات برنامه‌نویسی، دیباگ، تحلیل فایل‌های کد، الگوریتم‌نویسی و توسعه وب به صورت تخصصی (از جمله Rust، پایتون، جاوااسکریپت و دیتابیس)، با کدهای تمیز و توضیحات دقیق پاسخ دهید.';
     }
 
     if (payload && payload.systemInstruction) {
