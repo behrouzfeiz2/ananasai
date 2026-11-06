@@ -193,7 +193,7 @@
         </div>
       </div>
 
-      <!-- دکمه ارتقا به حساب پرو در حالت رایگان (لینک به pro.html) -->
+      <!-- دکمه ارتقا به حساب پرو در حالت رایگان -->
       <a id="upgradeProLinkBtn" href="pro.html" class="w-full py-2.5 px-3 rounded-xl bg-gradient-to-l from-ananas-500 to-ananas-400 hover:from-ananas-400 hover:to-ananas-500 text-ananas-dark font-extrabold text-xs flex items-center justify-center gap-2 transition shadow-md shadow-ananas-500/15">
         <span>🚀 ارتقا به حساب پرو</span>
       </a>
@@ -254,6 +254,7 @@
       <div id="chatMessages" class="max-w-3xl mx-auto space-y-5"></div>
     </div>
 
+    <!-- کادر ارسال پیام -->
     <div class="p-3 sm:p-4 border-t border-ananas-border bg-ananas-dark/95 backdrop-blur-md shrink-0">
       <div class="max-w-3xl mx-auto">
         
@@ -282,13 +283,14 @@
             <svg id="micIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
           </button>
 
+          <!-- تنظیم ارتفاع پیش‌فرض حداقل دو خط (rows="2") برای نمایش کامل متن راهنما -->
           <textarea
             id="promptInput"
-            rows="1"
+            rows="2"
             placeholder="پیام خود را برای آناناس بنویسید (یا صحبت کنید)..."
             onkeydown="handleEnterKey(event)"
             oninput="autoResizeTextarea(this)"
-            class="w-full bg-transparent text-white placeholder-gray-400 text-sm focus:outline-none resize-none py-2 px-1 max-h-36 leading-relaxed"
+            class="w-full bg-transparent text-white placeholder-gray-400 text-sm focus:outline-none resize-none py-2 px-1 min-h-[50px] max-h-36 leading-relaxed"
           ></textarea>
 
           <button id="sendBtn" type="submit" class="p-2.5 rounded-xl bg-ananas-500 hover:bg-ananas-400 text-ananas-dark font-bold transition shrink-0 flex items-center justify-center shadow-md shadow-ananas-500/20">
@@ -296,9 +298,10 @@
           </button>
         </form>
 
-        <div class="flex items-center justify-between mt-2 px-1 text-[11px] text-gray-400">
-          <span id="modeHintText">💬 حالت گفتگو فعال است (بخش «کد نویس» و پیوست فایل ویژه کاربران پرو است)</span>
-          <span>AnanasAI 🍍</span>
+        <!-- تفکیک در دو سطر و وسط‌چین شدن کامل در نسخه موبایل -->
+        <div class="flex flex-col sm:flex-row items-center justify-between mt-2.5 px-1 text-[11px] text-gray-400 text-center gap-1">
+          <span id="modeHintText" class="w-full sm:w-auto">💬 حالت گفتگو فعال است (بخش «کد نویس» و پیوست فایل ویژه کاربران پرو است)</span>
+          <span class="w-full sm:w-auto text-gray-400 font-mono">AnanasAI 🍍</span>
         </div>
       </div>
     </div>
@@ -430,7 +433,7 @@
         badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> حساب پرو (Pro)';
         badge.className = 'flex items-center gap-1.5 text-amber-400 font-bold';
         actionBtnText.textContent = 'مدیریت کد فعال‌سازی ⚙️';
-        if (upgradeBtn) upgradeBtn.classList.add('hidden'); // پنهان کردن دکمه ارتقا برای کاربران پرو
+        if (upgradeBtn) upgradeBtn.classList.add('hidden');
         if (coderLockIcon) coderLockIcon.classList.add('hidden');
 
         let tokenTimeKey = `ananas_token_time_${userToken}`;
@@ -457,7 +460,7 @@
         badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-gray-400"></span> نسخه رایگان';
         badge.className = 'flex items-center gap-1.5 text-gray-300 font-medium';
         actionBtnText.textContent = 'وارد کردن کد فعال‌سازی پرو 🔑';
-        if (upgradeBtn) upgradeBtn.classList.remove('hidden'); // نمایش دکمه ارتقا در نسخه رایگان
+        if (upgradeBtn) upgradeBtn.classList.remove('hidden');
         timeContainer.classList.add('hidden');
         if (coderLockIcon) coderLockIcon.classList.remove('hidden');
 
@@ -611,14 +614,11 @@
       };
 
       recognition.onresult = (event) => {
-        let interimTranscript = '';
         let finalTranscript = '';
 
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
             finalTranscript += event.results[i][0].transcript;
-          } else {
-            interimTranscript += event.results[i][0].transcript;
           }
         }
 
@@ -628,14 +628,8 @@
         }
       };
 
-      recognition.onerror = (event) => {
-        console.error('Speech recognition error', event.error);
-        stopRecordingState();
-      };
-
-      recognition.onend = () => {
-        stopRecordingState();
-      };
+      recognition.onerror = () => stopRecordingState();
+      recognition.onend = () => stopRecordingState();
 
       try {
         recognition.start();
@@ -1025,7 +1019,7 @@
 
     function autoResizeTextarea(el) {
       el.style.height = 'auto';
-      el.style.height = Math.min(el.scrollHeight, 140) + 'px';
+      el.style.height = Math.max(50, Math.min(el.scrollHeight, 140)) + 'px';
     }
 
     function scrollToBottom() {
