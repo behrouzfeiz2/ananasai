@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>آناناس | دستیار هوشمند و تصویرساز جمنای (AnanasAI)</title>
+  <title>آناناس | دستیار هوشمند شما (AnanasAI)</title>
   
   <!-- فاوآیکون آناناس -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍍</text></svg>">
@@ -210,7 +210,7 @@
           <span class="font-bold text-white text-sm sm:text-base">AnanasAI</span>
           <!-- نام اختصاصی مدل در بالای صفحه -->
           <span id="activeModelTag" class="hidden sm:inline-block text-[11px] bg-ananas-card border border-ananas-border text-gray-300 px-2.5 py-0.5 rounded-full dir-ltr">
-            branex-pro-3.8
+            gemini-3.5-flash-lite
           </span>
         </div>
       </div>
@@ -244,7 +244,7 @@
             سلام! به هوش مصنوعی <span class="text-ananas-400">آناناس</span> خوش آمدید
           </h2>
           <p class="text-sm text-gray-400 max-w-md mx-auto leading-relaxed">
-            دستیار هوشمند شما برای تولید محتوا و کدنویسی
+            دستیار هوشمند شما برای تولید محتوا، کدنویسی و خلق تصاویر با نسل جدید جمنای
           </p>
         </div>
 
@@ -258,7 +258,7 @@
             <p class="text-xs text-gray-300">برنامه هفتگی یادگیری پایتون به زبان فارسی</p>
           </button>
 
-          <button onclick="quickPrompt('image', 'یک آناناس نئونی آینده‌نگر با عینک دودی در ساحل سایبرپانکی')" class="p-3.5 rounded-2xl bg-ananas-card hover:bg-ananas-card/80 border border-ananas-border hover:border-ananas-leaf/50 transition group">
+          <button onclick="quickPrompt('image', 'یک آناناس نئونی آینده‌نگر با عینک دودی در ساحل سایبرپانکی با نورپردازی سینمایی')" class="p-3.5 rounded-2xl bg-ananas-card hover:bg-ananas-card/80 border border-ananas-border hover:border-ananas-leaf/50 transition group">
             <div class="flex items-center justify-between mb-1">
               <span class="text-xs font-bold text-emerald-400">🎨 تولید تصویر هوشمند</span>
               <span class="text-gray-500 group-hover:translate-x-[-3px] transition">←</span>
@@ -372,8 +372,9 @@
     let attachedImage = null;
     let isGenerating = false;
 
-    // به‌روزرسانی به آخرین مدل رسمی گوگل طبق پیام API
-    let chatModel = 'gemini-3.8-flash';
+    // مدل‌های درخواستی شما برای چت و ساخت تصویر
+    const chatModel = 'gemini-3.5-flash-lite';
+    const imageModel = 'gemini-3.1-flash-lite-image';
     let userToken = localStorage.getItem('ananas_user_token') || '';
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -432,17 +433,20 @@
       const imgBtn = document.getElementById('modeImageBtn');
       const input = document.getElementById('promptInput');
       const hint = document.getElementById('modeHintText');
+      const modelTag = document.getElementById('activeModelTag');
 
       if (mode === 'image') {
         imgBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-emerald-500 text-ananas-dark';
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
         input.placeholder = 'چه تصویری می‌خواهی آناناس برات درست کنه؟';
-        hint.textContent = '🎨 حالت ساخت تصویر فعال است.';
+        hint.textContent = '🎨 حالت ساخت تصویر فعال است (مدل: gemini-3.1-flash-lite-image)';
+        if (modelTag) modelTag.textContent = imageModel;
       } else {
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-ananas-500 text-ananas-dark';
         imgBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
         input.placeholder = 'پیام خود را برای آناناس بنویسید...';
         hint.textContent = '💬 حالت گفتگو فعال است (برای ساخت عکس، روی «ساخت تصویر» کلیک کنید)';
+        if (modelTag) modelTag.textContent = chatModel;
       }
     }
 
@@ -546,35 +550,43 @@
 
       try {
         if (wantImage) {
-          // ارسال به gemini-3.8-flash با پرچم isImageRequest=true برای کسر سهمیه عکس در gemini.js و ساخت پرامپت حرفه‌ای انگلیسی
+          // تولید مستقیم تصویر با مدل gemini-3.1-flash-lite-image
           const promptParts = [];
           if (userMsg.imageData && userMsg.imageMime) {
             promptParts.push({ inlineData: { mimeType: userMsg.imageMime, data: userMsg.imageData } });
           }
           promptParts.push({
-            text: `Convert the following user request (and attached image if any) into a single, detailed, high-quality English image generation prompt (max 45 words, cinematic lighting, 8k, masterpiece). Output ONLY the English prompt without quotes or extra explanation:\n\nUser request: ${userMsg.text || 'Recreate this image in high quality digital art style'}`
+            text: userMsg.text || 'Create a high quality artistic version of this image'
           });
 
-          const promptEnhancerPayload = {
-            contents: [{ role: 'user', parts: promptParts }]
+          const imagePayload = {
+            contents: [{ role: 'user', parts: promptParts }],
+            generationConfig: {
+              responseModalities: ["IMAGE", "TEXT"]
+            }
           };
 
-          const geminiRes = await callGeminiAPI(chatModel, promptEnhancerPayload, true);
-          const enhancedPrompt = geminiRes?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || userMsg.text || 'A creative digital art masterpiece';
+          const geminiRes = await callGeminiAPI(imageModel, imagePayload, true);
+          const candidateParts = geminiRes?.candidates?.[0]?.content?.parts || [];
+          
+          const imgPart = candidateParts.find(p => p.inlineData);
+          const textPart = candidateParts.find(p => p.text);
 
-          const seed = Math.floor(Math.random() * 1000000);
-          const encodedPrompt = encodeURIComponent(enhancedPrompt);
-          const generatedImageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true&model=flux&seed=${seed}`;
+          if (!imgPart) {
+            throw new Error(textPart?.text || 'تصویری از سرور دریافت نشد. لطفاً پرامپت دیگری امتحان کنید.');
+          }
+
+          const generatedImageUrl = `data:${imgPart.inlineData.mimeType || 'image/png'};base64,${imgPart.inlineData.data}`;
 
           removeLoadingBubble();
           currentSession.messages.push({
             role: 'model',
-            text: `✨ **تصویر درخواستی شما با موفقیت ساخته شد:**`,
+            text: textPart?.text || `✨ **تصویر درخواستی شما با موفقیت ساخته شد:**`,
             generatedImage: generatedImageUrl
           });
 
         } else {
-          // حالت گفتگو و تحلیل تصویر با مدل جدید gemini-3.8-flash
+          // حالت گفتگو و تحلیل تصویر با مدل gemini-3.5-flash-lite
           const historyContents = currentSession.messages.map(m => {
             const parts = [];
             if (m.text) parts.push({ text: m.text });
