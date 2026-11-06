@@ -643,8 +643,53 @@
       renderMessages();
       renderHistoryList();
 
-      // بررسی سوالات بازار و نرخ ارز (بدون مصرف سهمیه جمنای)
       const lowerText = userText.toLowerCase();
+
+      // ۱. بررسی هوشمند برای سوالات خبری و رویدادهای روز
+      const isNewsQuery = 
+        lowerText.includes('خبر') || 
+        lowerText.includes('انتخابات') || 
+        lowerText.includes('آمریکا') || 
+        lowerText.includes('آخرین اخبار') ||
+        lowerText.includes('گزارش');
+
+      if (isNewsQuery && !attachedFile) {
+        isGenerating = true;
+        appendLoadingBubble(false, false);
+        try {
+          const res = await fetch(`/api/news?q=${encodeURIComponent(userText)}`);
+          const newsResult = await res.json();
+          
+          removeLoadingBubble();
+
+          let replyText = "";
+          if (newsResult.success && newsResult.news) {
+            const n = newsResult.news;
+            replyText = `با توجه به چیزی که پرسیدی، این خبر مرتبط رو پیدا کردم:\n\n📰 **${n.title}**\n\n${n.description ? n.description.slice(0, 180) + '...\n\n' : ''}🔗 [مطالعه کامل خبر](${n.link})`;
+          } else {
+            replyText = "با توجه به سوالت، خبر مرتبطی در منابع روز پیدا نکردم.";
+          }
+
+          currentSession.messages.push({
+            role: 'model',
+            text: replyText
+          });
+
+        } catch (err) {
+          removeLoadingBubble();
+          currentSession.messages.push({
+            role: 'model',
+            text: "⚠️ خطا در جستجوی اخبار روز."
+          });
+        } finally {
+          isGenerating = false;
+          saveSessions();
+          renderMessages();
+        }
+        return;
+      }
+
+      // ۲. بررسی سوالات بازار و نرخ ارز (بدون مصرف سهمیه جمنای)
       const isMarketQuery = 
         lowerText.includes('دلار') || 
         lowerText.includes('طلا') || 
@@ -656,7 +701,7 @@
 
       if (isMarketQuery && !attachedFile) {
         isGenerating = true;
-        appendLoadingBubble(false);
+        appendLoadingBubble(false, true); // فعال‌سازی لودینگ مخصوص استعلام بازار
         try {
           const res = await fetch('/api/nerkh');
           const marketResult = await res.json();
@@ -693,7 +738,7 @@
       }
 
       isGenerating = true;
-      appendLoadingBubble(currentMode === 'coder');
+      appendLoadingBubble(currentMode === 'coder', false);
 
       try {
         const historyContents = currentSession.messages
