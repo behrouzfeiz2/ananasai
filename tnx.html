@@ -186,14 +186,14 @@
           <span>اطلاعات پرداخت با موفقیت ثبت شد</span>
         </div>
         <h1 class="text-2xl sm:text-3xl font-extrabold text-white">
-          از خرید و اعتماد شما سپاسگزاریم!
+          از پرداخت و خرید شما سپاسگزاریم!
         </h1>
         <p class="text-xs sm:text-sm text-gray-300 leading-relaxed max-w-lg mx-auto">
-          مشخصات واریزی شما برای اشتراک <b class="text-ananas-400">آناناس پرو (450.000 تومان)</b> با موفقیت در سیستم ثبت گردید.
+          درخواست فعال‌سازی اشتراک <b class="text-ananas-400">آناناس پرو</b> شما با موفقیت ثبت گردید.
         </p>
       </div>
 
-      <!-- باکس توضیح پردازش خودکار ربات و ارسال پیامک -->
+      <!-- باکس توضیح پردازش ۱ الی ۴ ساعته و ارسال پیامک -->
       <div class="rounded-2xl bg-ananas-dark/80 border border-ananas-border p-5 text-right space-y-4">
         
         <div class="flex items-start gap-3.5">
@@ -201,9 +201,9 @@
             🤖
           </div>
           <div class="space-y-1">
-            <h2 class="text-sm font-extrabold text-white">پردازش خودکار توسط ربات (۱ الی ۴ ساعت)</h2>
+            <h2 class="text-sm font-extrabold text-white">پردازش خودکار سفارش (۱ الی ۴ ساعت)</h2>
             <p class="text-xs text-gray-300 leading-relaxed">
-              تمامی واریزی‌ها بین <b class="text-ananas-400">۱ الی ۴ ساعت</b> توسط ربات هوشمند به صورت کاملاً خودکار استعلام و پردازش می‌شوند.
+              بررسی و پردازش سفارش‌ها بین <b class="text-ananas-400">۱ الی ۴ ساعت</b> توسط ربات به صورت خودکار زمان می‌برد.
             </p>
           </div>
         </div>
@@ -213,20 +213,13 @@
             💬
           </div>
           <div class="space-y-1">
-            <h2 class="text-sm font-extrabold text-white">ارسال پیامکی کد فعال‌سازی حالت پرو</h2>
+            <h2 class="text-sm font-extrabold text-white">ارسال پیامکی کد فعال‌سازی</h2>
             <p class="text-xs text-gray-300 leading-relaxed">
-              بلافاصله پس از تایید تراکنش، <b class="text-emerald-400">کد فعال‌سازی حالت پرو (Token)</b> به شماره همراهی که در فرم وارد کرده‌اید <span id="userPhoneBadge" class="font-mono text-ananas-400 font-bold" dir="ltr"></span> پیامک خواهد شد.
+              پس از تکمیل پردازش، <b class="text-emerald-400">کد فعال‌سازی حالت پرو</b> به شماره همراهی که در فرم وارد کرده‌اید پیامک خواهد شد.
             </p>
           </div>
         </div>
 
-      </div>
-
-      <!-- خلاصه اطلاعات ثبت شده کاربر (در صورت وجود در مرورگر) -->
-      <div id="receiptSummary" class="hidden rounded-2xl bg-ananas-card/90 border border-ananas-border px-4 py-3 text-xs text-gray-300 flex-wrap items-center justify-between gap-2">
-        <div>نام واریزکننده: <b id="summaryName" class="text-white">---</b></div>
-        <div>شماره همراه: <b id="summaryPhone" dir="ltr" class="text-emerald-400 font-mono">---</b></div>
-        <div>مبلغ: <b class="text-ananas-400">450.000 تومان</b></div>
       </div>
 
       <!-- راهنمای نحوه استفاده از کد -->
@@ -280,26 +273,6 @@
         overlay.classList.add('hidden');
       }
     }
-
-    // نمایش شماره موبایل و نام وارد شده توسط کاربر برای حس اطمینان بیشتر
-    window.addEventListener('DOMContentLoaded', () => {
-      const params = new URLSearchParams(window.location.search);
-      const phone = params.get('phone') || sessionStorage.getItem('ananas_payer_phone');
-      const name = sessionStorage.getItem('ananas_payer_name');
-
-      if (phone) {
-        const badge = document.getElementById('userPhoneBadge');
-        if (badge) badge.innerText = `(${phone})`;
-      }
-
-      if (name || phone) {
-        const summaryBox = document.getElementById('receiptSummary');
-        summaryBox.classList.remove('hidden');
-        summaryBox.classList.add('flex');
-        if (name) document.getElementById('summaryName').innerText = name;
-        if (phone) document.getElementById('summaryPhone').innerText = phone;
-      }
-    });
   </script>
 
 </body>
