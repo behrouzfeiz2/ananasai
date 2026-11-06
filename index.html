@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>آناناس | دستیار هوشمند و کدنویس (AnanasAI)</title>
+  <title>آناناس | دستیار هوشمند و کدنویس جمنای (AnanasAI)</title>
   
   <!-- فاوآیکون آناناس -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍍</text></svg>">
@@ -209,13 +209,13 @@
         </div>
       </div>
 
-      <!-- کلید تغییر حالت چت / کدنویس -->
+      <!-- کلید تغییر حالت چت / کد نویس -->
       <div class="flex items-center bg-ananas-card p-1 rounded-xl border border-ananas-border">
         <button id="modeChatBtn" onclick="setMode('chat')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-ananas-500 text-ananas-dark">
           <span>💬</span>
           <span>گفتگو</span>
         </button>
-        <button id="modeImageBtn" onclick="setMode('coder')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white">
+        <button id="modeCoderBtn" onclick="setMode('coder')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white">
           <span>💻</span>
           <span>کد نویس</span>
         </button>
@@ -246,7 +246,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-right max-w-xl mx-auto pt-2">
           <button onclick="quickPrompt('chat', 'یک برنامه هفتگی یادگیری پایتون برای سطح مقدماتی تا متوسط به زبان فارسی بنویس.')" class="p-3.5 rounded-2xl bg-ananas-card hover:bg-ananas-card/80 border border-ananas-border hover:border-ananas-500/50 transition group">
             <div class="flex items-center justify-between mb-1">
-              <span class="text-xs font-bold text-ananas-400">💬 یادگیری پایتون</span>
+              <span class="text-xs font-bold text-ananas-400">💬 برنامه پایتون</span>
               <span class="text-gray-500 group-hover:translate-x-[-3px] transition">←</span>
             </div>
             <p class="text-xs text-gray-300">برنامه هفتگی یادگیری پایتون به زبان فارسی</p>
@@ -257,7 +257,7 @@
               <span class="text-xs font-bold text-cyan-400">💻 طراحی ماشین حساب ساده</span>
               <span class="text-gray-500 group-hover:translate-x-[-3px] transition">←</span>
             </div>
-            <p class="text-xs text-gray-300">ساخت ماشین حساب با کدنویس آناناس</p>
+            <p class="text-xs text-gray-300">طراحی ماشین حساب با کدنویس آناناس</p>
           </button>
         </div>
       </div>
@@ -270,13 +270,13 @@
     <div class="p-3 sm:p-4 border-t border-ananas-border bg-ananas-dark/95 backdrop-blur-md">
       <div class="max-w-3xl mx-auto">
         
-        <!-- پیش‌نمایش عکس پیوست‌شده -->
+        <!-- پیش‌نمایش فایل یا عکس پیوست‌شده -->
         <div id="attachmentPreview" class="hidden mb-2 p-2 rounded-xl bg-ananas-card border border-ananas-border flex items-center justify-between">
           <div class="flex items-center gap-2.5">
-            <img id="attachedImgThumb" src="" class="w-11 h-11 rounded-lg object-cover border border-ananas-500/40" alt="پیوست" />
+            <div id="attachmentIconBox" class="w-11 h-11 rounded-lg bg-ananas-dark border border-ananas-500/40 flex items-center justify-center text-lg">📄</div>
             <div>
               <p id="attachedFileName" class="text-xs font-medium text-white truncate max-w-[200px]"></p>
-              <p class="text-[11px] text-gray-400">آماده ارسال</p>
+              <p class="text-[11px] text-gray-400">فایل آماده ارسال برای تحلیل</p>
             </div>
           </div>
           <button onclick="removeAttachment()" class="p-1.5 text-gray-400 hover:text-red-400">
@@ -287,8 +287,9 @@
         <!-- کادر تایپ -->
         <form onsubmit="handleSubmit(event)" class="relative flex items-end gap-2 bg-ananas-card border border-ananas-border focus-within:border-ananas-500/70 rounded-2xl p-2 shadow-lg">
           
-          <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleFileSelect(event)" />
-          <button type="button" onclick="document.getElementById('fileInput').click()" title="پیوست عکس کد یا خطا برای تحلیل" class="p-2.5 rounded-xl text-gray-400 hover:text-ananas-400 hover:bg-ananas-dark/60 transition shrink-0">
+          <!-- دکمه پیوست فایل‌های برنامه‌نویسی و عکس -->
+          <input type="file" id="fileInput" accept="image/*,.txt,.js,.py,.html,.css,.json,.pdf,.php,.sql,.cs,.cpp,.java,.ts,.md" class="hidden" onchange="handleFileSelect(event)" />
+          <button type="button" onclick="document.getElementById('fileInput').click()" title="پیوست فایل کد، متن یا تصویر برای تحلیل" class="p-2.5 rounded-xl text-gray-400 hover:text-ananas-400 hover:bg-ananas-dark/60 transition shrink-0">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
           </button>
 
@@ -361,7 +362,7 @@
     let currentMode = 'chat'; // 'chat' or 'coder'
     let sessions = JSON.parse(localStorage.getItem('ananas_sessions') || '[]');
     let activeSessionId = null;
-    let attachedImage = null;
+    let attachedFile = null; // نگهداری اطلاعات فایل یا تصویر پیوست‌شده
     let isGenerating = false;
 
     const chatModel = 'gemini-3.5-flash-lite';
@@ -418,7 +419,7 @@
     function setMode(mode) {
       currentMode = mode;
       const chatBtn = document.getElementById('modeChatBtn');
-      const coderBtn = document.getElementById('modeImageBtn');
+      const coderBtn = document.getElementById('modeCoderBtn');
       const input = document.getElementById('promptInput');
       const hint = document.getElementById('modeHintText');
 
@@ -426,9 +427,8 @@
         coderBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-cyan-500 text-ananas-dark';
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
         input.placeholder = 'کد یا سوال برنامه‌نویسی خود را بنویسید...';
-        hint.textContent = '💻 حالت «کد نویس» فعال است.';
+        hint.textContent = '💻 بخش «کد نویس» فعال است.';
 
-        // نمایش راهنمای کدنویس در صورت خالی بودن چت
         showCoderInfoIfNeeded();
       } else {
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-ananas-500 text-ananas-dark';
@@ -442,7 +442,6 @@
       const currentSession = sessions.find(s => s.id === activeSessionId);
       if (!currentSession || currentSession.messages.length === 0) {
         const container = document.getElementById('chatMessages');
-        // بررسی اینکه آیا قبلاً کارت راهنما درج شده یا خیر
         if (!document.getElementById('coderInfoCard')) {
           const infoDiv = document.createElement('div');
           infoDiv.id = 'coderInfoCard';
@@ -452,7 +451,7 @@
               <span class="text-xl">💻</span>
               <h3 class="font-bold text-cyan-400 text-base">دستیار تخصصی «کد نویس» آناناس</h3>
             </div>
-            <p class="text-gray-300 leading-relaxed">آناناس می‌تواند در این بخش‌ها به شما کمک کند:</p>
+            <p class="text-gray-300 leading-relaxed">آناناس می‌تونه در این بخش‌ها کمک شما باشه:</p>
             <ul class="list-disc pr-5 space-y-1.5 text-gray-300">
               <li><b>برنامه‌نویسی وب:</b> HTML, CSS, JavaScript, React, Node.js و...</li>
               <li><b>زبان‌های همه‌منظوره و اسکریپت‌نویسی:</b> Python (برای هوش مصنوعی، اتومیشن، جنگو و...), C++, C#, Java, PHP</li>
@@ -470,24 +469,46 @@
     function handleFileSelect(e) {
       const file = e.target.files[0];
       if (!file) return;
+
       const reader = new FileReader();
+      const isImage = file.type.startsWith('image/');
+
       reader.onload = () => {
-        const base64Data = reader.result.split(',')[1];
-        attachedImage = {
-          mimeType: file.type,
+        let base64Data = reader.result;
+        // اگر فرمت DataURL است، بخش هدر را جدا می‌کنیم
+        if (base64Data.includes(',')) {
+          base64Data = base64Data.split(',')[1];
+        }
+
+        attachedFile = {
+          mimeType: file.type || 'text/plain',
           data: base64Data,
           name: file.name,
-          previewUrl: reader.result
+          isImage: isImage,
+          previewUrl: isImage ? reader.result : null
         };
-        document.getElementById('attachedImgThumb').src = reader.result;
+
+        const iconBox = document.getElementById('attachmentIconBox');
+        if (isImage) {
+          iconBox.innerHTML = `<img src="${reader.result}" class="w-full h-full rounded-lg object-cover" />`;
+        } else {
+          iconBox.innerHTML = '📄';
+        }
+
         document.getElementById('attachedFileName').textContent = file.name;
         document.getElementById('attachmentPreview').classList.remove('hidden');
       };
-      reader.readAsDataURL(file);
+
+      if (isImage) {
+        reader.readAsDataURL(file);
+      } else {
+        // برای فایل‌های متنی و کد
+        reader.readAsDataURL(file);
+      }
     }
 
     function removeAttachment() {
-      attachedImage = null;
+      attachedFile = null;
       document.getElementById('fileInput').value = '';
       document.getElementById('attachmentPreview').classList.add('hidden');
     }
@@ -526,7 +547,7 @@
 
       const inputEl = document.getElementById('promptInput');
       const userText = inputEl.value.trim();
-      if (!userText && !attachedImage) return;
+      if (!userText && !attachedFile) return;
 
       if (!activeSessionId) {
         const newSession = {
@@ -543,9 +564,10 @@
       const userMsg = {
         role: 'user',
         text: userText,
-        imagePreview: attachedImage ? attachedImage.previewUrl : null,
-        imageMime: attachedImage ? attachedImage.mimeType : null,
-        imageData: attachedImage ? attachedImage.data : null
+        fileName: attachedFile ? attachedFile.name : null,
+        filePreview: attachedFile && attachedFile.isImage ? attachedFile.previewUrl : null,
+        fileMime: attachedFile ? attachedFile.mimeType : null,
+        fileData: attachedFile ? attachedFile.data : null
       };
       currentSession.messages.push(userMsg);
 
@@ -566,8 +588,8 @@
           .map(m => {
             const parts = [];
             if (m.text) parts.push({ text: m.text });
-            if (m.imageData && m.imageMime) {
-              parts.push({ inlineData: { mimeType: m.imageMime, data: m.imageData } });
+            if (m.fileData && m.fileMime) {
+              parts.push({ inlineData: { mimeType: m.fileMime, data: m.fileData } });
             }
             return {
               role: m.role === 'user' ? 'user' : 'model',
@@ -578,7 +600,7 @@
         let systemPrompt = 'نام تو «آناناس» (AnanasAI) است؛ یک دستیار هوش مصنوعی فارسی‌زبان، صمیمی، دقیق و حرفه‌ای که به موتور Google Gemini متصل است. پاسخ‌هایت را به زبان فارسی روان، ساختاریافته و با فرمت Markdown ارائه بده.';
         
         if (currentMode === 'coder') {
-          systemPrompt += ' شما در حال حاضر در نقش یک «کد نویس» و مهندس ارشد نرم‌افزار هستید. به سوالات برنامه‌نویسی، دیباگ، الگوریتم‌نویسی و توسعه وب به صورت تخصصی، با کدهای تمیز و توضیحات دقیق پاسخ دهید.';
+          systemPrompt += ' شما در حال حاضر در نقش یک «کد نویس» و مهندس ارشد نرم‌افزار هستید. به سوالات برنامه‌نویسی، دیباگ، تحلیل فایل‌های کد، الگوریتم‌نویسی و توسعه وب به صورت تخصصی، با کدهای تمیز و توضیحات دقیق پاسخ دهید.';
         }
 
         const payload = {
@@ -625,10 +647,22 @@
       welcome.classList.add('hidden');
       container.innerHTML = currentSession.messages.map((msg, idx) => {
         if (msg.role === 'user') {
+          let attachmentHtml = '';
+          if (msg.filePreview) {
+            attachmentHtml = `<img src="${msg.filePreview}" class="max-h-52 rounded-xl mb-2 border border-black/15" alt="تصویر پیوست‌شده" />`;
+          } else if (msg.fileName) {
+            attachmentHtml = `
+              <div class="flex items-center gap-2 mb-2 p-2 rounded-lg bg-black/20 border border-white/10 text-xs">
+                <span>📄</span>
+                <span class="truncate font-mono">${escapeHtml(msg.fileName)}</span>
+              </div>
+            `;
+          }
+
           return `
             <div class="flex justify-start">
               <div class="max-w-[85%] sm:max-w-[75%] rounded-2xl rounded-tr-xs bg-gradient-to-l from-ananas-500 to-ananas-600 text-ananas-dark px-4 py-3 shadow-md">
-                ${msg.imagePreview ? `<img src="${msg.imagePreview}" class="max-h-52 rounded-xl mb-2 border border-black/15" alt="تصویر کاربر" />` : ''}
+                ${attachmentHtml}
                 <div class="text-sm font-medium whitespace-pre-wrap leading-relaxed">${escapeHtml(msg.text)}</div>
               </div>
             </div>
@@ -705,7 +739,8 @@
           messages: s.messages.map(m => ({
             role: m.role,
             text: m.text,
-            isError: m.isError
+            isError: m.isError,
+            fileName: m.fileName
           }))
         }));
         localStorage.setItem('ananas_sessions', JSON.stringify(lightSessions));
