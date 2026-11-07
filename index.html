@@ -390,7 +390,6 @@
       fetchQuotaFromServer();
     });
 
-    // بررسی و اعتبارسنجی خودکار سهمیه و اعتبار توکن از طریق سرور
     async function fetchQuotaFromServer() {
       try {
         const headers = { 'X-Device-UUID': deviceUUID };
@@ -398,7 +397,6 @@
         const res = await fetch('/api/gemini', { method: 'GET', headers });
         const data = await res.json();
 
-        // اگر توکن نامعتبر باشد یا توسط ادمین حذف شده باشد (خطای 401 یا پاسخ عدم تایید پرو)
         if (res.status === 401 || (userToken && data && data.quota && data.quota.isPro === false)) {
           userToken = '';
           localStorage.removeItem('ananas_user_token');
@@ -740,16 +738,14 @@
 
       const lowerText = userText.toLowerCase();
 
-      const isMarketQuery = 
-        lowerText.includes('دلار') || 
-        lowerText.includes('طلا') || 
-        lowerText.includes('ارز') || 
-        lowerText.includes('یورو') || 
-        lowerText.includes('پوند') || 
-        lowerText.includes('نفت') ||
-        lowerText.includes('سکه');
+      // بررسی نرخ بازار فقط با تطابق دقیق کلمات و در غیر از حالت کدنویسی
+      const isMarketQuery = currentMode === 'chat' && !attachedFile && (
+        lowerText === 'دلار' || lowerText === 'قیمت دلار' || 
+        lowerText === 'طلا' || lowerText === 'قیمت طلا' || 
+        lowerText === 'نرخ ارز' || lowerText === 'سکه'
+      );
 
-      if (isMarketQuery && !attachedFile) {
+      if (isMarketQuery) {
         isGenerating = true;
         appendLoadingBubble(false, true);
         try {
