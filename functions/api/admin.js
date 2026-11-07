@@ -14,7 +14,6 @@ function checkAdminAuth(request, env) {
   if (!pass) return false;
   const envPass = env.ADMIN_PASSWORD || env.ADMIN_PASS || env.PASSWORD;
   if (envPass) return pass === envPass;
-  // در صورتی که رمز داخل متغیرهای محیطی با نام دیگری ذخیره شده باشد
   for (const key of Object.keys(env)) {
     if (typeof env[key] === 'string' && key.toUpperCase().includes('PASS')) {
       return pass === env[key];
@@ -58,15 +57,13 @@ export async function onRequest(context) {
         parsed = { created: Date.now() };
       }
 
-      // تفکیک فیش‌های پرداخت (PAY-) از کدهای اشتراک (PRO-)
       if (key.name.startsWith('PAY-')) {
         payments.push(parsed);
-      } else {
+      } else if (key.name.startsWith('PRO-')) {
         tokens.push({ name: key.name, data: parsed });
       }
     }
 
-    // مرتب‌سازی از جدیدترین به قدیمی‌ترین
     payments.sort((a, b) => (b.created || 0) - (a.created || 0));
     tokens.sort((a, b) => (b.data?.created || 0) - (a.data?.created || 0));
 
@@ -80,12 +77,11 @@ export async function onRequest(context) {
   if (request.method === 'POST') {
     const body = await request.json();
 
-    // ساخت کد فعال‌سازی جدید
     if (body.token) {
       const tokenName = body.token.trim();
       const tokenData = {
-        created: Date.now(),
-        note: body.note || '' // مثلاً نام یا موبایل خریدار
+        created: Date.now(), // ثبت زمان دقیق ایجاد کد در دیتابیس KV[cite: 3]
+        note: body.note || ''
       };
       await kv.put(tokenName, JSON.stringify(tokenData));
       return new Response(JSON.stringify({ ok: true }), {
@@ -94,7 +90,6 @@ export async function onRequest(context) {
       });
     }
 
-    // تغییر وضعیت فیش پرداخت به «انجام شد / پیامک شد»
     if (body.action === 'togglePayment' && body.id) {
       const raw = await kv.get(body.id);
       if (raw) {
@@ -109,7 +104,6 @@ export async function onRequest(context) {
       });
     }
 
-    // حذف فیش پرداخت یا کد پرو
     if (body.action === 'deleteKey' && body.key) {
       await kv.delete(body.key);
       return new Response(JSON.stringify({ ok: true }), {
