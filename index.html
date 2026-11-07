@@ -205,6 +205,21 @@
         <svg class="w-4 h-4 text-ananas-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
         <span id="actionBtnText">وارد کردن کد فعال‌سازی پرو 🔑</span>
       </button>
+
+      <!-- اینپوت مخفی برای بازیابی پشتیبان -->
+      <input type="file" id="importBackupInput" accept=".json" class="hidden" onchange="importChatsBackup(event)" />
+
+      <!-- دکمه‌های پشتیبان‌گیری و بازیابی -->
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button onclick="exportChatsBackup()" title="ذخیره نسخه پشتیبان از تمام گفتگوها" class="py-2 px-2 rounded-xl bg-ananas-dark border border-ananas-border hover:border-ananas-500/50 text-gray-300 hover:text-white text-[11px] flex items-center justify-center gap-1.5 transition">
+          <span>💾</span>
+          <span>دریافت بکاپ</span>
+        </button>
+        <button onclick="triggerImportBackup()" title="بازیابی چت‌ها از فایل پشتیبان قبلی" class="py-2 px-2 rounded-xl bg-ananas-dark border border-ananas-border hover:border-ananas-500/50 text-gray-300 hover:text-white text-[11px] flex items-center justify-center gap-1.5 transition">
+          <span>📂</span>
+          <span>بازیابی بکاپ</span>
+        </button>
+      </div>
     </div>
   </aside>
 
@@ -968,6 +983,74 @@
       const currentSession = sessions.find(s => s.id === activeSessionId);
       if (!currentSession || !currentSession.messages[idx]) return;
       navigator.clipboard.writeText(currentSession.messages[idx].text || '');
+    }
+
+    // توابع پشتیبان‌گیری (بکاپ) و بازیابی (ریستور) با یک کلیک
+    function exportChatsBackup() {
+      if (!sessions || sessions.length === 0) {
+        alert('هیچ گفتگویی برای پشتیبان‌گیری وجود ندارد.');
+        return;
+      }
+
+      const backupData = {
+        version: "1.0",
+        app: "AnanasAI",
+        exportDate: new Date().toISOString(),
+        sessions: sessions
+      };
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+      const downloadAnchor = document.createElement('a');
+      
+      const dateStr = new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()).replace(/\//g, '-');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `AnanasAI_Backup_${dateStr}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    function triggerImportBackup() {
+      document.getElementById('importBackupInput').click();
+    }
+
+    function importChatsBackup(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const content = e.target.result;
+          const parsedData = JSON.parse(content);
+
+          if (!parsedData.sessions || !Array.isArray(parsedData.sessions)) {
+            alert('فرمت فایل پشتیبان نامعتبر است.');
+            return;
+          }
+
+          if (sessions.length > 0) {
+            if (!confirm('با بازیابی این فایل، چت‌های فعلی شما با چت‌های فایل پشتیبان جایگزین می‌شوند. ادامه می‌دهید؟')) {
+              event.target.value = '';
+              return;
+            }
+          }
+
+          sessions = parsedData.sessions;
+          activeSessionId = sessions.length > 0 ? sessions[0].id : null;
+          
+          saveSessions();
+          renderHistoryList();
+          renderMessages();
+
+          alert('پشتیبان گفتگوها با موفقیت بازیابی شد!');
+        } catch (err) {
+          alert('خطا در خواندن فایل پشتیبان. فایل انتخاب شده سالم نیست.');
+        } finally {
+          event.target.value = '';
+        }
+      };
+      reader.readAsText(file);
     }
 
     function handleEnterKey(e) {
