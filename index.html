@@ -300,7 +300,7 @@
           </button>
         </form>
 
-        <!-- تنظیمات متن پایین کادر: در دسکتاپ یک سطر و در موبایل تفکیک‌شده -->
+        <!-- تنظیمات متن پایین کادر -->
         <div class="flex flex-col lg:flex-row items-center justify-between px-1 text-[10px] sm:text-[11px] text-gray-400 text-center gap-0.5">
           <span id="modeHintText" class="w-full lg:w-auto leading-tight">💬 حالت گفتگو فعال است (بخش «کد نویس» و پیوست فایل ویژه کاربران پرو است)</span>
           <span class="w-full lg:w-auto text-gray-400 font-mono tracking-wide shrink-0">AnanasAI 🍍</span>
@@ -735,49 +735,6 @@
       renderHistoryList();
 
       const lowerText = userText.toLowerCase();
-
-      const isNewsQuery = 
-        lowerText.includes('خبر') || 
-        lowerText.includes('انتخابات') || 
-        lowerText.includes('آمریکا') || 
-        lowerText.includes('آخرین اخبار') ||
-        lowerText.includes('گزارش');
-
-      if (isNewsQuery && !attachedFile) {
-        isGenerating = true;
-        appendLoadingBubble(false, false);
-        try {
-          const res = await fetch(`/api/news?q=${encodeURIComponent(userText)}`);
-          const newsResult = await res.json();
-          
-          removeLoadingBubble();
-
-          let replyText = "";
-          if (newsResult.success && newsResult.news) {
-            const n = newsResult.news;
-            replyText = `با توجه به چیزی که پرسیدی، این خبر مرتبط رو پیدا کردم:\n\n📰 **${n.title}**\n\n${n.description ? n.description.slice(0, 180) + '...\n\n' : ''}🔗 [مطالعه کامل خبر](${n.link})`;
-          } else {
-            replyText = "با توجه به سوالت، خبر مرتبطی در منابع روز پیدا نکردم.";
-          }
-
-          currentSession.messages.push({
-            role: 'model',
-            text: replyText
-          });
-
-        } catch (err) {
-          removeLoadingBubble();
-          currentSession.messages.push({
-            role: 'model',
-            text: "⚠️ خطا در جستجوی اخبار روز."
-          });
-        } finally {
-          isGenerating = false;
-          saveSessions();
-          renderMessages();
-        }
-        return;
-      }
 
       const isMarketQuery = 
         lowerText.includes('دلار') || 
