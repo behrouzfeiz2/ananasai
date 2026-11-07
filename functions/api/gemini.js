@@ -14,7 +14,8 @@ async function getUserStatusAndQuota(request, env) {
 
   if (userToken !== "") {
     if (env.ANANAS_KV) {
-      const tokenData = await env.ANANAS_KV.get(`token_${userToken}`);
+      // بررسی مستقیم نام توکن در KV (بدون پیشوند اضافی جهت هماهنگی با پنل ادمین)
+      const tokenData = await env.ANANAS_KV.get(userToken);
       if (tokenData) {
         isPro = true;
         limitText = 100; // سهمیه پرو روزانه: ۱۰۰ پیام
@@ -129,7 +130,6 @@ export async function onRequestPost(context) {
     const cleanName = targetModel.replace(/^models\//, "");
     const googleApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(cleanName)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
-    // استخراج دقیق روز هفته، تاریخ شمسی، تاریخ میلادی به وقت تهران
     const now = new Date();
     const todayStr = now.toLocaleDateString('fa-IR', { 
       timeZone: 'Asia/Tehran', 
