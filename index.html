@@ -390,6 +390,7 @@
       fetchQuotaFromServer();
     });
 
+    // بررسی و اعتبارسنجی خودکار سهمیه و اعتبار توکن از طریق سرور
     async function fetchQuotaFromServer() {
       try {
         const headers = { 'X-Device-UUID': deviceUUID };
@@ -397,7 +398,8 @@
         const res = await fetch('/api/gemini', { method: 'GET', headers });
         const data = await res.json();
 
-        if (res.status === 401 && userToken) {
+        // اگر توکن نامعتبر باشد یا توسط ادمین حذف شده باشد (خطای 401 یا پاسخ عدم تایید پرو)
+        if (res.status === 401 || (userToken && data && data.quota && data.quota.isPro === false)) {
           userToken = '';
           localStorage.removeItem('ananas_user_token');
           quotaState = { isPro: false, used: 0, limit: 10 };
@@ -438,7 +440,6 @@
         if (upgradeBtn) upgradeBtn.classList.add('hidden');
         if (coderLockIcon) coderLockIcon.classList.add('hidden');
 
-        // محاسبه پایدار تاریخ انقضا بدون ریست شدن روزانه
         let tokenTimeKey = `ananas_token_time_${userToken}`;
         let savedTime = localStorage.getItem(tokenTimeKey);
         if (!savedTime) {
