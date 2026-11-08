@@ -104,7 +104,6 @@ export async function onRequestPost(context) {
       dynamicSystemPrompt += ' شما در حال حاضر در نقش یک «کد نویس» و مهندس ارشد نرم‌افزار هستید. به سوالات برنامه‌نویسی، دیباگ، تحلیل فایل‌های کد، الگوریتم‌نویسی و توسعه وب به صورت تخصصی (از جمله Rust، پایتون، جاوااسکریپت و دیتابیس)، با کدهای تمیز و توضیحات دقیق پاسخ دهید.';
     }
 
-    // ساختار پیام‌ها برای جمنای و گروک
     let geminiContents = payload?.contents || [];
     let groqMessages = [{ role: "system", content: dynamicSystemPrompt }];
 
@@ -125,6 +124,14 @@ export async function onRequestPost(context) {
     } else {
       payload.systemInstruction = { parts: [{ text: dynamicSystemPrompt }] };
     }
+
+    // --- فعال‌سازی هوشمند Search Grounding گوگل ---
+    // با اضافه کردن این ابزار، جمنای خودکار تصمیم می‌گیرد کِی در وب جستجو کند.
+    if (!payload.tools) {
+      payload.tools = [];
+    }
+    payload.tools.push({ googleSearch: {} });
+    // ----------------------------------------------
 
     let response = null;
     let responseText = "";
@@ -164,7 +171,7 @@ export async function onRequestPost(context) {
       }
     }
 
-    // ۲. اگر تمام مدل‌های جمنای خطا دادند یا لیمیت شدند، برو سراغ گروک (Llama 3.1 8B)
+    // ۲. اگر تمام مدل‌های جمنای خطا دادند، برو سراغ گروک (Llama 3.1 8B)
     if (!response || !response.ok) {
       const groqApiKey = env.GROQ_API_KEY;
       if (groqApiKey) {
@@ -193,7 +200,6 @@ export async function onRequestPost(context) {
             const groqJson = JSON.parse(groqText);
             const contentText = groqJson.choices?.[0]?.message?.content || "";
             
-            // ساختار پاسخ را شبیه به خروجی جمنای می‌سازیم تا فرانت‌اند دچار مشکل نشود
             responseText = JSON.stringify({
               candidates: [{
                 content: {
@@ -216,7 +222,6 @@ export async function onRequestPost(context) {
       return new Response(responseText, { status: response && !isGroqSuccess ? response.status : 500, headers: corsHeaders });
     }
 
-    // اگر از هرکدام (جمنای یا گروک) پاسخ درستی گرفتیم، سهمیه کاربر را یکی اضافه کن
     if ((response && response.ok) || isGroqSuccess) {
       quota.usedText += 1;
       if (env.ANANAS_KV) {
