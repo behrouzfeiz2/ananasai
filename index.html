@@ -115,6 +115,13 @@
     .pineapple-glow {
       animation: pulseGlow 3s infinite ease-in-out;
     }
+
+    /* کلاس مخفی کردن سایدبار در دسکتاپ */
+    @media (min-width: 1024px) {
+      .desktop-sidebar-hidden {
+        display: none !important;
+      }
+    }
   </style>
 </head>
 <body class="flex h-full w-full select-none md:select-auto">
@@ -150,7 +157,8 @@
           <p class="text-xs text-gray-400">هوش مصنوعی شخصی شما</p>
         </div>
       </div>
-      <button onclick="toggleSidebar()" class="lg:hidden text-gray-400 hover:text-white p-1">
+      <!-- دکمه بستن منو (حالا هم در موبایل و هم دسکتاپ نمایش داده می‌شود) -->
+      <button onclick="toggleSidebar()" class="text-gray-400 hover:text-white p-1 transition" title="بستن منو">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
     </div>
@@ -169,7 +177,7 @@
       <span>تاریخچه گفتگوها</span>
       <button onclick="clearAllHistory()" class="text-[11px] text-red-400 hover:underline">حذف همه</button>
     </div>
-    <div id="chatHistoryList" class="flex-1 overflow-y-auto px-3 space-y-1.5 py-2"></div>
+    <div id="chatHistoryList" class="flex-1 overflow-y-auto px-2 space-y-1 py-2"></div>
 
     <div class="p-3 border-t border-ananas-border space-y-2 bg-ananas-dark/40 shrink-0">
       <div id="accountStatusCard" class="flex flex-col gap-2 p-3 rounded-xl bg-ananas-card border border-ananas-border text-xs">
@@ -228,7 +236,8 @@
     
     <header class="h-16 border-b border-ananas-border px-4 lg:px-8 flex items-center justify-between bg-ananas-dark/80 backdrop-blur-md z-20 shrink-0">
       <div class="flex items-center gap-3">
-        <button onclick="toggleSidebar()" class="lg:hidden p-2 rounded-xl bg-ananas-card border border-ananas-border text-gray-300">
+        <!-- دکمه منو هدر (باز کردن منو در موبایل یا دسکتاپ) -->
+        <button id="headerSidebarBtn" onclick="toggleSidebar()" class="lg:hidden p-2 rounded-xl bg-ananas-card border border-ananas-border text-gray-300 hover:text-white transition">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
         <div class="flex items-center gap-2">
@@ -353,7 +362,7 @@
             <li>دسترسی کامل به دستیار تخصصی <b>«کد نویس»</b></li>
             <li>امکان <b>ضمیمه کردن فایل‌ها</b> و بررسی تخصصی کد و خطاها</li>
           </ul>
-          <p class="pt-1">برای تهیه کد فعال‌سازی به تلگرام <a href="https://t.me/Branex_ir" target="_blank" class="underline font-bold">@Branex_ir</a> مراجعه کنید.</p>
+          <p class="pt-1">برای تهیه کد فعال‌سازی و خرید اشتراک به صفحه <a href="pro.html" class="underline font-bold text-amber-400 hover:text-amber-300 transition">خرید پرو</a> مراجعه کنید.</p>
         </div>
 
         <div>
@@ -725,7 +734,8 @@
         const newSession = {
           id: 'sess_' + Date.now(),
           title: userText ? userText.slice(0, 32) : 'بررسی فایل کد',
-          messages: []
+          messages: [],
+          isPinned: false
         };
         sessions.unshift(newSession);
         activeSessionId = newSession.id;
@@ -941,6 +951,28 @@
       if (window.innerWidth < 1024) toggleSidebar(false);
     }
 
+    // حذف یک چت خاص
+    function deleteSession(id) {
+      if (!confirm('آیا از حذف این گفتگو مطمئن هستید؟')) return;
+      sessions = sessions.filter(s => s.id !== id);
+      if (activeSessionId === id) {
+        activeSessionId = sessions.length > 0 ? sessions[0].id : null;
+        renderMessages();
+      }
+      saveSessions();
+      renderHistoryList();
+    }
+
+    // پین/آن‌پین کردن چت
+    function togglePinSession(id) {
+      const session = sessions.find(s => s.id === id);
+      if (session) {
+        session.isPinned = !session.isPinned;
+        saveSessions();
+        renderHistoryList();
+      }
+    }
+
     function clearAllHistory() {
       if (!confirm('آیا تمام تاریخچه گفتگوها پاک شود؟')) return;
       sessions = [];
@@ -971,11 +1003,29 @@
         list.innerHTML = '<p class="text-xs text-gray-500 text-center py-6">هنوز گفتگویی ثبت نشده است</p>';
         return;
       }
-      list.innerHTML = sessions.map(s => `
-        <button onclick="loadSession('${s.id}')" class="w-full text-right px-3 py-2.5 rounded-xl text-xs truncate transition flex items-center gap-2 ${s.id === activeSessionId ? 'bg-ananas-500/15 text-ananas-400 border border-ananas-500/30 font-bold' : 'text-gray-300 hover:bg-ananas-dark/60'}">
-          <span>🍍</span>
-          <span class="truncate flex-1">${escapeHtml(s.title)}</span>
-        </button>
+
+      // مرتب‌سازی: چت‌های پین‌شده بالا قرار بگیرند
+      const sortedSessions = [...sessions].sort((a, b) => {
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        return 0;
+      });
+
+      list.innerHTML = sortedSessions.map(s => `
+        <div class="group relative flex items-center justify-between w-full px-2 py-2 rounded-xl text-xs transition border ${s.id === activeSessionId ? 'bg-ananas-500/15 text-ananas-400 border-ananas-500/30 font-bold' : 'text-gray-300 hover:bg-ananas-dark/60 border-transparent'}">
+          <button onclick="loadSession('${s.id}')" class="flex-1 overflow-hidden flex items-center gap-2 text-right">
+            <span class="shrink-0 text-sm">${s.isPinned ? '📌' : '🍍'}</span>
+            <span class="truncate flex-1" dir="auto">${escapeHtml(s.title)}</span>
+          </button>
+          <div class="flex items-center gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity px-1 shrink-0">
+            <button onclick="togglePinSession('${s.id}')" class="text-gray-400 hover:text-amber-400 transition text-sm" title="${s.isPinned ? 'برداشتن سنجاق' : 'سنجاق کردن'}">
+              ${s.isPinned ? '📍' : '📌'}
+            </button>
+            <button onclick="deleteSession('${s.id}')" class="text-gray-400 hover:text-red-400 transition text-sm" title="حذف گفتگو">
+              🗑️
+            </button>
+          </div>
+        </div>
       `).join('');
     }
 
@@ -1070,17 +1120,33 @@
       mc.scrollTop = mc.scrollHeight;
     }
 
+    // آپدیت تابع تغییر وضعیت سایدبار برای پشتیبانی از حالت دسکتاپ
     function toggleSidebar(force) {
       const sb = document.getElementById('sidebar');
       const ov = document.getElementById('sidebarOverlay');
-      const isHidden = sb.classList.contains('translate-x-full');
-      const show = typeof force === 'boolean' ? force : isHidden;
-      if (show) {
-        sb.classList.remove('translate-x-full');
-        ov.classList.remove('hidden');
+      const headerBtn = document.getElementById('headerSidebarBtn');
+
+      if (window.innerWidth >= 1024) {
+        // تنظیمات بستن/باز کردن در دسکتاپ
+        const isClosed = sb.classList.contains('desktop-sidebar-hidden');
+        if (isClosed) {
+          sb.classList.remove('desktop-sidebar-hidden');
+          headerBtn.classList.add('lg:hidden'); // مخفی کردن همبرگر هدر وقتی سایدبار باز است
+        } else {
+          sb.classList.add('desktop-sidebar-hidden');
+          headerBtn.classList.remove('lg:hidden'); // نمایش همبرگر هدر وقتی سایدبار بسته است
+        }
       } else {
-        sb.classList.add('translate-x-full');
-        ov.classList.add('hidden');
+        // تنظیمات کشویی استاندارد برای موبایل
+        const isHidden = sb.classList.contains('translate-x-full');
+        const show = typeof force === 'boolean' ? force : isHidden;
+        if (show) {
+          sb.classList.remove('translate-x-full');
+          ov.classList.remove('hidden');
+        } else {
+          sb.classList.add('translate-x-full');
+          ov.classList.add('hidden');
+        }
       }
     }
 
