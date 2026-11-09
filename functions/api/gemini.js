@@ -1,4 +1,3 @@
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -29,7 +28,6 @@ const CONFIG = {
   GROQ_TIMEOUT: 25000,
   DATA_TIMEOUT: 12000,
 
-  // مسیر سرویس‌های داخلی آناناس
   MARKET_ENDPOINT: "/api/nerkh",
   NEWS_ENDPOINT: "/api/news",
 
@@ -214,7 +212,7 @@ function detectQuestionType(text) {
     /قیمت|نرخ|ارزش|چند شده|چنده|چند است|چقدر است|چقدر شده|بازار ارز|بازار طلا|دلار|یورو|پوند|لیر|سکه|طلای|طلا|نفت|برنت|مربع|انس جهانی|اونس|مظنه|بورس|شاخص کل|مبور|مربان|murban|brent|gold price|oil price|bitcoin price|btc price|ethereum price|exchange rate/i;
 
   const newsPattern =
-    /اخبار|خبرهای|خبر جدید|آخرین خبر|خبر روز|چه خبر|خبرگزاری|گزارش خبری|اتفاقات امروز|اخبار امروز|تحولات|رویدادهای|iran news|latest news|breaking news/i;
+    /اخبار|خبرهای|خبر جدید|آخرین خبر|خبر روز|چه خبر|خبرگزاری|گزارش خبری|اتفاقات امروز|اخبار امروز|تحولات|رویدادهای|نتیجه انتخابات|نتایج انتخابات|انتخابات|انتخاباتی|میان.?دوره|کدام حزب|چه حزبی|برنده شد|برنده انتخابات|نتیجه رای|نتایج رای|شمارش آرا|کنگره آمریکا|مجلس سنا|سنای آمریکا|مجلس نمایندگان|جنگ|آتش.?بس|حمله|حملات|زلزله|طوفان|فوتبال امروز|نتیجه بازی|نتایج بازی|قهرمان شد|election|midterm|midterms|election results|who won|winning party|congressional|senate|house of representatives|latest news|breaking news|current events|ceasefire|war update|earthquake|storm|match result/i;
 
   const isMarket = marketPattern.test(q);
   const isNews = newsPattern.test(q);
@@ -333,13 +331,10 @@ async function getNewsData(request, query) {
   if (!CONFIG.ENABLE_RSS_NEWS) return null;
 
   const origin = new URL(request.url).origin;
-
-  const endpoint = new URL(
-    CONFIG.NEWS_ENDPOINT,
-    origin
-  );
+  const endpoint = new URL(CONFIG.NEWS_ENDPOINT, origin);
 
   endpoint.searchParams.set("q", query);
+  endpoint.searchParams.set("limit", "5");
 
   try {
     const response = await fetchWithTimeout(
@@ -359,14 +354,28 @@ async function getNewsData(request, query) {
 
     const result = await response.json();
 
-    if (!result.success || !result.news) {
-      throw new Error(result.error || "No matching news");
+    if (!result || result.success !== true) {
+      throw new Error(result?.error || "News service returned an invalid response");
     }
+
+    const newsItems = Array.isArray(result.news)
+      ? result.news
+      : result.news
+        ? [result.news]
+        : [];
+
+    const found = result.found === false
+      ? false
+      : newsItems.length > 0;
 
     return {
       success: true,
+      found,
       query: result.query || query,
-      news: result.news
+      mode: result.mode || "search",
+      total: Number(result.total ?? newsItems.length) || 0,
+      message: result.message || "",
+      news: newsItems.slice(0, 5)
     };
 
   } catch (error) {
@@ -374,31 +383,73 @@ async function getNewsData(request, query) {
 
     return {
       success: false,
-      error: error.message
+      found: false,
+      error: error.message,
+      news: []
     };
   }
 }
 
 function formatNewsData(data) {
-  if (!data?.success || !data.news) return "";
+  if (!data?.success) return "";
 
-  const item = data.news;
+  if (!data.found || !Array.isArray(data.news) || data.news.length === 0) {
+    return `
+جست‌وجوی خبر در منابع RSS متصل به آناناس انجام شد، اما خبر مرتبطی پیدا نشد.
 
-  return `
-اطلاعات خبری دریافت‌شده از منابع RSS آناناس:
-
-عنوان: ${item.title || "نامشخص"}
-توضیحات: ${item.description || "توضیحی موجود نیست"}
-تاریخ انتشار: ${item.pubDate || "نامشخص"}
-لینک خبر: ${item.link || "نامشخص"}
+عبارت جست‌وجو: ${data.query || "نامشخص"}
+نتیجه سرویس: ${data.message || "هیچ خبر مرتبطی در فیدهای بررسی‌شده پیدا نشد."}
 
 قوانین:
-- این اطلاعات از فید خبری دریافت شده‌اند.
-- خبر را به‌عنوان خبر تأییدشده و مستقل معرفی نکن.
-- اگر متن خبر ناقص است، این موضوع را بیان کن.
-- لینک خبر را در پاسخ درج کن.
-- تاریخ انتشار را در صورت وجود اعلام کن.
-- از ساختن جزئیات و اطلاعاتی که در داده وجود ندارند خودداری کن.
+- این نتیجه فقط به معنی پیدا نشدن خبر در منابع RSS متصل به آناناس است؛ نه اینکه در کل اینترنت خبری وجود ندارد.
+- به کاربر پاسخ کلی «به اخبار روز دسترسی ندارم» نده.
+- نتیجه انتخابات، آمار، نام برندگان یا جزئیات رویداد را حدس نزن.
+- شفاف بگو در منابع خبری متصل‌شده، خبر مرتبطی پیدا نشد.
+- اگر بخشی از سؤال با دانش عمومی قابل توضیح است، آن را از اطلاعات تأییدنشده درباره نتیجه رویداد جدا کن.
+`;
+  }
+
+  const newsText = data.news.map((item, index) => {
+    const title = item.title || "عنوان نامشخص";
+    const description = item.description || "توضیحی در فید موجود نیست";
+    const source = item.source || "منبع نامشخص";
+    const publishedAt = item.publishedAt || item.pubDate || "نامشخص";
+    const link = item.link || "لینک موجود نیست";
+    const score = Number.isFinite(Number(item.relevanceScore))
+      ? item.relevanceScore
+      : "نامشخص";
+
+    return `
+خبر شماره ${index + 1}:
+عنوان: ${title}
+خلاصه: ${description}
+منبع: ${source}
+تاریخ انتشار: ${publishedAt}
+لینک: ${link}
+امتیاز ارتباط در جست‌وجو: ${score}
+`;
+  }).join("\n");
+
+  return `
+اطلاعات خبری دریافت‌شده از سرویس RSS آناناس:
+
+عبارت جست‌وجو: ${data.query || "نامشخص"}
+تعداد خبرهای دریافت‌شده: ${data.news.length}
+
+${newsText}
+
+قوانین استفاده از اخبار:
+- پاسخ را بر اساس همین خبرهای دریافتی تنظیم کن.
+- خبرها را با توجه به عنوان، خلاصه، تاریخ انتشار و منبع بررسی کن.
+- اگر چند خبر به یک موضوع اشاره دارند، اطلاعات مشترک آن‌ها را با دقت ترکیب کن.
+- اگر منابع درباره یک موضوع اطلاعات متفاوت یا متناقض دارند، اختلاف را شفاف بیان کن.
+- عنوان منبع، تاریخ انتشار و لینک خبرهای استفاده‌شده را در پاسخ بیاور.
+- لینک‌ها را دقیقاً همان‌طور که دریافت شده‌اند درج کن؛ لینک نساز و تغییر نده.
+- وجود یک خبر در RSS به‌تنهایی به معنی تأیید مستقل تمام جزئیات آن نیست.
+- اگر خبر فقط خلاصه دارد، ادعا نکن متن کامل مقاله را خوانده‌ای.
+- اطلاعاتی را که در خبرها وجود ندارد، به‌عنوان واقعیت روز مطرح نکن.
+- اگر خبرها پاسخ دقیق سؤال را نمی‌دهند، صریحاً بگو که اطلاعات موجود برای تعیین پاسخ قطعی کافی نیست.
+- وقتی این داده‌ها در اختیار تو قرار گرفته‌اند، به‌جای پاسخ کلی درباره نداشتن دسترسی به اخبار روز، از همین داده‌ها استفاده کن.
 `;
 }
 
@@ -431,7 +482,8 @@ ${date.gregorian}
 - پاسخ‌ها دقیق، کاربردی و متناسب با سؤال باشند.
 - فقط در صورت سؤال مستقیم درباره تاریخ، تاریخ امروز را اعلام کن.
 - در موضوعات علمی، آموزشی، فنی و برنامه‌نویسی با دانش خود کمک کن.
-- اگر درباره اطلاعات جدید یا رویدادهای روز سؤال شد، محدودیت دسترسی به جست‌وجوی عمومی اینترنت را صادقانه بیان کن.
+- اگر درباره اطلاعات جدید یا رویدادهای روز سؤال شد، ابتدا اطلاعات سرویس‌های داخلی آناناس را بررسی کن.
+- اگر اطلاعات خبری یا بازاری از سرویس داخلی دریافت شده، از همان داده‌ها استفاده کن و محدودیت جست‌وجوی عمومی را بی‌جهت تکرار نکن.
 - هرگز ادعا نکن که در گوگل جست‌وجو کرده‌ای.
 - هرگز منبع، لینک، خبر یا قیمت ساختگی تولید نکن.
 - اگر داده‌ای در اختیار نداری، صریحاً بگو.
@@ -439,17 +491,18 @@ ${date.gregorian}
 
 محدودیت جست‌وجوی اینترنت:
 
-آناناس در حال حاضر به جست‌وجوی زنده و عمومی گوگل متصل نیست.
-دلیل این محدودیت، عدم فعال بودن سرویس جست‌وجوی عمومی در زیرساخت فعلی و محدودیت دسترسی به این قابلیت است.
+آناناس در حال حاضر به جست‌وجوی زنده و عمومی گوگل متصل نیست؛ اما به برخی منابع داده داخلی مانند فیدهای RSS خبری و سرویس قیمت بازار متصل است.
 
-اگر کاربر درباره موضوعات روز، آخرین اخبار یا اطلاعاتی سؤال کرد که نیازمند جست‌وجوی عمومی است، محترمانه توضیح بده که امکان تأیید زنده آن اطلاعات را نداری.
+قانون مهم:
+- اگر داده خبری از RSS دریافت شده، بر اساس همان داده‌ها پاسخ بده و لینک منابع را درج کن.
+- اگر جست‌وجوی RSS با موفقیت انجام شده اما خبر مرتبطی پیدا نشده، فقط بگو در منابع RSS متصل‌شده خبر مرتبطی پیدا نشد؛ این موضوع را به عدم دسترسی کلی به اخبار تعبیر نکن.
+- اگر سرویس RSS به دلیل خطای فنی در دسترس نبود، بگو دریافت خبر از منابع متصل‌شده موقتاً با مشکل مواجه شده است.
+- فقط وقتی هیچ داده داخلی مرتبطی در اختیار نداری و پاسخ واقعاً به جست‌وجوی عمومی زنده نیاز دارد، محدودیت جست‌وجوی عمومی را توضیح بده.
+- هرگز نتیجه انتخابات، آمار، برنده رویداد یا خبر تازه را از روی حدس یا صرفاً از دانش قدیمی خود اعلام نکن.
 
-از این توضیح پیشنهادی استفاده کن:
+در صورت نیاز به توضیح محدودیت جست‌وجوی عمومی، می‌توانی بگویی:
 
-«من در آناناس همراه شما هستم تا در مسیر یادگیری، پژوهش‌های علمی، برنامه‌نویسی و حل مسائل تخصصی کمک کنم. در حال حاضر به جست‌وجوی زنده و عمومی گوگل متصل نیستم؛ بنابراین ممکن است درباره تازه‌ترین رویدادها و اطلاعات منتشرشده پس از آخرین به‌روزرسانی دانشم اطلاعات دقیقی نداشته باشم. با این حال، در موضوعات علمی و تخصصی می‌توانم با دانش موجود و اطلاعات متصل به آناناس به شما کمک کنم.»
-
-نکته:
-اگر اطلاعات بازار یا خبر از سرویس‌های داخلی آناناس در اختیار تو قرار گرفت، از آن اطلاعات استفاده کن و محدودیت جست‌وجوی عمومی را بی‌جهت تکرار نکن.
+«من در آناناس همراه شما هستم تا در مسیر یادگیری، پژوهش‌های علمی، برنامه‌نویسی و حل مسائل تخصصی کمک کنم. در حال حاضر به جست‌وجوی زنده و عمومی گوگل متصل نیستم؛ با این حال، می‌توانم از منابع خبری و اطلاعاتی که به آناناس متصل شده‌اند استفاده کنم. اگر موضوعی در این منابع پوشش داده نشده باشد، این محدودیت را شفاف اعلام می‌کنم.»
 
 اطلاعات اختصاصی سرویس‌های داخلی:
 
@@ -675,7 +728,6 @@ export async function onRequestPost(context) {
 
   try {
 
-    // دریافت درخواست
     const body = await request.json();
 
     const {
@@ -696,7 +748,6 @@ export async function onRequestPost(context) {
       }, 400);
     }
 
-    // بررسی کلید گوگل
     const geminiKey = env.GEMINI_API_KEY;
 
     if (!geminiKey) {
@@ -707,7 +758,6 @@ export async function onRequestPost(context) {
       }, 500);
     }
 
-    // احراز هویت و سهمیه
     const quota = await getUserStatusAndQuota(
       request,
       env
@@ -739,7 +789,6 @@ export async function onRequestPost(context) {
 
     const attachmentExists = hasAttachments(contents);
 
-    // محدودیت حساب رایگان
     if (!quota.isPro && (attachmentExists || mode === "coder")) {
       return jsonResponse({
         error: {
@@ -750,11 +799,9 @@ export async function onRequestPost(context) {
       }, 403);
     }
 
-    // تشخیص موضوع سؤال
     const lastMessage = getLastUserMessage(contents);
     const questionType = detectQuestionType(lastMessage);
 
-    // دریافت اطلاعات تکمیلی فقط در صورت نیاز
     let marketData = null;
     let newsData = null;
 
@@ -766,7 +813,6 @@ export async function onRequestPost(context) {
       newsData = await getNewsData(request, lastMessage);
     }
 
-    // ساخت Context اختصاصی
     let externalContext = "";
 
     if (questionType.market) {
@@ -787,10 +833,11 @@ export async function onRequestPost(context) {
         externalContext += formatNewsData(newsData);
       } else {
         externalContext += `
-سؤال کاربر درباره اخبار روز است.
-سرویس RSS آناناس در حال حاضر خبر مرتبطی ارائه نکرده است.
-هیچ خبر جدید یا تاریخ ساختگی تولید نکن.
-به کاربر اطلاع بده که دریافت خبر در حال حاضر امکان‌پذیر نیست.
+سؤال کاربر درباره یک رویداد یا خبر روز است.
+تلاش برای دریافت خبر از سرویس RSS آناناس انجام شد، اما سرویس به دلیل خطای فنی پاسخ معتبر نداد.
+این وضعیت را با «خبر مرتبطی پیدا نشد» اشتباه نگیر.
+هیچ خبر، نتیجه انتخابات، آمار یا تاریخ ساختگی تولید نکن.
+به کاربر بگو دریافت خبر از منابع متصل‌شده موقتاً با مشکل مواجه شده است.
 `;
       }
     }
@@ -828,12 +875,10 @@ export async function onRequestPost(context) {
             response: result.responseText
           };
 
-          // خطای سهمیه پروژه با تغییر مدل حل نمی‌شود.
           if (result.status === 429) {
             break;
           }
 
-          // خطای احراز هویت یا کلید نامعتبر
           if (result.status === 401 || result.status === 403) {
             break;
           }
@@ -872,7 +917,6 @@ export async function onRequestPost(context) {
     if (!geminiSuccess && CONFIG.ENABLE_GROQ) {
       const groqKey = env.GROQ_API_KEY;
 
-      // Groq نمی‌تواند فایل‌های ضمیمه را در این ساختار پردازش کند.
       if (groqKey && !attachmentExists) {
         try {
           responseJson = await callGroq(
@@ -925,7 +969,10 @@ export async function onRequestPost(context) {
       marketRequested: questionType.market,
       marketAvailable: Boolean(marketData?.success),
       newsRequested: questionType.news,
-      newsAvailable: Boolean(newsData?.success),
+      newsServiceAvailable: Boolean(newsData?.success),
+      newsAvailable: Boolean(newsData?.success && newsData?.found),
+      newsFound: Boolean(newsData?.found),
+      newsCount: Array.isArray(newsData?.news) ? newsData.news.length : 0,
       googleSearch: false
     };
 
