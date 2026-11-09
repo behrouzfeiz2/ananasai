@@ -6,6 +6,8 @@
   <title>پنل مدیریت سفارش‌ها و کدهای پرو | آناناس (AnanasAI)</title>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- اضافه شدن اسکریپت کپچای گوگل -->
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
   <style>
     * { font-family: 'Vazirmatn', sans-serif; }
     body { background-color: #0b0f17; color: #f3f4f6; }
@@ -17,17 +19,25 @@
 <body class="min-h-screen flex flex-col items-center justify-center p-4 py-8">
 
   <!-- کادر ورود به پنل ادمین -->
-  <div id="loginBox" class="bg-[#151c28] border border-[#232f46] p-6 rounded-2xl max-w-sm w-full space-y-4 shadow-2xl">
+  <div id="loginBox" class="bg-[#151c28] border border-[#232f46] p-6 rounded-2xl max-w-sm w-full space-y-5 shadow-2xl">
     <div class="text-center space-y-1">
       <span class="text-3xl">🍍</span>
       <h2 class="text-lg font-bold text-white">ورود به پنل مدیریت آناناس</h2>
-      <p class="text-xs text-gray-400">رمز عبور ادمین را وارد کنید</p>
+      <p class="text-xs text-gray-400">برای ورود، رمز عبور را وارد کرده و کپچا را حل کنید</p>
     </div>
-    <input id="adminPassInput" type="password" onkeydown="if(event.key==='Enter') checkLogin()" placeholder="رمز عبور ادمین" class="w-full bg-[#0b0f17] border border-[#232f46] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-500 text-white">
-    <button onclick="checkLogin()" class="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold py-2.5 rounded-xl text-sm transition shadow-lg shadow-amber-500/20 cursor-pointer">ورود به پنل</button>
+    
+    <input id="adminPassInput" type="password" onkeydown="if(event.key==='Enter') checkLogin()" placeholder="رمز عبور ادمین" class="w-full bg-[#0b0f17] border border-[#232f46] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-500 text-white transition">
+    
+    <!-- ابزارک ریکپچا (تاریک) -->
+    <div class="flex justify-center my-2">
+      <!-- مهم: کلید Site Key خود را در فیلد data-sitekey قرار دهید -->
+      <div class="g-recaptcha" data-sitekey="6LcCaBguAAAAABkH_Wsv6l5zip1kfHWtd1YSB2m-" data-theme="dark"></div>
+    </div>
+
+    <button onclick="checkLogin()" class="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold py-2.5 rounded-xl text-sm transition shadow-lg shadow-amber-500/20 cursor-pointer">بررسی و ورود</button>
   </div>
 
-  <!-- محتوای اصلی پنل ادمین -->
+  <!-- محتوای اصلی پنل ادمین (بدون تغییرات ظاهری نسبت به قبل) -->
   <div id="panelBox" class="hidden bg-[#151c28] border border-[#232f46] p-5 sm:p-7 rounded-3xl max-w-4xl w-full space-y-8 shadow-2xl">
     
     <!-- هدر پنل -->
@@ -44,7 +54,7 @@
       </button>
     </div>
 
-    <!-- بخش ۱: لیست درخواست‌های پرداخت ثبت‌شده در صفحه buy.html -->
+    <!-- بخش ۱: لیست درخواست‌های پرداخت -->
     <div class="space-y-3">
       <div class="flex items-center justify-between">
         <h3 class="text-sm font-extrabold text-white flex items-center gap-2">
@@ -53,10 +63,7 @@
           <span id="pendingCountBadge" class="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[11px]">0 در انتظار</span>
         </h3>
       </div>
-
-      <div id="paymentList" class="max-h-96 overflow-y-auto border border-[#232f46] rounded-2xl p-3 space-y-2.5 bg-[#0b0f17]/60">
-        <!-- لیست واریزی‌ها اینجا بارگذاری می‌شود -->
-      </div>
+      <div id="paymentList" class="max-h-96 overflow-y-auto border border-[#232f46] rounded-2xl p-3 space-y-2.5 bg-[#0b0f17]/60"></div>
     </div>
 
     <!-- بخش ۲: ساخت دستی کد رندوم جدید -->
@@ -72,15 +79,13 @@
       </div>
     </div>
 
-    <!-- بخش ۳: لیست کدهای فعال پرو و مدت زمان باقی‌مانده -->
+    <!-- بخش ۳: لیست کدهای فعال پرو -->
     <div class="space-y-2">
       <div class="flex items-center justify-between text-xs text-gray-400 px-1">
         <span class="font-bold text-gray-300">🔑 کدهای فعال پرو در سیستم</span>
         <span>وضعیت اعتبار / عملیات</span>
       </div>
-      <div class="max-h-72 overflow-y-auto border border-[#232f46] rounded-2xl p-3 space-y-2 bg-[#0b0f17]/60" id="tokenList">
-        <!-- لیست کدها اینجا بارگذاری می‌شود -->
-      </div>
+      <div class="max-h-72 overflow-y-auto border border-[#232f46] rounded-2xl p-3 space-y-2 bg-[#0b0f17]/60" id="tokenList"></div>
     </div>
 
   </div>
@@ -101,17 +106,43 @@
       document.getElementById('newTokenInput').value = makeRandomCodeString();
     }
 
+    // تغییر منطق لاگین برای پشتیبانی از کپچا و هندل کردن خطای لاکت شدن
     async function checkLogin() {
       pass = document.getElementById('adminPassInput').value.trim();
-      if (!pass) return;
-      const res = await fetch('/api/admin', { headers: { 'X-Admin-Password': pass } });
-      if (res.ok) {
-        document.getElementById('loginBox').classList.add('hidden');
-        document.getElementById('panelBox').classList.remove('hidden');
-        loadAdminData();
-        generateRandomCode();
-      } else {
-        alert('رمز عبور ادمین اشتباه است!');
+      if (!pass) return alert('رمز عبور را وارد کنید!');
+
+      const captchaToken = typeof grecaptcha !== 'undefined' ? grecaptcha.getResponse() : '';
+      const siteKeyElement = document.querySelector('.g-recaptcha').getAttribute('data-sitekey');
+      
+      // فقط زمانی که Site Key را تنظیم کرده‌اید، سمت فرانت هم اجبار کند
+      if (siteKeyElement !== 'YOUR_RECAPTCHA_SITE_KEY' && !captchaToken) {
+        return alert('لطفاً تیک من ربات نیستم (کپچا) را بزنید.');
+      }
+
+      try {
+        const res = await fetch('/api/admin', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-Admin-Password': pass 
+          },
+          body: JSON.stringify({ action: 'login', captchaToken })
+        });
+        
+        const data = await res.json().catch(() => ({}));
+
+        if (res.ok) {
+          document.getElementById('loginBox').classList.add('hidden');
+          document.getElementById('panelBox').classList.remove('hidden');
+          loadAdminData();
+          generateRandomCode();
+        } else {
+          // نمایش دقیق خطای سرور (مثلاً ارور 429 مسدود شدن یا 401 رمز اشتباه)
+          alert(data.error || 'خطا در ورود به پنل!');
+          if (typeof grecaptcha !== 'undefined') grecaptcha.reset(); // رفرش کپچا برای تلاش مجدد
+        }
+      } catch (err) {
+        alert('خطا در برقراری ارتباط با سرور.');
       }
     }
 
@@ -119,12 +150,10 @@
       const res = await fetch('/api/admin', { headers: { 'X-Admin-Password': pass } });
       if (!res.ok) return;
       const data = await res.json();
-      
       renderPayments(data.payments || []);
       renderTokens(data.tokens || []);
     }
 
-    // رندر کردن لیست فیش‌های واریزی ثبت‌شده از صفحه buy.html
     function renderPayments(payments) {
       const payEl = document.getElementById('paymentList');
       const pendingCount = payments.filter(p => p.status !== 'done').length;
@@ -135,7 +164,7 @@
         : "px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[11px] font-bold";
 
       if (payments.length === 0) {
-        payEl.innerHTML = '<p class="text-xs text-gray-500 text-center py-6">هنوز هیچ فرم پرداختی از صفحه buy ثبت نشده است.</p>';
+        payEl.innerHTML = '<p class="text-xs text-gray-500 text-center py-6">هنوز هیچ فرم پرداختی ثبت نشده است.</p>';
         return;
       }
 
@@ -160,11 +189,10 @@
                 <span>💰 مبلغ: <b>${p.amount || '450.000 تومان'}</b></span>
               </div>
             </div>
-
             <div class="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end shrink-0">
               ${!isDone ? `
                 <button onclick="issueCodeForPayment('${p.id}', '${p.fullName}', '${p.phone}')" class="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-[11px] transition cursor-pointer shadow">
-                  ⚡ صدور خودکار کد + کپی پیامک
+                  ⚡ صدور خودکار
                 </button>
               ` : ''}
               <button onclick="togglePaymentStatus('${p.id}')" class="px-2.5 py-2 rounded-xl bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 text-[11px] transition cursor-pointer">
@@ -179,7 +207,6 @@
       }).join('');
     }
 
-    // رندر کردن لیست کدهای پرو
     function renderTokens(tokens) {
       const listEl = document.getElementById('tokenList');
       if (tokens.length === 0) {
@@ -207,63 +234,47 @@
           timeRemainingText = `${daysLeft} روز و ${hoursLeft} ساعت باقی‌مانده`;
         }
 
-        const expireDateStr = new Date(expireTime).toLocaleDateString('fa-IR');
-        const noteHtml = t.data.note ? `<span class="text-gray-300 font-normal mr-2">(${t.data.note})</span>` : '';
-
         return `
           <div class="flex items-center justify-between bg-[#151c28] border border-[#232f46] px-3.5 py-2.5 rounded-xl text-xs">
             <div>
               <div class="flex items-center gap-2">
                 <span class="font-mono text-amber-400 font-bold text-sm tracking-wide select-all">${t.name}</span>
-                ${noteHtml}
+                ${t.data.note ? `<span class="text-gray-300 font-normal mr-2">(${t.data.note})</span>` : ''}
               </div>
-              <p class="text-[11px] text-gray-400 mt-0.5">انقضا تا: ${expireDateStr}</p>
+              <p class="text-[11px] text-gray-400 mt-0.5">انقضا تا: ${new Date(expireTime).toLocaleDateString('fa-IR')}</p>
             </div>
             <div class="flex items-center gap-2">
-              <span class="px-2.5 py-1 rounded-full border text-[11px] font-medium ${badgeColor}">
-                ${timeRemainingText}
-              </span>
-              <button onclick="deleteKey('${t.name}')" title="حذف کد" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition cursor-pointer">
-                🗑️
-              </button>
+              <span class="px-2.5 py-1 rounded-full border text-[11px] font-medium ${badgeColor}">${timeRemainingText}</span>
+              <button onclick="deleteKey('${t.name}')" title="حذف کد" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition cursor-pointer">🗑️</button>
             </div>
           </div>
         `;
       }).join('');
     }
 
-    // صدور سریع کد ۳۰ روزه برای یک فیش پرداخت و کپی متن پیامک در کلیپ‌بورد
     async function issueCodeForPayment(paymentId, fullName, phone) {
       const newCode = makeRandomCodeString();
-      
-      // ۱. ثبت کد در دیتابیس با نام و موبایل خریدار
       const createRes = await fetch('/api/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Admin-Password': pass },
         body: JSON.stringify({ token: newCode, note: `${fullName} - ${phone}` })
       });
 
-      if (!createRes.ok) {
-        alert('خطا در ساخت کد پرو!');
-        return;
-      }
+      if (!createRes.ok) return alert('خطا در ساخت کد پرو!');
 
-      // ۲. تغییر وضعیت فیش پرداخت به انجام‌شده
       await fetch('/api/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Admin-Password': pass },
         body: JSON.stringify({ action: 'togglePayment', id: paymentId, assignedToken: newCode })
       });
 
-      // ۳. کپی کردن متن آماده پیامک در کلیپ‌بورد شما
       const smsText = `${fullName} عزیز، پرداخت شما تایید شد.\nکد فعال‌سازی اشتراک ۳۰ روزه آناناس پرو:\n${newCode}\nاین کد را در بخش مدیریت اشتراک پرو در محیط چت وارد نمایید.🍍`;
       try {
         await navigator.clipboard.writeText(smsText);
-        alert(`✅ کد ${newCode} ساخته شد و متن آماده پیامک برای شماره ${phone} در کلیپ‌بورد شما کپی گردید!`);
+        alert(`✅ کد ${newCode} ساخته شد و متن پیامک در کلیپ‌بورد کپی گردید!`);
       } catch {
         alert(`✅ کد ساخته شد: ${newCode}`);
       }
-
       loadAdminData();
     }
 
