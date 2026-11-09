@@ -1,991 +1,276 @@
-// ======================================================
-// ANANAS AI - TOROB PRODUCT API
-// Cloudflare Pages Function: /api/shop
-//
-// Compatible with existing gemini.js
-//
-// SEARCH:
-// GET  /api/shop?q=گوشی سامسونگ
-// POST /api/shop { "query": "گوشی سامسونگ" }
-//
-// SUGGESTIONS:
-// GET /api/shop?action=suggest&q=سامسونگ
-//
-// PRODUCT DETAILS:
-// GET /api/shop?action=details&id=PRODUCT_ID
-//
-// SELLERS:
-// GET /api/shop?action=sellers&id=PRODUCT_ID
-//
-// PRICE CHART:
-// GET /api/shop?action=price-chart&id=PRODUCT_ID
-//
-// SPECIAL OFFERS:
-// GET /api/shop?action=offers
-//
-// ======================================================
-
-const TOROB_API = "https://api.torob.com";
-const TOROB_SITE = "https://torob.com";
+/**
+ * Ananas AI - RSS Shopping & Product Discovery
+ * Cloudflare Pages Function: functions/api/shop.js
+ * Compatible: GET /api/shop?q=iphone&limit=10
+ * Diagnostics: GET /api/shop?action=sources | /api/shop?action=health
+ *
+ * RSS entries are discovery/editorial data, NOT guaranteed live offers.
+ * Prices are extracted only when explicitly written in feed text.
+ */
 
 const CONFIG = {
-  SEARCH_LIMIT: 10,
-  MAX_SEARCH_LIMIT: 30,
-  MAX_QUERY_LENGTH: 120,
-
-  TIMEOUT: 15000,
-
-  CACHE: {
-    search: 180,
-    suggest: 300,
-    details: 300,
-    sellers: 180,
-    chart: 900,
-    offers: 300
-  }
-};
-
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-  "Content-Type": "application/json; charset=utf-8"
-};
-
-// ======================================================
-// 1. RESPONSE HELPERS
-// ======================================================
-
-function json(data, status = 200, extraHeaders = {}) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      ...CORS_HEADERS,
-      ...extraHeaders
+  CACHE_TTL_SECONDS: 900,
+  FEED_TIMEOUT_MS: 10000,
+  DEFAULT_LIMIT: 10,
+  MAX_LIMIT: 30,
+  MAX_ITEMS_PER_FEED: 80,
+  USER_AGENT: "AnanasAI-ShopFeed/1.0 (+https://ananasai.ir)",
+  SOURCES: [
+    {
+      id: "mobo", name: "موبونیوز", type: "mobile_review", enabled: true,
+      feeds: ["https://mobo.news/feed/", "https://mobo.news/feed"],
+      topics: ["mobile", "smartphone", "review", "buying-guide"], trust: "editorial"
+    },
+    {
+      id: "technolife", name: "تکنولایف", type: "store_blog", enabled: true,
+      feeds: ["https://www.technolife.com/blog/feed/", "https://www.technolife.com/blog/feed"],
+      topics: ["mobile", "laptop", "digital-goods", "buying-guide"], trust: "retailer-editorial"
+    },
+    {
+      id: "binoshop", name: "بینوشاپ", type: "store_feed", enabled: true,
+      feeds: ["https://shop.binosha.com/feed/", "https://shop.binosha.com/feed"],
+      topics: ["digital-goods", "mobile", "accessories"], trust: "retailer"
+    },
+    {
+      id: "zoomit", name: "زومیت", type: "technology_media", enabled: true,
+      feeds: ["https://www.zoomit.ir/feed/", "https://www.zoomit.ir/feed"],
+      topics: ["mobile", "laptop", "technology", "buying-guide"], trust: "editorial"
     }
+  ]
+};
+
+const ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ", zwnj: "\u200c" };
+
+function decodeEntities(v = "") {
+  return String(v)
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gi, "$1")
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => {
+      const n = parseInt(h, 16); return Number.isFinite(n) ? String.fromCodePoint(n) : _;
+    })
+    .replace(/&#([0-9]+);/g, (_, d) => {
+      const n = parseInt(d, 10); return Number.isFinite(n) ? String.fromCodePoint(n) : _;
+    })
+    .replace(/&([a-z]+);/gi, (m, e) => ENTITIES[e.toLowerCase()] ?? m)
+    .replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function tag(block, names) {
+  for (const name of names) {
+    const re = new RegExp(`<(?:(?:[\\w.-]+):)?${name}\\b[^>]*>([\\s\\S]*?)<\\/(?:(?:[\\w.-]+):)?${name}\\s*>`, "i");
+    const m = block.match(re);
+    if (m) return decodeEntities(m[1]);
+  }
+  return "";
+}
+
+function attr(block, tags, attrs) {
+  for (const name of tags) {
+    const m = block.match(new RegExp(`<(?:[\\w.-]+:)?${name}\\b([^>]*)>`, "i"));
+    if (!m) continue;
+    for (const a of attrs) {
+      const found = m[1].match(new RegExp(`(?:^|\\s)${a}\\s*=\\s*["']([^"']+)["']`, "i"));
+      if (found) return decodeEntities(found[1]);
+    }
+  }
+  return "";
+}
+
+function hash(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0).toString(36);
+}
+
+function safeUrl(value) {
+  if (!value) return null;
+  try { const u = new URL(value); return ["http:", "https:"].includes(u.protocol) ? u.toString() : null; }
+  catch { return null; }
+}
+
+function dateValue(v) {
+  if (!v) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? v : d.toISOString();
+}
+
+function englishDigits(v) {
+  const fa = "۰۱۲۳۴۵۶۷۸۹", ar = "٠١٢٣٤٥٦٧٨٩";
+  return String(v).replace(/[۰-۹٠-٩]/g, d => {
+    const i = fa.indexOf(d); return String(i >= 0 ? i : ar.indexOf(d));
   });
 }
 
-function normalizeQuery(value) {
-  return String(value || "")
-    .replace(/[\u0000-\u001F\u007F]/g, " ")
-    .replace(/\s+/g, " ")
-    .replace(/ي/g, "ی")
-    .replace(/ك/g, "ک")
-    .trim()
-    .slice(0, CONFIG.MAX_QUERY_LENGTH);
-}
-
-function cleanText(value, maxLength = 500) {
-  if (typeof value !== "string") return null;
-
-  const text = value
-    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "")
-    .replace(/[\u202A-\u202E\u2066-\u2069]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  return text ? text.slice(0, maxLength) : null;
-}
-
-function safeHttpsUrl(value) {
-  if (typeof value !== "string" || !value.trim()) {
-    return null;
+function priceFrom(text) {
+  const s = englishDigits(text).replace(/,/g, "");
+  const patterns = [
+    /(?:قیمت|حدود قیمت|با قیمت|به قیمت)[^\d]{0,24}(\d{1,3}(?:\.\d+)?\s*(?:هزار|میلیون|میلیارد)?)/i,
+    /(\d{1,3}(?:\.\d+)?\s*(?:میلیون|میلیارد)\s*(?:تومان|تومن|ریال)?)/i,
+    /(\d{5,15})\s*(تومان|تومن|ریال)/i
+  ];
+  for (const re of patterns) {
+    const m = s.match(re);
+    if (!m) continue;
+    const raw = m[1] || "";
+    let n = Number(raw.replace(/[^\d.]/g, ""));
+    if (!Number.isFinite(n)) continue;
+    if (/میلیارد/.test(raw)) n *= 1e9;
+    else if (/میلیون/.test(raw)) n *= 1e6;
+    else if (/هزار/.test(raw)) n *= 1e3;
+    return { value: Math.round(n), text: m[0].trim(), currency: /ریال/.test(m[0]) ? "IRR" : "IRT" };
   }
-
-  try {
-    const url = new URL(value);
-
-    if (url.protocol !== "https:") return null;
-
-    return url.toString();
-  } catch {
-    return null;
-  }
+  return { value: null, text: null, currency: "IRT" };
 }
 
-function safeNumber(value) {
-  const number = Number(value);
-
-  return Number.isFinite(number) && number > 0
-    ? Math.round(number)
-    : null;
+function itemType(title, desc, price) {
+  const t = `${title} ${desc}`;
+  if (/(راهنمای خرید|بهترین گوشی|بهترین لپ.?تاپ|مقایسه|بررسی تخصصی)/i.test(t)) return "buying_guide";
+  if (price !== null) return "price_mention";
+  if (/(گوشی|موبایل|آیفون|سامسونگ|شیائومی|پوکو|لپ.?تاپ|تبلت|هدفون|ساعت هوشمند)/i.test(t)) return "product_article";
+  return "article";
 }
 
-function getProductUrl(id) {
-  return `${TOROB_SITE}/p/${encodeURIComponent(id)}/`;
+function parseFeed(xml, source) {
+  const entries = xml.match(/<(?:item|entry)\b[\s\S]*?<\/(?:item|entry)\s*>/gi) || [];
+  return entries.slice(0, CONFIG.MAX_ITEMS_PER_FEED).map(block => {
+    const title = tag(block, ["title"]);
+    const description = tag(block, ["description", "summary", "content:encoded", "content"]);
+    const link = tag(block, ["link"]) || attr(block, ["link"], ["href"]);
+    const guid = tag(block, ["guid", "id"]);
+    const image = attr(block, ["media:content", "media:thumbnail", "enclosure"], ["url"]);
+    const published = tag(block, ["pubDate", "published", "updated", "date"]);
+    const author = tag(block, ["creator", "author"]);
+    const price = priceFrom(`${title} ${description}`);
+    return {
+      id: hash(`${source.id}|${guid || link || title}`),
+      source: source.id, source_name: source.name, source_type: source.type,
+      type: itemType(title, description, price.value),
+      name: title || "مطلب بدون عنوان", title: title || "مطلب بدون عنوان",
+      description: description.slice(0, 1800),
+      price: price.value, price_text: price.text, currency: price.currency,
+      price_is_current: false, image: safeUrl(image), url: safeUrl(link || guid),
+      published_at: dateValue(published), author,
+      topics: source.topics, trust: source.trust
+    };
+  }).filter(x => x.title && x.url);
 }
 
-function getProductId(url) {
-  return (
-    url.searchParams.get("id") ||
-    url.searchParams.get("prk") ||
-    ""
-  ).trim();
+function normalize(v) {
+  return englishDigits(String(v || "")).replace(/[يى]/g, "ی").replace(/ك/g, "ک")
+    .replace(/[^\p{L}\p{N}\s.-]/gu, " ").replace(/\s+/g, " ").trim().toLowerCase();
 }
 
-// ======================================================
-// 2. FETCH WITH TIMEOUT
-// ======================================================
+function score(item, query) {
+  if (!query) return 1;
+  const q = normalize(query);
+  const hay = normalize(`${item.title} ${item.description} ${item.source_name} ${(item.topics || []).join(" ")}`);
+  let n = hay.includes(q) ? 10 : 0;
+  for (const word of q.split(/\s+/).filter(Boolean)) if (hay.includes(word)) n += word.length > 3 ? 3 : 1;
+  if (item.type === "price_mention") n += 1;
+  return n;
+}
 
-async function fetchTorob(url) {
+async function fetchTimed(url) {
   const controller = new AbortController();
-
-  const timer = setTimeout(
-    () => controller.abort(),
-    CONFIG.TIMEOUT
-  );
-
+  const timer = setTimeout(() => controller.abort(), CONFIG.FEED_TIMEOUT_MS);
   try {
-    const response = await fetch(url, {
-      method: "GET",
-
-      headers: {
-        "Accept": "application/json",
-        "Accept-Language": "fa-IR,fa;q=0.9,en;q=0.8",
-        "User-Agent": "Mozilla/5.0"
-      },
-
-      signal: controller.signal
+    return await fetch(url, {
+      headers: { Accept: "application/rss+xml, application/atom+xml, application/xml, text/xml, */*", "User-Agent": CONFIG.USER_AGENT },
+      signal: controller.signal, redirect: "follow"
     });
-
-    if (response.status === 490) {
-      const error = new Error(
-        "ترب درخواست را به دلیل محدودیت امنیتی نپذیرفت."
-      );
-
-      error.code = "TOROB_BLOCKED";
-      error.status = 503;
-
-      throw error;
-    }
-
-    if (response.status === 403 || response.status === 429) {
-      const error = new Error(
-        "دسترسی به سرویس ترب موقتاً محدود شده است."
-      );
-
-      error.code = "TOROB_RATE_LIMIT";
-      error.status = 503;
-
-      throw error;
-    }
-
-    if (!response.ok) {
-      const error = new Error(
-        `Torob HTTP ${response.status}`
-      );
-
-      error.code = "TOROB_UPSTREAM_ERROR";
-      error.status = 502;
-
-      throw error;
-    }
-
-    const contentType =
-      response.headers.get("content-type") || "";
-
-    if (!contentType.includes("application/json")) {
-      const error = new Error(
-        "پاسخ دریافتی از ترب JSON معتبر نیست."
-      );
-
-      error.code = "TOROB_INVALID_RESPONSE";
-      error.status = 502;
-
-      throw error;
-    }
-
-    return await response.json();
-
-  } catch (error) {
-    if (error.name === "AbortError") {
-      const timeoutError = new Error(
-        "زمان انتظار برای پاسخ ترب به پایان رسید."
-      );
-
-      timeoutError.code = "TOROB_TIMEOUT";
-      timeoutError.status = 504;
-
-      throw timeoutError;
-    }
-
-    if (!error.status) {
-      error.status = 502;
-      error.code = error.code || "TOROB_CONNECTION_ERROR";
-    }
-
-    throw error;
-
-  } finally {
-    clearTimeout(timer);
-  }
+  } finally { clearTimeout(timer); }
 }
 
-// ======================================================
-// 3. CACHE
-// ======================================================
-
-async function cachedFetch(url, cacheType) {
-  const ttl = CONFIG.CACHE[cacheType] || 180;
-
-  const cacheKey = new Request(
-    url.toString(),
-    { method: "GET" }
-  );
-
-  try {
-    if (typeof caches !== "undefined" && caches.default) {
-      const cached = await caches.default.match(cacheKey);
-
-      if (cached) {
-        const data = await cached.json();
-
-        return {
-          data,
-          cached: true
-        };
+async function fetchSource(source) {
+  const errors = [];
+  for (const feed of source.feeds) {
+    try {
+      const res = await fetchTimed(feed);
+      if (!res.ok) { errors.push(`${res.status}: ${feed}`); continue; }
+      const xml = await res.text();
+      if (!/<(?:rss|feed|rdf:RDF|item|entry)\b/i.test(xml.slice(0, 12000))) {
+        errors.push(`پاسخ XML/RSS معتبر نبود: ${feed}`); continue;
       }
+      const items = parseFeed(xml, source);
+      return { source: source.id, ok: true, count: items.length, feed, items };
+    } catch (e) {
+      errors.push(`${feed}: ${e?.name === "AbortError" ? "timeout" : String(e?.message || e)}`);
     }
-  } catch (error) {
-    console.warn("TOROB_CACHE_READ_ERROR", error.message);
   }
+  return { source: source.id, ok: false, count: 0, errors, items: [] };
+}
 
-  const data = await fetchTorob(url);
-
-  try {
-    if (typeof caches !== "undefined" && caches.default) {
-      const cacheResponse = new Response(
-        JSON.stringify(data),
-        {
-          headers: {
-            "Content-Type": "application/json; charset=utf-8",
-            "Cache-Control": `public, max-age=${ttl}`
-          }
-        }
-      );
-
-      await caches.default.put(cacheKey, cacheResponse);
+async function loadFeeds(request, refresh = false) {
+  const cache = caches.default;
+  const key = new Request(new URL("/__ananas_shop_rss_cache_v1", request.url).toString());
+  if (!refresh) {
+    const hit = await cache.match(key);
+    if (hit) {
+      try { return { ...(await hit.json()), cached: true }; } catch {}
     }
-  } catch (error) {
-    console.warn("TOROB_CACHE_WRITE_ERROR", error.message);
   }
-
-  return {
-    data,
-    cached: false
+  const results = await Promise.all(CONFIG.SOURCES.filter(s => s.enabled).map(fetchSource));
+  const data = {
+    success: true, items: results.flatMap(r => r.items),
+    source_status: results.map(({ source, ok, count, feed, errors }) => ({ source, ok, count, feed: feed || null, errors: errors || [] })),
+    fetched_at: new Date().toISOString(), cached: false
   };
-}
-
-// ======================================================
-// 4. PRODUCT NORMALIZATION
-// ======================================================
-
-function mapProduct(item) {
-  if (!item || typeof item !== "object") return null;
-
-  const id = cleanText(
-    item.random_key || item.prk || "",
-    160
-  );
-
-  if (!id) return null;
-
-  const price = safeNumber(item.price);
-
-  return {
-    id,
-
-    name: cleanText(item.name1, 250) ||
-      "محصول بدون عنوان",
-
-    name_en: cleanText(item.name2, 250),
-
-    price,
-
-    currency: price !== null ? "تومان" : null,
-
-    image: safeHttpsUrl(item.image_url),
-
-    url: getProductUrl(id),
-
-    stock_status: cleanText(item.stock_status, 100),
-
-    availability:
-      typeof item.availability === "boolean"
-        ? item.availability
-        : null,
-
-    discount: item.discount_info || null,
-
-    badges: Array.isArray(item.badges)
-      ? item.badges
-      : [],
-
-    sponsored: item.is_adv === true
-  };
-}
-
-// ======================================================
-// 5. SEARCH PRODUCTS
-// ======================================================
-
-async function searchProducts(url) {
-  const query = normalizeQuery(
-    url.searchParams.get("q") ||
-    url.searchParams.get("query") ||
-    ""
-  );
-
-  if (query.length < 2) {
-    return {
-      success: false,
-      error: "عبارت جست‌وجو باید حداقل ۲ نویسه باشد.",
-      code: "INVALID_QUERY",
-      products: []
-    };
-  }
-
-  const page = Math.max(
-    0,
-    Math.min(
-      100,
-      parseInt(url.searchParams.get("page") || "0", 10) || 0
-    )
-  );
-
-  const requestedLimit = parseInt(
-    url.searchParams.get("limit") || CONFIG.SEARCH_LIMIT,
-    10
-  );
-
-  const limit = Math.max(
-    1,
-    Math.min(
-      CONFIG.MAX_SEARCH_LIMIT,
-      Number.isFinite(requestedLimit)
-        ? requestedLimit
-        : CONFIG.SEARCH_LIMIT
-    )
-  );
-
-  const apiUrl = new URL(
-    `${TOROB_API}/v4/base-product/search/`
-  );
-
-  apiUrl.searchParams.set("q", query);
-  apiUrl.searchParams.set("page", String(page));
-  apiUrl.searchParams.set("size", String(limit));
-  apiUrl.searchParams.set("source", "next_desktop");
-
-  const result = await cachedFetch(apiUrl, "search");
-
-  const raw = result.data;
-
-  const rows = Array.isArray(raw.results)
-    ? raw.results
-    : [];
-
-  const products = rows
-    .map(mapProduct)
-    .filter(Boolean)
-    .slice(0, limit);
-
-  return {
-    success: true,
-
-    query,
-
-    page,
-
-    total: Number.isFinite(Number(raw.count))
-      ? Number(raw.count)
-      : products.length,
-
-    count: products.length,
-
-    products,
-
-    did_you_mean: cleanText(
-      raw.spellcheck?.corrected_query,
-      200
-    ),
-
-    source: "Torob",
-
-    cached: result.cached
-  };
-}
-
-// ======================================================
-// 6. SEARCH SUGGESTIONS
-// ======================================================
-
-async function getSuggestions(url) {
-  const query = normalizeQuery(
-    url.searchParams.get("q") || ""
-  );
-
-  if (query.length < 1) {
-    return {
-      success: false,
-      error: "عبارت جست‌وجو خالی است.",
-      suggestions: []
-    };
-  }
-
-  const apiUrl = new URL(
-    `${TOROB_API}/suggestion2/`
-  );
-
-  apiUrl.searchParams.set("q", query);
-
-  const result = await cachedFetch(apiUrl, "suggest");
-
-  const rows = Array.isArray(result.data)
-    ? result.data
-    : [];
-
-  const suggestions = rows.slice(0, 10).map(item => ({
-    text: cleanText(item.text, 200),
-
-    type: cleanText(item.suggestion_type, 50),
-
-    group: cleanText(item.suggestion_group, 100),
-
-    is_history: item.is_history === true,
-
-    entity: item.entity
-      ? {
-          type: cleanText(item.entity.type, 50),
-          name: cleanText(item.entity.name1, 200)
-        }
-      : null
+  await cache.put(key, new Response(JSON.stringify(data), {
+    headers: { "Content-Type": "application/json", "Cache-Control": `public, max-age=${CONFIG.CACHE_TTL_SECONDS}` }
   }));
-
-  return {
-    success: true,
-    query,
-    count: suggestions.length,
-    suggestions,
-    source: "Torob",
-    cached: result.cached
-  };
+  return data;
 }
 
-// ======================================================
-// 7. PRODUCT DETAILS
-// ======================================================
-
-async function getProductDetails(url) {
-  const id = getProductId(url);
-
-  if (!id) {
-    return {
-      success: false,
-      error: "شناسه محصول ارسال نشده است.",
-      code: "MISSING_PRODUCT_ID"
-    };
-  }
-
-  const apiUrl = new URL(
-    `${TOROB_API}/v4/base-product/details/`
-  );
-
-  apiUrl.searchParams.set("prk", id);
-
-  const result = await cachedFetch(apiUrl, "details");
-
-  const raw = result.data;
-
-  const price = safeNumber(raw.price);
-
-  return {
-    success: true,
-
-    id: cleanText(raw.random_key || raw.prk || id, 160),
-
-    name: cleanText(raw.name1, 250),
-
-    name_en: cleanText(raw.name2, 250),
-
-    price,
-
-    currency: price !== null ? "تومان" : null,
-
-    min_price: safeNumber(raw.min_price),
-
-    max_price: safeNumber(raw.max_price),
-
-    image: safeHttpsUrl(raw.image_url),
-
-    url: getProductUrl(id),
-
-    availability:
-      typeof raw.availability === "boolean"
-        ? raw.availability
-        : null,
-
-    stock_status: cleanText(raw.stock_status, 100),
-
-    is_authentic:
-      typeof raw.is_authentic === "boolean"
-        ? raw.is_authentic
-        : null,
-
-    discount: raw.discount_info || null,
-
-    badges: Array.isArray(raw.badges)
-      ? raw.badges
-      : [],
-
-    breadcrumbs: Array.isArray(raw.breadcrumbs)
-      ? raw.breadcrumbs
-      : [],
-
-    key_specs: Array.isArray(raw.key_specs)
-      ? raw.key_specs
-      : [],
-
-    structural_specs: Array.isArray(raw.structural_specs)
-      ? raw.structural_specs
-      : [],
-
-    variants: Array.isArray(raw.variants)
-      ? raw.variants
-      : [],
-
-    contents: Array.isArray(raw.contents)
-      ? raw.contents
-      : [],
-
-    category: raw.torob_category || null,
-
-    source: "Torob",
-
-    cached: result.cached
-  };
+function response(data, status = 200) {
+  return new Response(JSON.stringify(data), { status, headers: {
+    "Content-Type": "application/json; charset=utf-8",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Cache-Control": "no-store"
+  }});
 }
 
-// ======================================================
-// 8. PRODUCT SELLERS
-// ======================================================
-
-function mapSeller(item, parentId) {
-  if (!item || typeof item !== "object") return null;
-
-  const price = safeNumber(item.price);
-
-  return {
-    id: cleanText(item.prk, 160),
-
-    product_id: parentId,
-
-    shop_name: cleanText(item.shop_name, 200),
-
-    shop_city: cleanText(item.shop_name2, 100),
-
-    price,
-
-    currency: price !== null ? "تومان" : null,
-
-    price_text: cleanText(item.price_text, 150),
-
-    old_price_text: cleanText(
-      item.price_text_striked,
-      150
-    ),
-
-    availability:
-      typeof item.availability === "boolean"
-        ? item.availability
-        : null,
-
-    is_price_unreliable:
-      item.is_price_unreliable === true,
-
-    shop_score: item.shop_score ?? null,
-
-    shop_votes_count:
-      safeNumber(item.shop_votes_count),
-
-    guarantee: cleanText(
-      item.guarantee_info,
-      300
-    ),
-
-    postage_fee: safeNumber(item.postage_fee),
-
-    purchase_url: safeHttpsUrl(item.page_url),
-
-    sponsored: item.is_adv === true
+async function handle({ request }) {
+  if (request.method === "OPTIONS") return response({ success: true });
+  if (!["GET", "POST"].includes(request.method)) return response({ success: false, error: "Method not allowed" }, 405);
+  const u = new URL(request.url);
+  let p = {
+    action: (u.searchParams.get("action") || "search").toLowerCase(),
+    q: u.searchParams.get("q") || u.searchParams.get("query") || "",
+    limit: Math.min(CONFIG.MAX_LIMIT, Math.max(1, Number(u.searchParams.get("limit")) || CONFIG.DEFAULT_LIMIT)),
+    refresh: ["1", "true", "yes"].includes((u.searchParams.get("refresh") || "").toLowerCase())
   };
-}
-
-async function getSellers(url) {
-  const id = getProductId(url);
-
-  if (!id) {
-    return {
-      success: false,
-      error: "شناسه محصول ارسال نشده است.",
-      code: "MISSING_PRODUCT_ID",
-      sellers: []
-    };
-  }
-
-  const page = Math.max(
-    0,
-    Math.min(
-      100,
-      parseInt(url.searchParams.get("page") || "0", 10) || 0
-    )
-  );
-
-  const size = Math.max(
-    1,
-    Math.min(
-      30,
-      parseInt(url.searchParams.get("limit") || "20", 10) || 20
-    )
-  );
-
-  const apiUrl = new URL(
-    `${TOROB_API}/v4/base-product/sellers/`
-  );
-
-  apiUrl.searchParams.set("prk", id);
-  apiUrl.searchParams.set("page", String(page));
-  apiUrl.searchParams.set("size", String(size));
-
-  const result = await cachedFetch(apiUrl, "sellers");
-
-  const rows = Array.isArray(result.data.results)
-    ? result.data.results
-    : [];
-
-  const sellers = rows
-    .map(item => mapSeller(item, id))
-    .filter(Boolean);
-
-  return {
-    success: true,
-
-    product_id: id,
-
-    total: Number(result.data.count) || sellers.length,
-
-    page,
-
-    count: sellers.length,
-
-    sellers,
-
-    source: "Torob",
-
-    cached: result.cached
-  };
-}
-
-// ======================================================
-// 9. PRICE CHART
-// ======================================================
-
-async function getPriceChart(url) {
-  const id = getProductId(url);
-
-  if (!id) {
-    return {
-      success: false,
-      error: "شناسه محصول ارسال نشده است.",
-      code: "MISSING_PRODUCT_ID",
-      chart: []
-    };
-  }
-
-  const apiUrl = new URL(
-    `${TOROB_API}/v4/base-product/price-chart/`
-  );
-
-  apiUrl.searchParams.set("prk", id);
-
-  const result = await cachedFetch(apiUrl, "chart");
-
-  const raw = result.data;
-
-  const labels = Array.isArray(raw.labels)
-    ? raw.labels
-    : [];
-
-  const dataSets = Array.isArray(raw.dataSets)
-    ? raw.dataSets
-    : [];
-
-  const chart = dataSets.map(dataset => {
-    const entries = Array.isArray(dataset.entries)
-      ? dataset.entries
-      : [];
-
-    const points = entries
-      .map(entry => {
-        const index = Number(entry.i);
-        const price = safeNumber(entry.val);
-
-        if (
-          !Number.isInteger(index) ||
-          index < 0 ||
-          index >= labels.length ||
-          price === null
-        ) {
-          return null;
-        }
-
-        return {
-          date: cleanText(String(labels[index]), 100),
-          price
-        };
-      })
-      .filter(Boolean);
-
-    return {
-      label: cleanText(dataset.label, 100),
-      points
-    };
-  });
-
-  return {
-    success: true,
-
-    product_id: id,
-
-    chart,
-
-    count: chart.reduce(
-      (total, item) => total + item.points.length,
-      0
-    ),
-
-    source: "Torob",
-
-    cached: result.cached
-  };
-}
-
-// ======================================================
-// 10. SPECIAL OFFERS
-// ======================================================
-
-async function getSpecialOffers() {
-  const apiUrl = new URL(
-    `${TOROB_API}/v4/special-offers/`
-  );
-
-  const result = await cachedFetch(apiUrl, "offers");
-
-  const raw = result.data;
-
-  // ساختار این API ممکن است تغییر کند.
-  // بنابراین چند ساختار رایج پاسخ بررسی می‌شود.
-
-  let offers = [];
-
-  if (Array.isArray(raw)) {
-    offers = raw;
-
-  } else if (Array.isArray(raw.results)) {
-    offers = raw.results;
-
-  } else if (Array.isArray(raw.offers)) {
-    offers = raw.offers;
-
-  } else if (Array.isArray(raw.products)) {
-    offers = raw.products;
-  }
-
-  return {
-    success: true,
-
-    count: offers.length,
-
-    offers: offers.slice(0, 30),
-
-    source: "Torob",
-
-    cached: result.cached
-  };
-}
-
-// ======================================================
-// 11. REQUEST HANDLER
-// ======================================================
-
-async function readRequest(request) {
-  const url = new URL(request.url);
-
-  let action = url.searchParams.get("action") || "";
-
-  let query =
-    url.searchParams.get("q") ||
-    url.searchParams.get("query") ||
-    "";
-
   if (request.method === "POST") {
     try {
-      const body = await request.json();
-
-      action = body.action || action;
-
-      query =
-        body.query ||
-        body.q ||
-        query;
-
-      const id = body.id || body.prk;
-
-      if (id && !url.searchParams.has("id")) {
-        url.searchParams.set("id", String(id));
-      }
-
-      if (body.page != null) {
-        url.searchParams.set("page", String(body.page));
-      }
-
-      if (body.limit != null) {
-        url.searchParams.set("limit", String(body.limit));
-      }
-
-    } catch {
-      return {
-        error: "ساختار JSON درخواست معتبر نیست.",
-        status: 400
-      };
-    }
+      const b = await request.json();
+      p = { ...p, action: String(b.action || p.action).toLowerCase(), q: b.q || b.query || p.q,
+        limit: Math.min(CONFIG.MAX_LIMIT, Math.max(1, Number(b.limit) || p.limit)), refresh: Boolean(b.refresh || p.refresh) };
+    } catch {}
   }
-
-  if (query && !url.searchParams.has("q")) {
-    url.searchParams.set("q", query);
-  }
-
-  return {
-    url,
-    action: String(action || "search").toLowerCase()
-  };
-}
-
-async function handle(request) {
-  if (
-    request.method !== "GET" &&
-    request.method !== "POST"
-  ) {
-    return json({
-      success: false,
-      error: "متد درخواست پشتیبانی نمی‌شود."
-    }, 405);
-  }
-
-  const input = await readRequest(request);
-
-  if (input.error) {
-    return json({
-      success: false,
-      error: input.error
-    }, input.status);
-  }
-
-  try {
-    let result;
-
-    switch (input.action) {
-
-      case "search":
-      case "products":
-        result = await searchProducts(input.url);
-        break;
-
-      case "suggest":
-      case "suggestions":
-        result = await getSuggestions(input.url);
-        break;
-
-      case "details":
-      case "detail":
-        result = await getProductDetails(input.url);
-        break;
-
-      case "sellers":
-      case "shops":
-        result = await getSellers(input.url);
-        break;
-
-      case "price-chart":
-      case "chart":
-        result = await getPriceChart(input.url);
-        break;
-
-      case "offers":
-      case "special-offers":
-        result = await getSpecialOffers();
-        break;
-
-      default:
-        return json({
-          success: false,
-          error: "عملیات درخواستی پشتیبانی نمی‌شود.",
-          supported_actions: [
-            "search",
-            "suggest",
-            "details",
-            "sellers",
-            "price-chart",
-            "offers"
-          ]
-        }, 400);
-    }
-
-    const status = result.success ? 200 : 400;
-
-    return json(result, status);
-
-  } catch (error) {
-    console.error("ANANAS_TOROB_ERROR", {
-      message: error.message,
-      code: error.code || "UNKNOWN"
-    });
-
-    return json({
-      success: false,
-
-      error: error.message ||
-        "خطا در ارتباط با سرویس ترب.",
-
-      code: error.code ||
-        "TOROB_REQUEST_FAILED",
-
-      products: [],
-      sellers: [],
-      chart: [],
-      suggestions: [],
-      offers: []
-
-    }, error.status || 502);
-  }
-}
-
-// ======================================================
-// 12. CLOUDFLARE PAGES EXPORTS
-// ======================================================
-
-export async function onRequestGet({ request }) {
-  return handle(request);
-}
-
-export async function onRequestPost({ request }) {
-  return handle(request);
-}
-
-export async function onRequestOptions() {
-  return new Response(null, {
-    status: 204,
-    headers: CORS_HEADERS
+  if (p.action === "sources") return response({ success: true, sources: CONFIG.SOURCES });
+  const data = await loadFeeds(request, p.refresh);
+  if (p.action === "health") return response({
+    success: true, fetched_at: data.fetched_at, cached: data.cached,
+    source_status: data.source_status, total_items: data.items.length
+  });
+  const products = data.items.map(x => ({ ...x, _score: score(x, p.q) }))
+    .filter(x => !p.q || x._score > 0)
+    .sort((a, b) => b._score - a._score || String(b.published_at || "").localeCompare(String(a.published_at || "")))
+    .slice(0, p.limit).map(({ _score, ...x }) => x);
+  return response({
+    success: true, query: p.q, count: products.length, total: data.items.length,
+    products, items: products, source_status: data.source_status,
+    fetched_at: data.fetched_at, cached: data.cached,
+    note: "RSS ممکن است به معرفی محصول یا قیمت اشاره کند؛ قیمت و موجودی زنده را تضمین نمی‌کند."
   });
 }
+
+export async function onRequestGet(context) {
+  try { return await handle(context); }
+  catch (e) { return response({ success: false, error: "خطا در دریافت فیدهای فروشگاهی", details: String(e?.message || e), products: [], items: [] }, 500); }
+}
+export async function onRequestPost(context) {
+  try { return await handle(context); }
+  catch (e) { return response({ success: false, error: "خطا در دریافت فیدهای فروشگاهی", details: String(e?.message || e), products: [], items: [] }, 500); }
+}
+export async function onRequestOptions() { return response({ success: true }); }
