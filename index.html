@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>آناناس | دستیار هوشمند و کدنویس (AnanasAI)</title>
-  
+
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍍</text></svg>">
   <link rel="canonical" href="https://ananas.ai/home" />
   <meta name="robots" content="noindex, follow" />
@@ -47,6 +47,7 @@
       font-family: 'Vazirmatn', sans-serif;
       box-sizing: border-box;
     }
+
     html, body {
       height: 100%;
       height: 100dvh;
@@ -56,27 +57,34 @@
       color: #f3f4f6;
       overflow: hidden;
     }
+
     ::-webkit-scrollbar {
       width: 6px;
       height: 6px;
     }
+
     ::-webkit-scrollbar-track {
       background: #0b0f17;
     }
+
     ::-webkit-scrollbar-thumb {
       background: #232f46;
       border-radius: 9999px;
     }
+
     ::-webkit-scrollbar-thumb:hover {
       background: #f59e0b;
     }
+
     .prose-ananas p {
       margin-bottom: 0.75rem;
       line-height: 1.85;
     }
+
     .prose-ananas p:last-child {
       margin-bottom: 0;
     }
+
     .prose-ananas pre {
       background: #090d14;
       border: 1px solid #232f46;
@@ -88,6 +96,7 @@
       margin: 0.75rem 0;
       font-size: 0.875rem;
     }
+
     .prose-ananas code {
       background: rgba(245, 158, 11, 0.12);
       color: #fbbf24;
@@ -95,25 +104,75 @@
       border-radius: 0.35rem;
       font-size: 0.85em;
     }
+
     .prose-ananas pre code {
       background: transparent;
       color: #e5e7eb;
       padding: 0;
     }
+
     .prose-ananas ul, .prose-ananas ol {
       padding-right: 1.5rem;
       margin-bottom: 0.75rem;
     }
-    .prose-ananas ul { list-style-type: disc; }
-    .prose-ananas ol { list-style-type: decimal; }
-    .prose-ananas li { margin-bottom: 0.25rem; line-height: 1.75; }
-    
-    @keyframes pulseGlow {
-      0%, 100% { opacity: 0.4; transform: scale(1); }
-      50% { opacity: 0.8; transform: scale(1.06); }
+
+    .prose-ananas ul {
+      list-style-type: disc;
     }
+
+    .prose-ananas ol {
+      list-style-type: decimal;
+    }
+
+    .prose-ananas li {
+      margin-bottom: 0.25rem;
+      line-height: 1.75;
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% {
+        opacity: 0.4;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 0.8;
+        transform: scale(1.06);
+      }
+    }
+
     .pineapple-glow {
       animation: pulseGlow 3s infinite ease-in-out;
+    }
+
+    /* انیمیشن ورود پیشنهادها از سمت راست */
+    @keyframes suggestionSlideIn {
+      from {
+        opacity: 0;
+        transform: translateX(28px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .chat-suggestion {
+      animation: suggestionSlideIn 0.55s ease-out both;
+    }
+
+    .chat-suggestion:nth-child(1) { animation-delay: 0.05s; }
+    .chat-suggestion:nth-child(2) { animation-delay: 0.12s; }
+    .chat-suggestion:nth-child(3) { animation-delay: 0.19s; }
+    .chat-suggestion:nth-child(4) { animation-delay: 0.26s; }
+    .chat-suggestion:nth-child(5) { animation-delay: 0.33s; }
+    .chat-suggestion:nth-child(6) { animation-delay: 0.40s; }
+    .chat-suggestion:nth-child(7) { animation-delay: 0.47s; }
+    .chat-suggestion:nth-child(8) { animation-delay: 0.54s; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .chat-suggestion {
+        animation: none;
+      }
     }
 
     /* کلاس مخفی کردن سایدبار در دسکتاپ */
@@ -124,13 +183,14 @@
     }
   </style>
 </head>
+
 <body class="flex h-full w-full select-none md:select-auto">
 
   <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-30 hidden lg:hidden"></div>
 
   <!-- سایدبار سمت راست -->
   <aside id="sidebar" class="fixed lg:static inset-y-0 right-0 z-40 w-72 bg-ananas-card border-l border-ananas-border flex flex-col transition-transform duration-300 translate-x-full lg:translate-x-0 h-full shrink-0">
-    
+
     <div class="p-4 border-b border-ananas-border flex items-center justify-between shrink-0">
       <div class="flex items-center gap-3">
         <a href="home.html" class="relative w-11 h-11 rounded-2xl bg-gradient-to-tr from-ananas-600 via-ananas-400 to-ananas-leaf p-0.5 shadow-lg shadow-ananas-500/20 block">
@@ -149,6 +209,7 @@
             </svg>
           </div>
         </a>
+
         <div>
           <div class="flex items-center gap-1.5">
             <a href="home.html" class="font-bold text-lg tracking-tight text-white hover:text-ananas-400 transition">آناناس</a>
@@ -157,17 +218,30 @@
           <p class="text-xs text-gray-400">هوش مصنوعی شخصی شما</p>
         </div>
       </div>
-      <!-- دکمه بستن منو (حالا هم در موبایل و هم دسکتاپ نمایش داده می‌شود) -->
-      <button onclick="toggleSidebar()" class="text-gray-400 hover:text-white p-1 transition" title="بستن منو">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+
+      <!-- آیکون جمع و باز کردن سایدبار -->
+      <button
+        onclick="toggleSidebar()"
+        class="text-gray-400 hover:text-ananas-400 p-1.5 transition rounded-lg hover:bg-ananas-dark/70"
+        title="جمع کردن منو"
+        aria-label="جمع کردن منو"
+      >
+        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="16" rx="2.5"></rect>
+          <path d="M15 4v16"></path>
+          <path d="m10 9-3 3 3 3"></path>
+        </svg>
       </button>
     </div>
 
     <div class="p-3 space-y-2 shrink-0">
       <button onclick="startNewChat()" class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-l from-ananas-500 to-ananas-600 hover:from-ananas-400 hover:to-ananas-500 text-ananas-dark font-bold text-sm shadow-lg shadow-ananas-500/15 flex items-center justify-center gap-2 transition">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 4v16m8-8H4"/></svg>
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 4v16m8-8H4"/>
+        </svg>
         <span>گفتگوی تازه با آناناس</span>
       </button>
+
       <a href="home.html" class="w-full py-2 px-3 rounded-xl bg-ananas-dark border border-ananas-border hover:border-ananas-500/50 text-gray-300 hover:text-white text-xs flex items-center justify-center gap-2 transition">
         <span>🏠 صفحه اصلی (Home)</span>
       </a>
@@ -177,6 +251,7 @@
       <span>تاریخچه گفتگوها</span>
       <button onclick="clearAllHistory()" class="text-[11px] text-red-400 hover:underline">حذف همه</button>
     </div>
+
     <div id="chatHistoryList" class="flex-1 overflow-y-auto px-2 space-y-1 py-2"></div>
 
     <div class="p-3 border-t border-ananas-border space-y-2 bg-ananas-dark/40 shrink-0">
@@ -210,19 +285,20 @@
       </a>
 
       <button id="actionAccountBtn" onclick="openSettingsModal()" class="w-full py-2 px-3 rounded-xl border border-ananas-border hover:border-ananas-500/50 text-gray-300 hover:text-white text-xs flex items-center justify-center gap-2 transition">
-        <svg class="w-4 h-4 text-ananas-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+        <svg class="w-4 h-4 text-ananas-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+        </svg>
         <span id="actionBtnText">وارد کردن کد فعال‌سازی پرو 🔑</span>
       </button>
 
-      <!-- اینپوت مخفی برای بازیابی پشتیبان -->
       <input type="file" id="importBackupInput" accept=".json" class="hidden" onchange="importChatsBackup(event)" />
 
-      <!-- دکمه‌های پشتیبان‌گیری و بازیابی -->
       <div class="grid grid-cols-2 gap-2 pt-1">
         <button onclick="exportChatsBackup()" title="ذخیره نسخه پشتیبان از تمام گفتگوها" class="py-2 px-2 rounded-xl bg-ananas-dark border border-ananas-border hover:border-ananas-500/50 text-gray-300 hover:text-white text-[11px] flex items-center justify-center gap-1.5 transition">
           <span>💾</span>
           <span>دریافت بکاپ</span>
         </button>
+
         <button onclick="triggerImportBackup()" title="بازیابی چت‌ها از فایل پشتیبان قبلی" class="py-2 px-2 rounded-xl bg-ananas-dark border border-ananas-border hover:border-ananas-500/50 text-gray-300 hover:text-white text-[11px] flex items-center justify-center gap-1.5 transition">
           <span>📂</span>
           <span>بازیابی بکاپ</span>
@@ -233,13 +309,15 @@
 
   <!-- بخش اصلی چت -->
   <main class="flex-1 flex flex-col h-full bg-ananas-dark relative overflow-hidden min-w-0">
-    
+
     <header class="h-16 border-b border-ananas-border px-4 lg:px-8 flex items-center justify-between bg-ananas-dark/80 backdrop-blur-md z-20 shrink-0">
       <div class="flex items-center gap-3">
-        <!-- دکمه منو هدر (باز کردن منو در موبایل یا دسکتاپ) -->
         <button id="headerSidebarBtn" onclick="toggleSidebar()" class="lg:hidden p-2 rounded-xl bg-ananas-card border border-ananas-border text-gray-300 hover:text-white transition">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
         </button>
+
         <div class="flex items-center gap-2">
           <span class="text-xl">🍍</span>
           <span class="font-bold text-white text-sm sm:text-base">AnanasAI</span>
@@ -251,6 +329,7 @@
           <span>💬</span>
           <span>گفتگو</span>
         </button>
+
         <button id="modeCoderBtn" onclick="setMode('coder')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white">
           <span>💻</span>
           <span>کد نویس</span>
@@ -260,21 +339,58 @@
     </header>
 
     <div id="messagesContainer" class="flex-1 overflow-y-auto px-4 lg:px-8 py-6 space-y-6">
-      
-      <div id="welcomeScreen" class="max-w-2xl mx-auto text-center py-16 space-y-6">
+
+      <div id="welcomeScreen" class="max-w-2xl mx-auto text-center py-10 sm:py-16 space-y-6">
         <div class="relative mx-auto w-20 h-20 flex items-center justify-center">
           <div class="absolute inset-0 rounded-full bg-ananas-500/20 blur-xl pineapple-glow"></div>
           <div class="relative w-16 h-16 rounded-3xl bg-ananas-card border border-ananas-500/40 flex items-center justify-center text-4xl shadow-xl">
             🍍
           </div>
         </div>
+
         <div class="space-y-2">
           <h2 class="text-2xl sm:text-3xl font-extrabold text-white">
             سلام! به هوش مصنوعی <span class="text-ananas-400">آناناس</span> خوش آمدید
           </h2>
+
           <p class="text-sm text-gray-400 max-w-md mx-auto leading-relaxed">
             دستیار هوشمند شما برای تولید محتوا و کدنویسی پیشرفته
           </p>
+        </div>
+
+        <!-- پیشنهادهای آماده گفتگو -->
+        <div id="chatSuggestions" class="max-w-2xl mx-auto flex flex-wrap justify-center items-center gap-2 px-1 pt-2">
+          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">
+            قیمت دلار چنده؟
+          </button>
+
+          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">
+            چطور یک بروز رسانی در زبان Rust انجام بدم؟
+          </button>
+
+          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">
+            چطور یک کیک تولید خانگی درست کنم؟
+          </button>
+
+          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">
+            در پایان نامه ام دچار مشکل شدم، راهنمایی لازم دارم؟
+          </button>
+
+          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">
+            در ترجمه متن کمک می خوام
+          </button>
+
+          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">
+            کپشن اینستاگرام برام تولید کن
+          </button>
+
+          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">
+            یک پرامپت برای تولید ویدئو لازم دارم به زبان انگلیسی
+          </button>
+
+          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">
+            موزیک متال از چه دورانی شروع شد؟
+          </button>
         </div>
       </div>
 
@@ -284,7 +400,7 @@
     <!-- کادر ارسال پیام -->
     <div class="p-2 sm:p-4 border-t border-ananas-border bg-ananas-dark/95 backdrop-blur-md shrink-0">
       <div class="max-w-3xl mx-auto space-y-2">
-        
+
         <div id="attachmentPreview" class="hidden mb-1 p-2 rounded-xl bg-ananas-card border border-ananas-border flex items-center justify-between">
           <div class="flex items-center gap-2.5">
             <div id="attachmentIconBox" class="w-9 h-9 rounded-lg bg-ananas-dark border border-ananas-500/40 flex items-center justify-center text-lg">📄</div>
@@ -293,21 +409,28 @@
               <p class="text-[10px] text-gray-400">فایل آماده ارسال برای تحلیل</p>
             </div>
           </div>
+
           <button onclick="removeAttachment()" class="p-1.5 text-gray-400 hover:text-red-400">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
           </button>
         </div>
 
-        <form onsubmit="handleSubmit(event)" class="relative flex items-end gap-2 bg-ananas-card border border-ananas-border focus-within:border-ananas-500/70 rounded-2xl p-2 shadow-lg">
-          
+        <form onsubmit="handleSubmit(event)" class="relative flex items-end gap-2 bg-ananas-card border border-ananas-border focus-within:border-ananas-500/70 rounded-2xl p-2">
+
           <input type="file" id="fileInput" accept="image/*,.txt,.js,.py,.html,.css,.json,.pdf,.php,.sql,.cs,.cpp,.java,.ts,.md" class="hidden" onchange="handleFileSelect(event)" />
-          
+
           <button type="button" onclick="triggerAttachmentClick()" title="پیوست فایل و بررسی کد (ویژه حساب پرو)" class="p-2 rounded-xl text-gray-400 hover:text-ananas-400 hover:bg-ananas-dark/60 transition shrink-0 relative">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+            </svg>
           </button>
 
           <button type="button" id="micBtn" onclick="toggleSpeechRecognition()" title="تایپ صوتی" class="p-2 rounded-xl text-gray-400 hover:text-ananas-400 hover:bg-ananas-dark/60 transition shrink-0 relative">
-            <svg id="micIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+            <svg id="micIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+            </svg>
           </button>
 
           <textarea
@@ -320,7 +443,9 @@
           ></textarea>
 
           <button id="sendBtn" type="submit" class="p-2 rounded-xl bg-ananas-500 hover:bg-ananas-400 text-ananas-dark font-bold transition shrink-0 flex items-center justify-center shadow-md shadow-ananas-500/20">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
+            </svg>
           </button>
         </form>
 
@@ -406,11 +531,13 @@
     window.addEventListener('DOMContentLoaded', () => {
       updateAccountStatusBadge();
       renderHistoryList();
+
       if (sessions.length > 0 && sessions[0].messages && sessions[0].messages.length > 0) {
         loadSession(sessions[0].id);
       } else {
         renderMessages();
       }
+
       fetchQuotaFromServer();
     });
 
@@ -418,6 +545,7 @@
       try {
         const headers = { 'X-Device-UUID': deviceUUID };
         if (userToken) headers['X-User-Token'] = userToken;
+
         const res = await fetch('/api/gemini', { method: 'GET', headers });
         const data = await res.json();
 
@@ -459,11 +587,13 @@
         badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> حساب پرو (Pro)';
         badge.className = 'flex items-center gap-1.5 text-amber-400 font-bold';
         actionBtnText.textContent = 'مدیریت کد فعال‌سازی ⚙️';
+
         if (upgradeBtn) upgradeBtn.classList.add('hidden');
         if (coderLockIcon) coderLockIcon.classList.add('hidden');
 
         let tokenTimeKey = `ananas_token_time_${userToken}`;
         let savedTime = localStorage.getItem(tokenTimeKey);
+
         if (!savedTime) {
           savedTime = Date.now();
           localStorage.setItem(tokenTimeKey, savedTime);
@@ -489,8 +619,10 @@
         badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-gray-400"></span> نسخه رایگان';
         badge.className = 'flex items-center gap-1.5 text-gray-300 font-medium';
         actionBtnText.textContent = 'وارد کردن کد فعال‌سازی پرو 🔑';
+
         if (upgradeBtn) upgradeBtn.classList.remove('hidden');
         timeContainer.classList.add('hidden');
+
         if (coderLockIcon) coderLockIcon.classList.remove('hidden');
 
         if (currentMode === 'coder') {
@@ -506,21 +638,30 @@
       }
 
       currentMode = mode;
+
       const chatBtn = document.getElementById('modeChatBtn');
       const coderBtn = document.getElementById('modeCoderBtn');
       const input = document.getElementById('promptInput');
       const hint = document.getElementById('modeHintText');
+      const suggestions = document.getElementById('chatSuggestions');
+
+      // پیشنهادها فقط در حالت گفتگو نمایش داده شوند
+      if (suggestions) {
+        suggestions.classList.toggle('hidden', mode !== 'chat');
+      }
 
       if (mode === 'coder') {
         coderBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-cyan-500 text-ananas-dark';
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
         input.placeholder = 'کد یا سوال برنامه‌نویسی خود را بنویسید یا فایل کد را ضمیمه کنید...';
         hint.textContent = '💻 بخش «کد نویس» فعال است (امکان ضمیمه فایل کد فعال است).';
+
         showCoderInfoIfNeeded();
       } else {
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-ananas-500 text-ananas-dark';
         coderBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
         input.placeholder = 'پیام خود را برای آناناس بنویسید (یا صحبت کنید)...';
+
         hint.textContent = userToken
           ? '💬 حالت گفتگو فعال است (برای سوالات برنامه‌نویسی، روی «کد نویس» کلیک کنید)'
           : '💬 حالت گفتگو فعال است (بخش «کد نویس» و پیوست فایل ویژه کاربران پرو است)';
@@ -530,22 +671,38 @@
       }
     }
 
+    // ارسال پیشنهاد آماده به عنوان پیام کاربر
+    function sendSuggestion(button) {
+      if (isGenerating) return;
+
+      const input = document.getElementById('promptInput');
+      if (!input) return;
+
+      input.value = button.textContent.trim();
+      autoResizeTextarea(input);
+      handleSubmit();
+    }
+
     function triggerAttachmentClick() {
       if (!userToken) {
         openSettingsModal('🔒 امکان ضمیمه کردن فایل و بررسی کد فقط برای اکانت پرو فعال است.');
         return;
       }
+
       document.getElementById('fileInput').click();
     }
 
     function showCoderInfoIfNeeded() {
       const currentSession = sessions.find(s => s.id === activeSessionId);
+
       if (!currentSession || currentSession.messages.length === 0) {
         const container = document.getElementById('chatMessages');
+
         if (!document.getElementById('coderInfoCard')) {
           const infoDiv = document.createElement('div');
           infoDiv.id = 'coderInfoCard';
           infoDiv.className = 'max-w-2xl mx-auto p-5 rounded-2xl bg-ananas-card border border-cyan-500/30 text-xs sm:text-sm text-gray-200 space-y-3 shadow-xl';
+
           infoDiv.innerHTML = `
             <div class="flex items-center gap-2 border-b border-ananas-border pb-2.5">
               <span class="text-xl">💻</span>
@@ -559,6 +716,7 @@
               <li><b>دیباگ کردن و پیداکردن باگ‌ها و الگوریتم‌نویسی</b></li>
             </ul>
           `;
+
           container.appendChild(infoDiv);
           scrollToBottom();
         }
@@ -580,6 +738,7 @@
 
       reader.onload = () => {
         let base64Data = reader.result;
+
         if (base64Data.includes(',')) {
           base64Data = base64Data.split(',')[1];
         }
@@ -593,6 +752,7 @@
         };
 
         const iconBox = document.getElementById('attachmentIconBox');
+
         if (isImage) {
           iconBox.innerHTML = `<img src="${reader.result}" class="w-full h-full rounded-lg object-cover" />`;
         } else {
@@ -617,7 +777,7 @@
 
     function toggleSpeechRecognition() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      
+
       if (!SpeechRecognition) {
         alert('مرورگر شما از قابلیت تبدیل صوت به متن پشتیبانی نمی‌کند. لطفاً از گوگل کروم استفاده کنید.');
         return;
@@ -633,8 +793,8 @@
 
       recognition = new SpeechRecognition();
       recognition.lang = 'fa-IR';
-      recognition.continuous = false; 
-      recognition.interimResults = true; 
+      recognition.continuous = false;
+      recognition.interimResults = true;
 
       recognition.onstart = () => {
         isRecording = true;
@@ -669,21 +829,25 @@
 
     function stopRecordingState() {
       isRecording = false;
+
       const micBtn = document.getElementById('micBtn');
       const inputEl = document.getElementById('promptInput');
+
       if (micBtn) {
         micBtn.classList.remove('text-red-500', 'bg-red-500/15', 'animate-pulse');
       }
+
       if (inputEl) {
         inputEl.placeholder = 'پیام خود را برای آناناس بنویسید (یا صحبت کنید)...';
       }
     }
 
     async function callGeminiAPI(selectedModel, requestPayload) {
-      const headers = { 
+      const headers = {
         'Content-Type': 'application/json',
         'X-Device-UUID': deviceUUID
       };
+
       if (userToken) headers['X-User-Token'] = userToken;
 
       const response = await fetch('/api/gemini', {
@@ -698,6 +862,7 @@
 
       const rawText = await response.text();
       let data;
+
       try {
         data = JSON.parse(rawText);
       } catch (err) {
@@ -713,6 +878,7 @@
         const errMsg = data?.error?.message || `خطای ارتباط با سرور (${response.status})`;
         throw new Error(errMsg);
       }
+
       return data;
     }
 
@@ -722,6 +888,7 @@
 
       const inputEl = document.getElementById('promptInput');
       const userText = inputEl.value.trim();
+
       if (!userText && !attachedFile) return;
 
       if (attachedFile && !userToken) {
@@ -737,6 +904,7 @@
           messages: [],
           isPinned: false
         };
+
         sessions.unshift(newSession);
         activeSessionId = newSession.id;
       }
@@ -751,10 +919,12 @@
         fileMime: attachedFile ? attachedFile.mimeType : null,
         fileData: attachedFile ? attachedFile.data : null
       };
+
       currentSession.messages.push(userMsg);
 
       inputEl.value = '';
       inputEl.style.height = 'auto';
+
       removeAttachment();
 
       saveSessions();
@@ -765,25 +935,33 @@
 
       // بررسی نرخ بازار فقط با تطابق دقیق کلمات و در غیر از حالت کدنویسی
       const isMarketQuery = currentMode === 'chat' && !attachedFile && (
-        lowerText === 'دلار' || lowerText === 'قیمت دلار' || 
-        lowerText === 'طلا' || lowerText === 'قیمت طلا' || 
-        lowerText === 'نرخ ارز' || lowerText === 'سکه'
+        lowerText === 'دلار' ||
+        lowerText === 'قیمت دلار' ||
+        lowerText === 'قیمت دلار چنده؟' ||
+        lowerText === 'قیمت دلار چنده' ||
+        lowerText === 'طلا' ||
+        lowerText === 'قیمت طلا' ||
+        lowerText === 'نرخ ارز' ||
+        lowerText === 'سکه'
       );
 
       if (isMarketQuery) {
         isGenerating = true;
         appendLoadingBubble(false, true);
+
         try {
           const res = await fetch('/api/nerkh');
           const marketResult = await res.json();
-          
+
           removeLoadingBubble();
 
           let replyText = "📊 **آخرین نرخ‌های بازار:**\n\n";
+
           if (marketResult.success && marketResult.data && marketResult.data.items) {
             marketResult.data.items.forEach(item => {
               replyText += `🔹 **${item.title}:** ${item.price} ${item.unit}\n`;
             });
+
             replyText += `\n⏱ *به‌روزرسانی: ${marketResult.data.updated_at}*`;
           } else {
             replyText = "⚠️ در حال حاضر ارتباط با مرکز نرخ‌دهی با مشکل مواجه شده است.";
@@ -796,15 +974,18 @@
 
         } catch (err) {
           removeLoadingBubble();
+
           currentSession.messages.push({
             role: 'model',
             text: "⚠️ خطا در دریافت اطلاعات نرخ‌های بازار."
           });
+
         } finally {
           isGenerating = false;
           saveSessions();
           renderMessages();
         }
+
         return;
       }
 
@@ -816,10 +997,18 @@
           .filter(m => !m.isError)
           .map(m => {
             const parts = [];
+
             if (m.text) parts.push({ text: m.text });
+
             if (m.fileData && m.fileMime) {
-              parts.push({ inlineData: { mimeType: m.fileMime, data: m.fileData } });
+              parts.push({
+                inlineData: {
+                  mimeType: m.fileMime,
+                  data: m.fileData
+                }
+              });
             }
+
             return {
               role: m.role === 'user' ? 'user' : 'model',
               parts
@@ -831,9 +1020,11 @@
         };
 
         const result = await callGeminiAPI(chatModel, payload);
+
         const replyText = result?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('\n') || 'پاسخی دریافت نشد.';
 
         removeLoadingBubble();
+
         currentSession.messages.push({
           role: 'model',
           text: replyText
@@ -841,11 +1032,13 @@
 
       } catch (err) {
         removeLoadingBubble();
+
         currentSession.messages.push({
           role: 'model',
           isError: true,
           text: `⚠️ **خطا:**\n${err.message}`
         });
+
       } finally {
         isGenerating = false;
         saveSessions();
@@ -861,16 +1054,20 @@
       if (!currentSession || currentSession.messages.length === 0) {
         welcome.classList.remove('hidden');
         container.innerHTML = '';
+
         if (currentMode === 'coder') {
           showCoderInfoIfNeeded();
         }
+
         return;
       }
 
       welcome.classList.add('hidden');
+
       container.innerHTML = currentSession.messages.map((msg, idx) => {
         if (msg.role === 'user') {
           let attachmentHtml = '';
+
           if (msg.filePreview) {
             attachmentHtml = `<img src="${msg.filePreview}" class="max-h-52 rounded-xl mb-2 border border-black/15" alt="تصویر پیوست‌شده" />`;
           } else if (msg.fileName) {
@@ -890,8 +1087,10 @@
               </div>
             </div>
           `;
+
         } else {
           const parsedMd = marked.parse(msg.text || '');
+
           return `
             <div class="flex items-start gap-3 justify-end">
               <div class="flex-1 max-w-[90%] sm:max-w-[82%] rounded-2xl rounded-tl-xs bg-ananas-card border ${msg.isError ? 'border-red-500/50' : 'border-ananas-border'} px-4 py-3.5 shadow-md">
@@ -912,10 +1111,12 @@
     function appendLoadingBubble(isCoder, isMarket = false) {
       const container = document.getElementById('chatMessages');
       const bubble = document.createElement('div');
+
       bubble.id = 'loadingBubble';
       bubble.className = 'flex items-start gap-3 justify-end';
-      
+
       let loadingText = 'آناناس در حال نوشتن پاسخ است...';
+
       if (isCoder) {
         loadingText = 'آناناس در حال نوشتن و تحلیل کد است...';
       } else if (isMarket) {
@@ -928,6 +1129,7 @@
           <span>${loadingText}</span>
         </div>
       `;
+
       container.appendChild(bubble);
       scrollToBottom();
     }
@@ -941,24 +1143,33 @@
       activeSessionId = null;
       renderMessages();
       renderHistoryList();
-      if (window.innerWidth < 1024) toggleSidebar(false);
+
+      if (window.innerWidth < 1024) {
+        toggleSidebar(false);
+      }
     }
 
     function loadSession(id) {
       activeSessionId = id;
       renderMessages();
       renderHistoryList();
-      if (window.innerWidth < 1024) toggleSidebar(false);
+
+      if (window.innerWidth < 1024) {
+        toggleSidebar(false);
+      }
     }
 
     // حذف یک چت خاص
     function deleteSession(id) {
       if (!confirm('آیا از حذف این گفتگو مطمئن هستید؟')) return;
+
       sessions = sessions.filter(s => s.id !== id);
+
       if (activeSessionId === id) {
         activeSessionId = sessions.length > 0 ? sessions[0].id : null;
         renderMessages();
       }
+
       saveSessions();
       renderHistoryList();
     }
@@ -966,6 +1177,7 @@
     // پین/آن‌پین کردن چت
     function togglePinSession(id) {
       const session = sessions.find(s => s.id === id);
+
       if (session) {
         session.isPinned = !session.isPinned;
         saveSessions();
@@ -975,8 +1187,10 @@
 
     function clearAllHistory() {
       if (!confirm('آیا تمام تاریخچه گفتگوها پاک شود؟')) return;
+
       sessions = [];
       activeSessionId = null;
+
       saveSessions();
       renderMessages();
       renderHistoryList();
@@ -993,12 +1207,14 @@
             fileName: m.fileName
           }))
         }));
+
         localStorage.setItem('ananas_sessions', JSON.stringify(lightSessions));
       } catch (e) {}
     }
 
     function renderHistoryList() {
       const list = document.getElementById('chatHistoryList');
+
       if (sessions.length === 0) {
         list.innerHTML = '<p class="text-xs text-gray-500 text-center py-6">هنوز گفتگویی ثبت نشده است</p>';
         return;
@@ -1017,10 +1233,12 @@
             <span class="shrink-0 text-sm">${s.isPinned ? '📌' : '🍍'}</span>
             <span class="truncate flex-1" dir="auto">${escapeHtml(s.title)}</span>
           </button>
+
           <div class="flex items-center gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity px-1 shrink-0">
             <button onclick="togglePinSession('${s.id}')" class="text-gray-400 hover:text-amber-400 transition text-sm" title="${s.isPinned ? 'برداشتن سنجاق' : 'سنجاق کردن'}">
               ${s.isPinned ? '📍' : '📌'}
             </button>
+
             <button onclick="deleteSession('${s.id}')" class="text-gray-400 hover:text-red-400 transition text-sm" title="حذف گفتگو">
               🗑️
             </button>
@@ -1031,7 +1249,9 @@
 
     function copyMessageText(idx) {
       const currentSession = sessions.find(s => s.id === activeSessionId);
+
       if (!currentSession || !currentSession.messages[idx]) return;
+
       navigator.clipboard.writeText(currentSession.messages[idx].text || '');
     }
 
@@ -1051,10 +1271,16 @@
 
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
       const downloadAnchor = document.createElement('a');
-      
-      const dateStr = new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()).replace(/\//g, '-');
+
+      const dateStr = new Intl.DateTimeFormat('fa-IR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      }).format(new Date()).replace(/\//g, '-');
+
       downloadAnchor.setAttribute("href", dataStr);
       downloadAnchor.setAttribute("download", `AnanasAI_Backup_${dateStr}.json`);
+
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
@@ -1069,6 +1295,7 @@
       if (!file) return;
 
       const reader = new FileReader();
+
       reader.onload = function(e) {
         try {
           const content = e.target.result;
@@ -1088,18 +1315,21 @@
 
           sessions = parsedData.sessions;
           activeSessionId = sessions.length > 0 ? sessions[0].id : null;
-          
+
           saveSessions();
           renderHistoryList();
           renderMessages();
 
           alert('پشتیبان گفتگوها با موفقیت بازیابی شد!');
+
         } catch (err) {
           alert('خطا در خواندن فایل پشتیبان. فایل انتخاب شده سالم نیست.');
+
         } finally {
           event.target.value = '';
         }
       };
+
       reader.readAsText(file);
     }
 
@@ -1129,17 +1359,20 @@
       if (window.innerWidth >= 1024) {
         // تنظیمات بستن/باز کردن در دسکتاپ
         const isClosed = sb.classList.contains('desktop-sidebar-hidden');
+
         if (isClosed) {
           sb.classList.remove('desktop-sidebar-hidden');
-          headerBtn.classList.add('lg:hidden'); // مخفی کردن همبرگر هدر وقتی سایدبار باز است
+          headerBtn.classList.add('lg:hidden');
         } else {
           sb.classList.add('desktop-sidebar-hidden');
-          headerBtn.classList.remove('lg:hidden'); // نمایش همبرگر هدر وقتی سایدبار بسته است
+          headerBtn.classList.remove('lg:hidden');
         }
+
       } else {
         // تنظیمات کشویی استاندارد برای موبایل
         const isHidden = sb.classList.contains('translate-x-full');
         const show = typeof force === 'boolean' ? force : isHidden;
+
         if (show) {
           sb.classList.remove('translate-x-full');
           ov.classList.remove('hidden');
@@ -1152,13 +1385,16 @@
 
     function openSettingsModal(customNotice) {
       document.getElementById('userTokenInput').value = userToken;
+
       const noticeEl = document.getElementById('proModalNotice');
+
       if (customNotice && typeof customNotice === 'string') {
         noticeEl.textContent = customNotice;
         noticeEl.classList.remove('hidden');
       } else {
         noticeEl.classList.add('hidden');
       }
+
       const modal = document.getElementById('settingsModal');
       modal.classList.remove('hidden');
       modal.classList.add('flex');
@@ -1172,16 +1408,20 @@
 
     async function saveUserToken() {
       const inputVal = document.getElementById('userTokenInput').value.trim();
-      if (!inputVal) return alert('لطفاً کد فعال‌سازی را وارد کنید.');
-      
+
+      if (!inputVal) {
+        return alert('لطفاً کد فعال‌سازی را وارد کنید.');
+      }
+
       userToken = inputVal;
       localStorage.setItem('ananas_user_token', userToken);
-      
+
       if (!localStorage.getItem(`ananas_token_time_${userToken}`)) {
         localStorage.setItem(`ananas_token_time_${userToken}`, Date.now());
       }
 
       await fetchQuotaFromServer();
+
       if (!userToken) {
         alert('کد فعال‌سازی وارد شده معتبر نیست یا منقضی شده است.');
         return;
@@ -1195,18 +1435,31 @@
       if (userToken) {
         localStorage.removeItem(`ananas_token_time_${userToken}`);
       }
+
       userToken = '';
       localStorage.removeItem('ananas_user_token');
+
       document.getElementById('userTokenInput').value = '';
-      quotaState = { isPro: false, used: 0, limit: 10 };
+
+      quotaState = {
+        isPro: false,
+        used: 0,
+        limit: 10
+      };
+
       updateAccountStatusBadge();
       fetchQuotaFromServer();
       closeSettingsModal();
+
       alert('اشتراک پرو غیرفعال شد و حساب به حالت رایگان بازگشت.');
     }
 
     let escapeHtml = (str) => (str || '').replace(/[&<>"']/g, m => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
     }[m]));
   </script>
 </body>
