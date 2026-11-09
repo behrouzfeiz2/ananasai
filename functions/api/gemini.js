@@ -7,7 +7,7 @@ const corsHeaders = {
 
 // ======================================================
 // ANANAS AI - FINAL BACKEND
-// Gemini + Market Data + RSS News + Groq
+// Gemini + Market Data + RSS News + Torob Shop + Groq
 // Cloudflare Pages Functions
 // ======================================================
 
@@ -28,11 +28,14 @@ const CONFIG = {
   GROQ_TIMEOUT: 25000,
   DATA_TIMEOUT: 12000,
 
+  // مسیر سرویس‌های داخلی آناناس
   MARKET_ENDPOINT: "/api/nerkh",
   NEWS_ENDPOINT: "/api/news",
+  SHOP_ENDPOINT: "/api/shop",
 
   ENABLE_MARKET_DATA: true,
   ENABLE_RSS_NEWS: true,
+  ENABLE_SHOP_SEARCH: true,
   ENABLE_GROQ: true
 };
 
@@ -211,15 +214,23 @@ function detectQuestionType(text) {
   const marketPattern =
     /قیمت|نرخ|ارزش|چند شده|چنده|چند است|چقدر است|چقدر شده|بازار ارز|بازار طلا|دلار|یورو|پوند|لیر|سکه|طلای|طلا|نفت|برنت|مربع|انس جهانی|اونس|مظنه|بورس|شاخص کل|مبور|مربان|murban|brent|gold price|oil price|bitcoin price|btc price|ethereum price|exchange rate/i;
 
+  // علاوه بر درخواست صریح خبر، پرسش درباره نتیجه رویدادهای جاری
+  // مانند انتخابات، جنگ، مسابقات و تصمیم‌های سیاسی را نیز شناسایی می‌کند.
   const newsPattern =
     /اخبار|خبرهای|خبر جدید|آخرین خبر|خبر روز|چه خبر|خبرگزاری|گزارش خبری|اتفاقات امروز|اخبار امروز|تحولات|رویدادهای|نتیجه انتخابات|نتایج انتخابات|انتخابات|انتخاباتی|میان.?دوره|کدام حزب|چه حزبی|برنده شد|برنده انتخابات|نتیجه رای|نتایج رای|شمارش آرا|کنگره آمریکا|مجلس سنا|سنای آمریکا|مجلس نمایندگان|جنگ|آتش.?بس|حمله|حملات|زلزله|طوفان|فوتبال امروز|نتیجه بازی|نتایج بازی|قهرمان شد|election|midterm|midterms|election results|who won|winning party|congressional|senate|house of representatives|latest news|breaking news|current events|ceasefire|war update|earthquake|storm|match result/i;
 
-  const isMarket = marketPattern.test(q);
+  // جست‌وجوی کالا فقط با نشانه‌های روشن قصد خرید یا پیدا کردن محصول فعال می‌شود.
+  const shopPattern =
+    /(?:^|\s)ترب(?:\s|$|\.com)|محصولات مرتبط|محصول مرتبط|جستجوی محصول|جست‌وجوی محصول|جستجو کن|جست‌وجو کن|بگرد|پیدا کن|پیدا می.?کنی|لینک خرید|لینک محصول|فروشگاه اینترنتی|می.?خوام بخرم|می.?خواهم بخرم|قصد خرید|برای خرید|خرید گوشی|خرید لپ.?تاپ|خرید موبایل|خرید تلویزیون|خرید هدفون|خرید ساعت|خرید تبلت|خرید دوربین|خرید کنسول|خرید پرینتر|می.?خوام.{0,25}(گوشی|موبایل|لپ.?تاپ|تلویزیون|هدفون|ساعت|تبلت|دوربین|کنسول|پرینتر)|دنبال.{0,20}(گوشی|موبایل|لپ.?تاپ|تلویزیون|هدفون|ساعت|تبلت|دوربین|کنسول|پرینتر)|buy|find products|search products|product search/i;
+
+  const isShop = shopPattern.test(q);
+  const isMarket = marketPattern.test(q) && !isShop;
   const isNews = newsPattern.test(q);
 
   return {
     market: isMarket,
-    news: !isMarket && isNews
+    news: !isMarket && !isShop && isNews,
+    shop: isShop
   };
 }
 
@@ -292,6 +303,7 @@ async function getMarketData(request) {
 
   } catch (error) {
     console.error("ANANAS_MARKET_ERROR", error.message);
+
     return {
       success: false,
       error: error.message
@@ -358,6 +370,8 @@ async function getNewsData(request, query) {
       throw new Error(result?.error || "News service returned an invalid response");
     }
 
+    // نسخه جدید news.js آرایه‌ای از خبرها برمی‌گرداند.
+    // برای سازگاری با نسخه قدیمی، خروجی تک‌خبره نیز پشتیبانی می‌شود.
     const newsItems = Array.isArray(result.news)
       ? result.news
       : result.news
@@ -454,6 +468,120 @@ ${newsText}
 }
 
 // ======================================================
+// SHOP SEARCH - TOROB
+// ======================================================
+
+async function getShopData(request, query) {
+  if (!CONFIG.ENABLE_SHOP_SEARCH) return null;
+
+  const endpoint = new URL(
+    CONFIG.SHOP_ENDPOINT,
+    new URL(request.url).origin
+  );
+
+  endpoint.searchParams.set("q", query);
+  endpoint.searchParams.set("limit", "10");
+
+  try {
+    const response = await fetchWithTimeout(
+      endpoint.toString(),
+      {
+        method: "GET",
+        headers: {
+          "Accept": "application/json"
+        }
+      },
+      CONFIG.DATA_TIMEOUT
+    );
+
+    if (!response.ok) {
+      const detail = await response.text();
+
+      throw new Error(
+        `Shop HTTP ${response.status}: ${detail.slice(0, 250)}`
+      );
+    }
+
+    const result = await response.json();
+
+    if (
+      result?.success !== true ||
+      !Array.isArray(result.products)
+    ) {
+      throw new Error(
+        result?.error ||
+        "Shop service returned an invalid response"
+      );
+    }
+
+    return {
+      success: true,
+      query: result.query || query,
+      total: Number(
+        result.total ??
+        result.count ??
+        result.products.length
+      ) || 0,
+      products: result.products.slice(0, 10)
+    };
+
+  } catch (error) {
+    console.error("ANANAS_SHOP_ERROR", error.message);
+
+    return {
+      success: false,
+      error: error.message,
+      query,
+      products: []
+    };
+  }
+}
+
+function formatShopData(data) {
+  if (!data?.success) return "";
+
+  if (
+    !Array.isArray(data.products) ||
+    data.products.length === 0
+  ) {
+    return `
+جست‌وجوی محصول در ترب انجام شد، اما محصولی برای عبارت جست‌وجو پیدا نشد.
+
+عبارت جست‌وجو: ${data.query || "نامشخص"}
+
+فقط اعلام کن در نتایج ترب محصولی پیدا نشد؛ محصول یا لینک جایگزین نساز.
+`;
+  }
+
+  const productsText = data.products.map((item, index) => `
+محصول ${index + 1}:
+عنوان: ${item.name || "عنوان نامشخص"}
+قیمت: ${item.price != null ? `${item.price} تومان` : "در ترب درج نشده"}
+تصویر: ${item.image || "ندارد"}
+لینک محصول در ترب: ${item.url || "ندارد"}
+`).join("\n");
+
+  return `
+نتایج واقعی جست‌وجوی محصول در ترب:
+
+عبارت جست‌وجو: ${data.query || "نامشخص"}
+تعداد کل نتایج اعلام‌شده: ${data.total}
+تعداد نتایج ارسالی: ${data.products.length}
+
+${productsText}
+
+قوانین:
+- همه نتایج دریافتی را به صورت فهرست شماره‌دار نمایش بده؛ حداکثر ۱۰ محصول.
+- عنوان و قیمت را دقیقاً از داده‌ها بردار. قیمت‌ها به تومان هستند.
+- اگر قیمت یا لینک موجود نیست، نبود آن را اعلام کن؛ چیزی جعل نکن.
+- لینک هر محصول را دقیقاً همان‌طور که دریافت شده درج کن.
+- هیچ مقایسه قیمت، معرفی ارزان‌ترین فروشنده، رتبه‌بندی، پیشنهاد ویژه یا توصیه خرید ارائه نکن.
+- درباره کیفیت یا مناسب بودن محصول ادعایی نکن.
+- این‌ها صرفاً نتایج جست‌وجوی ترب هستند، نه پیشنهاد یا تأیید آناناس.
+`;
+}
+
+// ======================================================
 // 7. SYSTEM PROMPT
 // ======================================================
 
@@ -484,6 +612,8 @@ ${date.gregorian}
 - در موضوعات علمی، آموزشی، فنی و برنامه‌نویسی با دانش خود کمک کن.
 - اگر درباره اطلاعات جدید یا رویدادهای روز سؤال شد، ابتدا اطلاعات سرویس‌های داخلی آناناس را بررسی کن.
 - اگر اطلاعات خبری یا بازاری از سرویس داخلی دریافت شده، از همان داده‌ها استفاده کن و محدودیت جست‌وجوی عمومی را بی‌جهت تکرار نکن.
+- اگر نتایج جست‌وجوی محصول از ترب دریافت شده، آن‌ها را به صورت فهرست ساده نمایش بده.
+- در جست‌وجوی محصول، هیچ مقایسه قیمت، پیشنهاد ویژه، رتبه‌بندی یا توصیه خرید انجام نده.
 - هرگز ادعا نکن که در گوگل جست‌وجو کرده‌ای.
 - هرگز منبع، لینک، خبر یا قیمت ساختگی تولید نکن.
 - اگر داده‌ای در اختیار نداری، صریحاً بگو.
@@ -495,6 +625,9 @@ ${date.gregorian}
 
 قانون مهم:
 - اگر داده خبری از RSS دریافت شده، بر اساس همان داده‌ها پاسخ بده و لینک منابع را درج کن.
+- اگر داده محصولات از ترب دریافت شده، فقط همان محصولات را فهرست کن؛ مقایسه قیمت، رتبه‌بندی یا پیشنهاد ویژه انجام نده.
+- اگر جست‌وجوی ترب نتیجه نداشت، فقط اعلام کن محصولی در نتایج پیدا نشد.
+- اگر سرویس ترب خطای فنی داد یا دسترسی مسدود شد، مشکل را شفاف اعلام کن و وانمود نکن جست‌وجو موفق بوده است.
 - اگر جست‌وجوی RSS با موفقیت انجام شده اما خبر مرتبطی پیدا نشده، فقط بگو در منابع RSS متصل‌شده خبر مرتبطی پیدا نشد؛ این موضوع را به عدم دسترسی کلی به اخبار تعبیر نکن.
 - اگر سرویس RSS به دلیل خطای فنی در دسترس نبود، بگو دریافت خبر از منابع متصل‌شده موقتاً با مشکل مواجه شده است.
 - فقط وقتی هیچ داده داخلی مرتبطی در اختیار نداری و پاسخ واقعاً به جست‌وجوی عمومی زنده نیاز دارد، محدودیت جست‌وجوی عمومی را توضیح بده.
@@ -728,6 +861,7 @@ export async function onRequestPost(context) {
 
   try {
 
+    // دریافت درخواست
     const body = await request.json();
 
     const {
@@ -748,6 +882,7 @@ export async function onRequestPost(context) {
       }, 400);
     }
 
+    // بررسی کلید گوگل
     const geminiKey = env.GEMINI_API_KEY;
 
     if (!geminiKey) {
@@ -758,6 +893,7 @@ export async function onRequestPost(context) {
       }, 500);
     }
 
+    // احراز هویت و سهمیه
     const quota = await getUserStatusAndQuota(
       request,
       env
@@ -789,6 +925,7 @@ export async function onRequestPost(context) {
 
     const attachmentExists = hasAttachments(contents);
 
+    // محدودیت حساب رایگان
     if (!quota.isPro && (attachmentExists || mode === "coder")) {
       return jsonResponse({
         error: {
@@ -799,11 +936,14 @@ export async function onRequestPost(context) {
       }, 403);
     }
 
+    // تشخیص موضوع سؤال
     const lastMessage = getLastUserMessage(contents);
     const questionType = detectQuestionType(lastMessage);
 
+    // دریافت اطلاعات تکمیلی فقط در صورت نیاز
     let marketData = null;
     let newsData = null;
+    let shopData = null;
 
     if (!attachmentExists && questionType.market) {
       marketData = await getMarketData(request);
@@ -813,6 +953,11 @@ export async function onRequestPost(context) {
       newsData = await getNewsData(request, lastMessage);
     }
 
+    if (!attachmentExists && questionType.shop) {
+      shopData = await getShopData(request, lastMessage);
+    }
+
+    // ساخت Context اختصاصی
     let externalContext = "";
 
     if (questionType.market) {
@@ -838,6 +983,18 @@ export async function onRequestPost(context) {
 این وضعیت را با «خبر مرتبطی پیدا نشد» اشتباه نگیر.
 هیچ خبر، نتیجه انتخابات، آمار یا تاریخ ساختگی تولید نکن.
 به کاربر بگو دریافت خبر از منابع متصل‌شده موقتاً با مشکل مواجه شده است.
+`;
+      }
+    }
+
+    if (questionType.shop) {
+      if (shopData?.success) {
+        externalContext += formatShopData(shopData);
+      } else {
+        externalContext += `
+کاربر درخواست جست‌وجوی محصول در ترب دارد، اما سرویس جست‌وجوی ترب به دلیل خطای فنی یا محدودیت دسترسی پاسخ نداده است.
+هیچ محصول، قیمت یا لینکی جعل نکن.
+به کاربر بگو جست‌وجوی ترب در حال حاضر با مشکل مواجه شده است و بعداً دوباره امتحان کند.
 `;
       }
     }
@@ -875,10 +1032,12 @@ export async function onRequestPost(context) {
             response: result.responseText
           };
 
+          // خطای سهمیه پروژه با تغییر مدل حل نمی‌شود.
           if (result.status === 429) {
             break;
           }
 
+          // خطای احراز هویت یا کلید نامعتبر
           if (result.status === 401 || result.status === 403) {
             break;
           }
@@ -917,6 +1076,7 @@ export async function onRequestPost(context) {
     if (!geminiSuccess && CONFIG.ENABLE_GROQ) {
       const groqKey = env.GROQ_API_KEY;
 
+      // Groq نمی‌تواند فایل‌های ضمیمه را در این ساختار پردازش کند.
       if (groqKey && !attachmentExists) {
         try {
           responseJson = await callGroq(
@@ -968,11 +1128,25 @@ export async function onRequestPost(context) {
     responseJson.dataStatus = {
       marketRequested: questionType.market,
       marketAvailable: Boolean(marketData?.success),
+
       newsRequested: questionType.news,
       newsServiceAvailable: Boolean(newsData?.success),
       newsAvailable: Boolean(newsData?.success && newsData?.found),
       newsFound: Boolean(newsData?.found),
-      newsCount: Array.isArray(newsData?.news) ? newsData.news.length : 0,
+      newsCount: Array.isArray(newsData?.news)
+        ? newsData.news.length
+        : 0,
+
+      shopRequested: Boolean(questionType.shop),
+      shopServiceAvailable: Boolean(shopData?.success),
+      shopFound: Boolean(
+        shopData?.success &&
+        shopData?.products?.length
+      ),
+      shopCount: Array.isArray(shopData?.products)
+        ? shopData.products.length
+        : 0,
+
       googleSearch: false
     };
 
@@ -982,6 +1156,10 @@ export async function onRequestPost(context) {
 
     if (newsData?.success) {
       responseJson.newsData = newsData;
+    }
+
+    if (shopData?.success) {
+      responseJson.shopData = shopData;
     }
 
     return jsonResponse(responseJson, 200);
