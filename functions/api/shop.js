@@ -101,24 +101,43 @@ function englishDigits(v) {
 }
 
 function priceFrom(text) {
-  const s = englishDigits(text).replace(/,/g, "");
+  const s = englishDigits(text)
+    .replace(/[٬,]/g, "")
+    .replace(/٫/g, ".");
+
+  // فقط قیمت‌هایی که واحد پول مشخص دارند
   const patterns = [
-    /(?:قیمت|حدود قیمت|با قیمت|به قیمت)[^\d]{0,24}(\d{1,3}(?:\.\d+)?\s*(?:هزار|میلیون|میلیارد)?)/i,
-    /(\d{1,3}(?:\.\d+)?\s*(?:میلیون|میلیارد)\s*(?:تومان|تومن|ریال)?)/i,
-    /(\d{5,15})\s*(تومان|تومن|ریال)/i
+    /(\d{1,3}(?:\.\d+)?(?:\s*(?:هزار|میلیون|میلیارد))?)\s*(تومان|تومن|ریال)/i,
+    /(?:قیمت|حدود قیمت|قیمت حدودی|به قیمت)[^\d]{0,30}(\d{1,3}(?:\.\d+)?(?:\s*(?:هزار|میلیون|میلیارد))?)\s*(تومان|تومن|ریال)/i
   ];
+
   for (const re of patterns) {
     const m = s.match(re);
     if (!m) continue;
-    const raw = m[1] || "";
-    let n = Number(raw.replace(/[^\d.]/g, ""));
-    if (!Number.isFinite(n)) continue;
-    if (/میلیارد/.test(raw)) n *= 1e9;
-    else if (/میلیون/.test(raw)) n *= 1e6;
-    else if (/هزار/.test(raw)) n *= 1e3;
-    return { value: Math.round(n), text: m[0].trim(), currency: /ریال/.test(m[0]) ? "IRR" : "IRT" };
+
+    const raw = m[1];
+    const unit = m[2];
+
+    let value = Number(raw.replace(/[^\d.]/g, ""));
+
+    if (!Number.isFinite(value)) continue;
+
+    if (/میلیارد/.test(raw)) value *= 1000000000;
+    else if (/میلیون/.test(raw)) value *= 1000000;
+    else if (/هزار/.test(raw)) value *= 1000;
+
+    return {
+      value: Math.round(value),
+      text: m[0].trim(),
+      currency: /ریال/.test(unit) ? "IRR" : "IRT"
+    };
   }
-  return { value: null, text: null, currency: "IRT" };
+
+  return {
+    value: null,
+    text: null,
+    currency: "IRT"
+  };
 }
 
 function itemType(title, desc, price) {
@@ -162,7 +181,7 @@ function normalize(v) {
 function score(item, query) {
   if (!query) return 1;
   const q = normalize(query);
-  const hay = normalize(`${item.title} ${item.description} ${item.source_name} ${(item.topics || []).join(" ")}`);
+  const hay = normalize(`${item.title} ${item.description}`);
   let n = hay.includes(q) ? 10 : 0;
   for (const word of q.split(/\s+/).filter(Boolean)) if (hay.includes(word)) n += word.length > 3 ? 3 : 1;
   if (item.type === "price_mention") n += 1;
