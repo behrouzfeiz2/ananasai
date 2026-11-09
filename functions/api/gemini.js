@@ -7,7 +7,7 @@ const corsHeaders = {
 
 // ======================================================
 // ANANAS AI - FINAL BACKEND
-// Gemini + Market Data + RSS News + Torob Shop + Groq
+// Gemini + Market Data + RSS News + RSS Shop + Groq
 // Cloudflare Pages Functions
 // ======================================================
 
@@ -211,27 +211,45 @@ function getQuotaInfo(quota) {
 function detectQuestionType(text) {
   const q = normalizeText(text);
 
+  // قیمت‌های بازار مالی و کالاهای پایه به nerkh.js ارجاع می‌شوند.
+  // عبارت عمومی «قیمت» عمداً در این الگو نیست تا «قیمت گوشی» خرید تشخیص داده شود.
   const marketPattern =
-    /قیمت|نرخ|ارزش|چند شده|چنده|چند است|چقدر است|چقدر شده|بازار ارز|بازار طلا|دلار|یورو|پوند|لیر|سکه|طلای|طلا|نفت|برنت|مربع|انس جهانی|اونس|مظنه|بورس|شاخص کل|مبور|مربان|murban|brent|gold price|oil price|bitcoin price|btc price|ethereum price|exchange rate/i;
+    /بازار ارز|نرخ ارز|دلار|یورو|پوند|لیر|درهم|سکه|طلای|طلا|نفت|برنت|مربع|انس جهانی|اونس|مظنه|بورس|شاخص کل|murban|brent|gold price|oil price|bitcoin price|btc price|ethereum price|exchange rate|forex|stock market|gold rate/i;
 
-  // علاوه بر درخواست صریح خبر، پرسش درباره نتیجه رویدادهای جاری
-  // مانند انتخابات، جنگ، مسابقات و تصمیم‌های سیاسی را نیز شناسایی می‌کند.
+  // پرسش‌هایی که صریحاً درباره خبر یا رویداد جاری هستند، در اولویت news می‌مانند.
   const newsPattern =
     /اخبار|خبرهای|خبر جدید|آخرین خبر|خبر روز|چه خبر|خبرگزاری|گزارش خبری|اتفاقات امروز|اخبار امروز|تحولات|رویدادهای|نتیجه انتخابات|نتایج انتخابات|انتخابات|انتخاباتی|میان.?دوره|کدام حزب|چه حزبی|برنده شد|برنده انتخابات|نتیجه رای|نتایج رای|شمارش آرا|کنگره آمریکا|مجلس سنا|سنای آمریکا|مجلس نمایندگان|جنگ|آتش.?بس|حمله|حملات|زلزله|طوفان|فوتبال امروز|نتیجه بازی|نتایج بازی|قهرمان شد|election|midterm|midterms|election results|who won|winning party|congressional|senate|house of representatives|latest news|breaking news|current events|ceasefire|war update|earthquake|storm|match result/i;
 
-  // جست‌وجوی کالا فقط با نشانه‌های روشن قصد خرید یا پیدا کردن محصول فعال می‌شود.
-  const shopPattern =
-    /(?:^|\s)ترب(?:\s|$|\.com)|محصولات مرتبط|محصول مرتبط|جستجوی محصول|جست‌وجوی محصول|جستجو کن|جست‌وجو کن|بگرد|پیدا کن|پیدا می.?کنی|لینک خرید|لینک محصول|فروشگاه اینترنتی|می.?خوام بخرم|می.?خواهم بخرم|قصد خرید|برای خرید|خرید گوشی|خرید لپ.?تاپ|خرید موبایل|خرید تلویزیون|خرید هدفون|خرید ساعت|خرید تبلت|خرید دوربین|خرید کنسول|خرید پرینتر|می.?خوام.{0,25}(گوشی|موبایل|لپ.?تاپ|تلویزیون|هدفون|ساعت|تبلت|دوربین|کنسول|پرینتر)|دنبال.{0,20}(گوشی|موبایل|لپ.?تاپ|تلویزیون|هدفون|ساعت|تبلت|دوربین|کنسول|پرینتر)|buy|find products|search products|product search/i;
+  // قصد خرید صریح
+  const shopIntentPattern =
+    /ترب|محصولات مرتبط|محصول مرتبط|جستجوی محصول|جست‌وجوی محصول|جستجو کن|جست‌وجو کن|بگرد|پیدا کن|پیدا می.?کنی|لینک خرید|لینک محصول|فروشگاه اینترنتی|می.?خوام بخرم|می.?خواهم بخرم|قصد خرید|برای خرید|قیمت خرید|قیمت روز گوشی|buy|find products|search products|product search/i;
 
-  const isShop = shopPattern.test(q);
-  const isMarket = marketPattern.test(q) && !isShop;
+  // نام دسته‌های کالایی و برندها؛ بنابراین نوشتن صرف نام یک کالا/برند نیز جست‌وجو می‌کند.
+  const productPattern =
+    /گوشی|موبایل|اسمارت.?فون|تلفن همراه|آیفون|iphone|ipad|macbook|مک.?بوک|سامسونگ|samsung|galaxy|شیائومی|xiaomi|ردمی|redmi|پوکو|poco|هواوی|huawei|آنر|honor|نوکیا|nokia|اپل|apple|وان.?پلاس|oneplus|realme|ریلمی|لپ.?تاپ|کامپیوتر|مانیتور|تلویزیون|tv|تبلت|هدفون|ایرباد|هندزفری|ساعت هوشمند|ساعت|کنسول|پلی.?استیشن|ایکس.?باکس|دوربین|پرینتر|مودم|روتر|کیبورد|ماوس|موس|اسپیکر|پاوربانک|شارژر|کارت گرافیک|پردازنده|cpu|gpu|ssd|هارد|رم|قطعات کامپیوتر|لوازم خانگی|یخچال|ماشین لباسشویی|جاروبرقی|قهوه.?ساز|کولر|کفش|کتانی|لباس|کتاب|خودرو|ماشین/i;
+
   const isNews = newsPattern.test(q);
+  const isShop = !isNews && (
+    shopIntentPattern.test(q) ||
+    productPattern.test(q)
+  );
+  const isMarket = !isNews && !isShop && marketPattern.test(q);
 
   return {
     market: isMarket,
-    news: !isMarket && !isShop && isNews,
+    news: isNews && !isShop,
     shop: isShop
   };
+}
+
+function buildShopSearchQuery(text) {
+  return String(text || "")
+    .replace(/(?:لطفاً|لطفا|میشه|میشود|می.?تونی|می.?توانی|برام|برای من|لطفا برام)/gi, " ")
+    .replace(/(?:جستجوی محصول|جست‌وجوی محصول|جستجو کن|جست‌وجو کن|پیدا کن|پیدا می.?کنی|بگرد|لینک خرید|لینک محصول|فروشگاه اینترنتی|قصد خرید|برای خرید|می.?خوام بخرم|می.?خواهم بخرم|می.?خوام|می.?خواهم|خرید|قیمت روز|قیمت|ارزان|ارزان.?ترین|بهترین|ترب)/gi, " ")
+    .replace(/[؟?،,؛;!]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 120) || String(text || "").trim().slice(0, 120);
 }
 
 // ======================================================
@@ -468,18 +486,19 @@ ${newsText}
 }
 
 // ======================================================
-// SHOP SEARCH - TOROB
+// SHOP SEARCH - RSS SHOPPING & PRODUCT DISCOVERY
 // ======================================================
 
 async function getShopData(request, query) {
   if (!CONFIG.ENABLE_SHOP_SEARCH) return null;
 
+  const searchQuery = buildShopSearchQuery(query);
   const endpoint = new URL(
     CONFIG.SHOP_ENDPOINT,
     new URL(request.url).origin
   );
 
-  endpoint.searchParams.set("q", query);
+  endpoint.searchParams.set("q", searchQuery);
   endpoint.searchParams.set("limit", "10");
 
   try {
@@ -487,52 +506,48 @@ async function getShopData(request, query) {
       endpoint.toString(),
       {
         method: "GET",
-        headers: {
-          "Accept": "application/json"
-        }
+        headers: { "Accept": "application/json" }
       },
       CONFIG.DATA_TIMEOUT
     );
 
     if (!response.ok) {
       const detail = await response.text();
-
-      throw new Error(
-        `Shop HTTP ${response.status}: ${detail.slice(0, 250)}`
-      );
+      throw new Error(`Shop HTTP ${response.status}: ${detail.slice(0, 250)}`);
     }
 
     const result = await response.json();
+    const products = Array.isArray(result?.products)
+      ? result.products
+      : Array.isArray(result?.items)
+        ? result.items
+        : null;
 
-    if (
-      result?.success !== true ||
-      !Array.isArray(result.products)
-    ) {
-      throw new Error(
-        result?.error ||
-        "Shop service returned an invalid response"
-      );
+    if (result?.success !== true || !products) {
+      throw new Error(result?.error || "Shop RSS service returned an invalid response");
     }
 
     return {
       success: true,
-      query: result.query || query,
-      total: Number(
-        result.total ??
-        result.count ??
-        result.products.length
-      ) || 0,
-      products: result.products.slice(0, 10)
+      query: result.query || searchQuery,
+      originalQuery: query,
+      total: Number(result.total ?? products.length) || 0,
+      products: products.slice(0, 10),
+      source_status: Array.isArray(result.source_status) ? result.source_status : [],
+      fetched_at: result.fetched_at || null,
+      cached: Boolean(result.cached),
+      note: result.note || ""
     };
 
   } catch (error) {
     console.error("ANANAS_SHOP_ERROR", error.message);
-
     return {
       success: false,
       error: error.message,
-      query,
-      products: []
+      query: searchQuery,
+      originalQuery: query,
+      products: [],
+      source_status: []
     };
   }
 }
@@ -540,44 +555,83 @@ async function getShopData(request, query) {
 function formatShopData(data) {
   if (!data?.success) return "";
 
-  if (
-    !Array.isArray(data.products) ||
-    data.products.length === 0
-  ) {
+  const sourceStatusText = (data.source_status || []).map(source =>
+    `- ${source.source}: ${source.ok ? "فعال" : "دارای خطا"}؛ تعداد مطالب: ${Number(source.count) || 0}`
+  ).join("\n");
+
+  if (!Array.isArray(data.products) || data.products.length === 0) {
     return `
-جست‌وجوی محصول در ترب انجام شد، اما محصولی برای عبارت جست‌وجو پیدا نشد.
+جست‌وجو در فیدهای فروشگاهی و رسانه‌های فناوری آناناس با موفقیت انجام شد، اما مطلب مرتبطی پیدا نشد.
 
-عبارت جست‌وجو: ${data.query || "نامشخص"}
+عبارت اصلی کاربر: ${data.originalQuery || "نامشخص"}
+عبارت جست‌وجوی استفاده‌شده: ${data.query || "نامشخص"}
 
-فقط اعلام کن در نتایج ترب محصولی پیدا نشد؛ محصول یا لینک جایگزین نساز.
+وضعیت منابع:
+${sourceStatusText || "وضعیت منابع گزارش نشده است."}
+
+قوانین:
+- فقط بگو در منابع RSS متصل‌شده مطلب مرتبطی پیدا نشد.
+- ادعا نکن در تمام فروشگاه‌ها یا کل اینترنت محصولی وجود ندارد.
+- محصول، قیمت، فروشنده یا لینک جایگزین نساز.
 `;
   }
 
-  const productsText = data.products.map((item, index) => `
-محصول ${index + 1}:
-عنوان: ${item.name || "عنوان نامشخص"}
-قیمت: ${item.price != null ? `${item.price} تومان` : "در ترب درج نشده"}
-تصویر: ${item.image || "ندارد"}
-لینک محصول در ترب: ${item.url || "ندارد"}
-`).join("\n");
+  const productsText = data.products.map((item, index) => {
+    const title = item.title || item.name || "عنوان نامشخص";
+    const description = item.description || "خلاصه‌ای در فید موجود نیست";
+    const source = item.source_name || item.source || "منبع نامشخص";
+    const type = item.type || "محتوای عمومی";
+    const published = item.published_at || item.publishedAt || "نامشخص";
+    const url = item.url || item.link || "لینک موجود نیست";
+    const image = item.image || "ندارد";
+    const priceText = item.price_text || (item.price != null ? String(item.price) : null);
+    const priceStatus = item.price_is_current === true
+      ? "منبع آن را قیمت جاری اعلام کرده است؛ با این حال زمان و منبع را ذکر کن."
+      : "قیمت لحظه‌ای یا تأییدشده نیست؛ فقط اشاره قیمتی داخل محتواست.";
+
+    return `
+مطلب شماره ${index + 1}:
+عنوان: ${title}
+خلاصه: ${description}
+منبع: ${source}
+نوع محتوا: ${type}
+تاریخ انتشار: ${published}
+قیمت ذکرشده در محتوا: ${priceText || "قیمتی درج نشده"}
+وضعیت اعتبار قیمت: ${priceStatus}
+واحد/کد ارز دریافتی: ${item.currency || "مشخص نشده"}
+تصویر: ${image}
+لینک منبع: ${url}
+`;
+  }).join("\n");
 
   return `
-نتایج واقعی جست‌وجوی محصول در ترب:
+نتایج جست‌وجو از فیدهای RSS فروشگاهی و رسانه‌های فناوری آناناس:
 
-عبارت جست‌وجو: ${data.query || "نامشخص"}
-تعداد کل نتایج اعلام‌شده: ${data.total}
-تعداد نتایج ارسالی: ${data.products.length}
+عبارت اصلی کاربر: ${data.originalQuery || "نامشخص"}
+عبارت جست‌وجوی استفاده‌شده: ${data.query || "نامشخص"}
+تعداد کل مطالب موجود در فیدهای دریافت‌شده: ${data.total}
+تعداد مطالب مرتبط ارسال‌شده: ${data.products.length}
+زمان دریافت فیدها: ${data.fetched_at || "نامشخص"}
+نتیجه از کش دریافت شده است: ${data.cached ? "بله" : "خیر"}
+
+وضعیت منابع:
+${sourceStatusText || "وضعیت منابع گزارش نشده است."}
 
 ${productsText}
 
-قوانین:
-- همه نتایج دریافتی را به صورت فهرست شماره‌دار نمایش بده؛ حداکثر ۱۰ محصول.
-- عنوان و قیمت را دقیقاً از داده‌ها بردار. قیمت‌ها به تومان هستند.
-- اگر قیمت یا لینک موجود نیست، نبود آن را اعلام کن؛ چیزی جعل نکن.
-- لینک هر محصول را دقیقاً همان‌طور که دریافت شده درج کن.
-- هیچ مقایسه قیمت، معرفی ارزان‌ترین فروشنده، رتبه‌بندی، پیشنهاد ویژه یا توصیه خرید ارائه نکن.
-- درباره کیفیت یا مناسب بودن محصول ادعایی نکن.
-- این‌ها صرفاً نتایج جست‌وجوی ترب هستند، نه پیشنهاد یا تأیید آناناس.
+قوانین مهم استفاده از نتایج:
+- نتایج از RSS موبونیوز، تکنولایف، بینوشاپ و زومیت یا منابع فعال دیگری می‌آیند؛ نام منبع هر مطلب را دقیق اعلام کن.
+- موبونیوز و زومیت عمدتاً منابع محتوایی، خبری، بررسی و راهنمای خرید هستند؛ آن‌ها را فروشنده مستقیم کالا معرفی نکن.
+- بینوشاپ و تکنولایف نیز فقط بر اساس نوع محتوای واقعی هر نتیجه توصیف شوند؛ وجود مطلب در فید به‌تنهایی اثبات‌کننده موجودی فروشگاه نیست.
+- عنوان، خلاصه، تاریخ و لینک را از داده‌های دریافتی بردار؛ لینک نساز و تغییر نده.
+- اگر قیمت درج نشده، صریحاً بگو در مطلب قیمت مشخصی ارائه نشده است.
+- اگر قیمت وجود دارد و price_is_current برابر false یا نامشخص است، آن را قیمت لحظه‌ای، قیمت امروز یا قیمت قابل خرید معرفی نکن؛ فقط بگو در محتوای منبع چنین قیمتی ذکر شده است.
+- قیمت عددی را تبدیل، گرد یا با واحد دیگری بازنویسی نکن. در صورت وجود price_text، همان متن را مبنا قرار بده.
+- تاریخ انتشار را کنار اطلاعات بیاور تا کاربر متوجه تازگی یا قدیمی بودن مطلب شود.
+- از این داده‌ها نمی‌توان ارزان‌ترین فروشنده، موجودی فعلی، قیمت قطعی بازار یا رتبه‌بندی فروشندگان را نتیجه گرفت.
+- اگر نتایج صرفاً مقاله یا بررسی هستند، آن‌ها را به‌عنوان مقاله و بررسی معرفی کن، نه فهرست کالاهای قابل خرید.
+- ادعای کیفیت، اصالت، گارانتی، موجودی یا مناسب‌بودن محصول را بدون داده صریح مطرح نکن.
+- نتایج RSS صرفاً محتوای منتشرشده منابع هستند و تأیید یا توصیه خرید آناناس محسوب نمی‌شوند.
 `;
 }
 
@@ -612,8 +666,8 @@ ${date.gregorian}
 - در موضوعات علمی، آموزشی، فنی و برنامه‌نویسی با دانش خود کمک کن.
 - اگر درباره اطلاعات جدید یا رویدادهای روز سؤال شد، ابتدا اطلاعات سرویس‌های داخلی آناناس را بررسی کن.
 - اگر اطلاعات خبری یا بازاری از سرویس داخلی دریافت شده، از همان داده‌ها استفاده کن و محدودیت جست‌وجوی عمومی را بی‌جهت تکرار نکن.
-- اگر نتایج جست‌وجوی محصول از ترب دریافت شده، آن‌ها را به صورت فهرست ساده نمایش بده.
-- در جست‌وجوی محصول، هیچ مقایسه قیمت، پیشنهاد ویژه، رتبه‌بندی یا توصیه خرید انجام نده.
+- اگر نتایج جست‌وجوی محصول از فیدهای RSS دریافت شده‌اند، آن‌ها را با ذکر منبع، تاریخ و لینک معرفی کن.
+- محتوای مقاله و بررسی را با محصول قابل خرید یا قیمت زنده اشتباه نگیر.
 - هرگز ادعا نکن که در گوگل جست‌وجو کرده‌ای.
 - هرگز منبع، لینک، خبر یا قیمت ساختگی تولید نکن.
 - اگر داده‌ای در اختیار نداری، صریحاً بگو.
@@ -625,9 +679,10 @@ ${date.gregorian}
 
 قانون مهم:
 - اگر داده خبری از RSS دریافت شده، بر اساس همان داده‌ها پاسخ بده و لینک منابع را درج کن.
-- اگر داده محصولات از ترب دریافت شده، فقط همان محصولات را فهرست کن؛ مقایسه قیمت، رتبه‌بندی یا پیشنهاد ویژه انجام نده.
-- اگر جست‌وجوی ترب نتیجه نداشت، فقط اعلام کن محصولی در نتایج پیدا نشد.
-- اگر سرویس ترب خطای فنی داد یا دسترسی مسدود شد، مشکل را شفاف اعلام کن و وانمود نکن جست‌وجو موفق بوده است.
+- اگر داده محصولات از RSS دریافت شده، فقط مطالب و اطلاعات موجود در همان نتایج را گزارش کن و منبع هر مورد را مشخص کن.
+- اگر جست‌وجوی RSS نتیجه نداشت، فقط اعلام کن در منابع متصل‌شده مطلب مرتبطی پیدا نشد؛ درباره کل بازار نتیجه‌گیری نکن.
+- اگر سرویس RSS خطای فنی داد، مشکل دریافت اطلاعات از منابع متصل‌شده را شفاف اعلام کن و وانمود نکن جست‌وجو موفق بوده است.
+- قیمت استخراج‌شده از RSS را قیمت زنده یا قابل خرید معرفی نکن، مگر خود داده صریحاً price_is_current را true اعلام کرده باشد.
 - اگر جست‌وجوی RSS با موفقیت انجام شده اما خبر مرتبطی پیدا نشده، فقط بگو در منابع RSS متصل‌شده خبر مرتبطی پیدا نشد؛ این موضوع را به عدم دسترسی کلی به اخبار تعبیر نکن.
 - اگر سرویس RSS به دلیل خطای فنی در دسترس نبود، بگو دریافت خبر از منابع متصل‌شده موقتاً با مشکل مواجه شده است.
 - فقط وقتی هیچ داده داخلی مرتبطی در اختیار نداری و پاسخ واقعاً به جست‌وجوی عمومی زنده نیاز دارد، محدودیت جست‌وجوی عمومی را توضیح بده.
@@ -992,9 +1047,9 @@ export async function onRequestPost(context) {
         externalContext += formatShopData(shopData);
       } else {
         externalContext += `
-کاربر درخواست جست‌وجوی محصول در ترب دارد، اما سرویس جست‌وجوی ترب به دلیل خطای فنی یا محدودیت دسترسی پاسخ نداده است.
-هیچ محصول، قیمت یا لینکی جعل نکن.
-به کاربر بگو جست‌وجوی ترب در حال حاضر با مشکل مواجه شده است و بعداً دوباره امتحان کند.
+کاربر درخواست جست‌وجوی محصول یا محتوای فروشگاهی دارد، اما سرویس RSS آناناس به دلیل خطای فنی پاسخ معتبر نداده است.
+هیچ محصول، قیمت، منبع یا لینکی جعل نکن.
+به کاربر بگو دریافت اطلاعات از منابع فروشگاهی و فناوری متصل‌شده موقتاً با مشکل مواجه شده است و بعداً دوباره امتحان کند.
 `;
       }
     }
@@ -1146,6 +1201,16 @@ export async function onRequestPost(context) {
       shopCount: Array.isArray(shopData?.products)
         ? shopData.products.length
         : 0,
+      shopSourceCount: Array.isArray(shopData?.source_status)
+        ? shopData.source_status.filter(source => source.ok).length
+        : 0,
+      shopSources: Array.isArray(shopData?.source_status)
+        ? shopData.source_status.map(source => ({
+            source: source.source,
+            available: Boolean(source.ok),
+            count: Number(source.count) || 0
+          }))
+        : [],
 
       googleSearch: false
     };
