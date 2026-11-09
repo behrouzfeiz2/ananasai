@@ -6,24 +6,25 @@ const corsHeaders = {
   "Content-Type": "application/json; charset=utf-8"
 };
 
-// ==================================================
-// ANANAS AI - GEMINI API + GOOGLE SEARCH GROUNDING
+// =====================================================
+// ANANAS AI - GEMINI + GOOGLE SEARCH + GROQ
 // Cloudflare Pages Functions
-// ==================================================
+// =====================================================
 
-// ---------------- CONFIGURATION ----------------
+// -------------------- CONFIG -------------------------
 
 const FREE_DAILY_LIMIT = 10;
 const PRO_DAILY_LIMIT = 100;
 
-const GEMINI_TIMEOUT = 25000;
+const GEMINI_TIMEOUT = 30000;
 const GROQ_TIMEOUT = 25000;
 
 const ENABLE_GOOGLE_SEARCH = true;
 
-// مدل‌های اصلی و جایگزین
-// مدل درخواستی فرانت‌اند همیشه در اولویت است.
-const FALLBACK_GEMINI_MODELS = [
+// مدل پیش‌فرض و مدل‌های جایگزین
+const DEFAULT_GEMINI_MODEL = "gemini-3.5-flash-lite";
+
+const GEMINI_MODELS = [
   "gemini-3.8-flash",
   "gemini-3.1-flash-lite",
   "gemini-2.5-flash-lite"
@@ -31,9 +32,9 @@ const FALLBACK_GEMINI_MODELS = [
 
 const GROQ_MODEL = "llama-3.1-8b-instant";
 
-// ==================================================
+// =====================================================
 // 1. GENERAL HELPERS
-// ==================================================
+// =====================================================
 
 function jsonResponse(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -74,9 +75,9 @@ function uniqueModels(models) {
   return [...new Set(models.filter(Boolean))];
 }
 
-// ==================================================
-// 2. USER AUTHENTICATION AND DAILY QUOTA
-// ==================================================
+// =====================================================
+// 2. USER AUTHENTICATION AND QUOTA
+// =====================================================
 
 async function getUserStatusAndQuota(request, env) {
 
@@ -91,11 +92,12 @@ async function getUserStatusAndQuota(request, env) {
   let isPro = false;
   let limitText = FREE_DAILY_LIMIT;
 
-  if (userToken) {
+  // اعتبارسنجی کد پرو
+  if (userToken !== "") {
 
     if (!env.ANANAS_KV) {
       return {
-        error: "سیستم احراز هویت در حال حاضر در دسترس نیست.",
+        error: "سیستم احراز هویت در دسترس نیست.",
         status: 503
       };
     }
@@ -133,7 +135,9 @@ async function getUserStatusAndQuota(request, env) {
       }
 
     } catch (err) {
+
       console.error("Quota read error:", err);
+
     }
 
   }
@@ -146,9 +150,9 @@ async function getUserStatusAndQuota(request, env) {
   };
 }
 
-// ==================================================
-// 3. SAVE USER QUOTA
-// ==================================================
+// =====================================================
+// 3. SAVE QUOTA
+// =====================================================
 
 async function saveQuota(context, env, quota) {
 
@@ -173,24 +177,24 @@ async function saveQuota(context, env, quota) {
   }
 }
 
-// ==================================================
+// =====================================================
 // 4. SYSTEM PROMPT
-// ==================================================
+// =====================================================
 
 function createSystemPrompt(mode) {
 
   const { todayStr, gregorianStr } = getPersianDate();
 
-  let systemPrompt = `
+  let prompt = `
 نام تو «آناناس» (AnanasAI) است.
 
 تو یک دستیار هوش مصنوعی فارسی‌زبان، صمیمی، دقیق و حرفه‌ای هستی.
 
 قوانین هویتی:
-- همیشه نام خود را دقیقاً به شکل «آناناس» بنویس.
-- از ترکیب حروف فارسی و انگلیسی در نوشتن نام خودداری کن.
-- درباره هویت یا نسخه دقیق مدل فقط اطلاعات تأییدشده ارائه بده.
-- پاسخ‌ها را به زبان فارسی روان و با فرمت Markdown ارائه بده.
+- همیشه نام خود را دقیقاً به شکل «آناناس» با حروف فارسی بنویس.
+- هرگز نام خود را به شکل ترکیبی فارسی و انگلیسی ننویس.
+- درباره مدل و نسخه دقیق موتور هوش مصنوعی فقط اطلاعات تأییدشده ارائه بده.
+- پاسخ‌ها را به زبان فارسی روان و با فرمت Markdown بنویس.
 
 تاریخ امروز به وقت تهران:
 ${todayStr}
@@ -200,26 +204,26 @@ ${gregorianStr}
 
 قوانین پاسخ‌گویی:
 - پاسخ‌ها باید دقیق، کاربردی و متناسب با سؤال باشند.
-- فقط زمانی تاریخ امروز را اعلام کن که کاربر مستقیماً درباره تاریخ یا زمان سؤال کند.
-- از پاسخ‌های طولانی و غیرضروری خودداری کن.
-- در صورت نیاز از جست‌وجوی گوگل استفاده کن.
-- برای اخبار، اطلاعات روز، قیمت‌ها، نسخه‌های جدید نرم‌افزار و رویدادهای جدید، اطلاعات به‌روز را بررسی کن.
-- اگر اطلاعات موردنیاز ممکن است پس از تاریخ آموزش مدل تغییر کرده باشد، جست‌وجو را در اولویت قرار بده.
-- برای سؤالات عمومی و اطلاعات پایدار، بدون جست‌وجوی غیرضروری پاسخ بده.
-- اطلاعات حاصل از جست‌وجو را با دانش خود ترکیب و تحلیل کن.
-- در صورت استفاده از منابع اینترنتی، اطلاعات و ارجاعات منابع را حفظ کن.
-- اگر جست‌وجو انجام نداده‌ای، هرگز ادعا نکن که اطلاعات را از اینترنت دریافت کرده‌ای.
-- اطلاعات نامطمئن را به‌عنوان واقعیت قطعی بیان نکن.
+- فقط در صورت سؤال مستقیم درباره تاریخ یا زمان، تاریخ امروز را اعلام کن.
+- از توضیحات غیرضروری خودداری کن.
+- اگر سؤال عمومی و پایدار است، مستقیم پاسخ بده.
+- اگر اطلاعات ممکن است تغییر کرده باشد، از جست‌وجوی گوگل استفاده کن.
+- برای اخبار، قیمت‌ها، انتخابات، نسخه‌های جدید، رویدادها و اطلاعات روز، اطلاعات به‌روز را بررسی کن.
+- در صورت استفاده از نتایج وب، آن‌ها را با دانش خود ترکیب و تحلیل کن.
+- منابع اینترنتی را جعل نکن.
+- اگر جست‌وجو انجام نشده، ادعای جست‌وجو نکن.
+- اگر اطلاعات کافی وجود ندارد، صادقانه اعلام کن.
+- هرگز فقط به کاربر نگو که در حال جست‌وجو یا گردآوری اطلاعات هستی؛ پاسخ نهایی را ارائه بده.
+
 `;
 
   if (mode === "coder") {
 
-    systemPrompt += `
-
+    prompt += `
 نقش تخصصی:
-تو در این گفتگو یک مهندس ارشد نرم‌افزار و برنامه‌نویس حرفه‌ای هستی.
+تو یک مهندس ارشد نرم‌افزار و برنامه‌نویس حرفه‌ای هستی.
 
-در زمینه‌های زیر تخصص داری:
+حوزه‌های تخصص:
 - JavaScript و TypeScript
 - Python
 - Rust
@@ -228,32 +232,173 @@ ${gregorianStr}
 - Backend و API
 - دیتابیس
 - امنیت نرم‌افزار
-- دیباگ و تحلیل کد
-- طراحی معماری نرم‌افزار
+- دیباگ
+- معماری نرم‌افزار
 
 قوانین:
 - کدهای تمیز، استاندارد و قابل توسعه ارائه بده.
 - در اصلاح کدهای موجود، قابلیت‌های قبلی را حفظ کن.
-- از حذف بخش‌های مهم کد بدون دلیل فنی خودداری کن.
-- خطاها را توضیح بده و راه‌حل عملی ارائه کن.
-- در صورت نیاز به مستندات جدید، از جست‌وجوی اینترنتی استفاده کن.
+- بدون دلیل فنی بخش‌های مهم کد را حذف نکن.
+- در صورت نیاز، کد کامل و یکپارچه ارائه بده.
+- برای اطلاعات فنی جدید، مستندات رسمی را بررسی کن.
 `;
 
   }
 
-  return systemPrompt;
+  return prompt;
 }
 
-// ==================================================
-// 5. PREPARE GEMINI PAYLOAD
-// ==================================================
+// =====================================================
+// 5. SEARCH INTENT DETECTION
+// =====================================================
 
-function prepareGeminiPayload(originalPayload, systemPrompt, useSearch) {
+// تشخیص سؤالات نیازمند اطلاعات روز
+function requiresFreshSearch(text) {
+
+  const pattern = /امروز|دیروز|فردا|این هفته|این ماه|این سال|جدیدترین|آخرین|فعلی|اکنون|در حال حاضر|قیمت|نرخ|دلار|یورو|طلا|بیت.?کوین|اتریوم|اخبار|خبرهای|انتخابات|نتایج انتخابات|نتایج زنده|مسابقه امروز|نسخه جدید|آپدیت|به.?روزرسانی|چه اتفاقی افتاد|چه شد|آخرین وضعیت|latest|today|yesterday|tomorrow|current|currently|recent|breaking|news|price|election|elections|exchange rate|live results|latest version/i;
+
+  return pattern.test(text || "");
+}
+
+// استخراج آخرین پیام کاربر
+function getLastUserMessage(contents) {
+
+  const lastUser = [...(contents || [])]
+    .reverse()
+    .find(item => item.role === "user");
+
+  return (lastUser?.parts || [])
+    .map(part => part.text || "")
+    .join("\n");
+}
+
+// =====================================================
+// 6. INCOMPLETE RESPONSE DETECTION
+// =====================================================
+
+function isPendingSearchMessage(text) {
+
+  const pattern =
+    /در حال بررسی|در حال جست.?وجو|در حال گردآوری اطلاعات|اجازه بدهید.*بررسی کنم|اجازه دهید.*بررسی کنم|دارم.*جست.?وجو می.?کنم|در حال دریافت اطلاعات|لطفاً کمی صبر کنید|لطفا کمی صبر کنید|به زودی نتیجه را|نتیجه را اعلام می‌کنم|نتیجه را اعلام خواهم کرد|i am searching|i'm searching|let me search|let me look up|searching the web|checking the latest|gathering information/i;
+
+  return pattern.test(text || "");
+}
+
+// تشخیص پاسخ‌هایی که مدل اطلاعات کافی ندارد
+function isKnowledgeFailure(text) {
+
+  const pattern =
+    /به اطلاعات به.?روز دسترسی ندارم|نمی‌توانم اطلاعات فعلی را تأیید کنم|نمی‌توانم نتایج جدید را بررسی کنم|دانش من تا سال|اطلاعات من تا سال|اطلاعات به.?روز در دسترس ندارم|i cannot access real.?time|i don't have access to current|my knowledge cutoff|i cannot verify current/i;
+
+  return pattern.test(text || "");
+}
+
+// =====================================================
+// 7. EXTRACT RESPONSE TEXT
+// =====================================================
+
+function getGeminiAnswer(responseJson) {
+
+  return (
+    responseJson?.candidates?.[0]?.content?.parts || []
+  )
+    .map(part => part.text || "")
+    .join("\n")
+    .trim();
+}
+
+// =====================================================
+// 8. CHECK REAL GOOGLE GROUNDING
+// =====================================================
+
+function hasRealGrounding(responseJson) {
+
+  const metadata =
+    responseJson?.candidates?.[0]?.groundingMetadata;
+
+  if (!metadata) return false;
+
+  const hasQueries =
+    (metadata.webSearchQueries || []).length > 0;
+
+  const hasSources =
+    (metadata.groundingChunks || []).some(
+      item => Boolean(item.web?.uri)
+    );
+
+  return hasQueries || hasSources;
+}
+
+// =====================================================
+// 9. EXTRACT GOOGLE SOURCES
+// =====================================================
+
+function extractWebSources(responseJson) {
+
+  const candidate = responseJson?.candidates?.[0];
+
+  const metadata = candidate?.groundingMetadata;
+
+  if (!metadata) {
+
+    return {
+      used: false,
+      queries: [],
+      sources: [],
+      citations: []
+    };
+
+  }
+
+  const chunks = metadata.groundingChunks || [];
+
+  const sources = chunks
+    .filter(item => item.web?.uri)
+    .map((item, index) => ({
+      id: index,
+      title: item.web.title || "منبع اینترنتی",
+      url: item.web.uri
+    }));
+
+  const uniqueSources = [
+    ...new Map(
+      sources.map(source => [
+        source.url,
+        source
+      ])
+    ).values()
+  ];
+
+  const citations = (
+    metadata.groundingSupports || []
+  ).map(item => ({
+    segment: item.segment || null,
+    sources: item.groundingChunkIndices || []
+  }));
+
+  return {
+    used: true,
+    queries: metadata.webSearchQueries || [],
+    sources: uniqueSources,
+    citations
+  };
+}
+
+// =====================================================
+// 10. PREPARE GEMINI PAYLOAD
+// =====================================================
+
+function prepareGeminiPayload(
+  originalPayload,
+  systemPrompt,
+  useSearch
+) {
 
   const payload = structuredClone(originalPayload || {});
 
-  // حفظ System Instruction قبلی
-  const previousParts = payload.systemInstruction?.parts || [];
+  // حفظ دستور قبلی سیستم
+  const previousParts =
+    payload.systemInstruction?.parts || [];
 
   const previousInstruction = previousParts
     .map(part => part.text || "")
@@ -271,7 +416,7 @@ function prepareGeminiPayload(originalPayload, systemPrompt, useSearch) {
     ]
   };
 
-  // فعال‌سازی Google Search Grounding
+  // فعال کردن Google Search
   if (useSearch && ENABLE_GOOGLE_SEARCH) {
 
     if (!Array.isArray(payload.tools)) {
@@ -283,9 +428,11 @@ function prepareGeminiPayload(originalPayload, systemPrompt, useSearch) {
     );
 
     if (!alreadyConfigured) {
+
       payload.tools.push({
         google_search: {}
       });
+
     }
 
   }
@@ -293,39 +440,9 @@ function prepareGeminiPayload(originalPayload, systemPrompt, useSearch) {
   return payload;
 }
 
-// ==================================================
-// 6. GOOGLE SEARCH ERROR DETECTION
-// ==================================================
-
-function isSearchConfigurationError(status, responseText) {
-
-  if (![400, 403, 404, 422].includes(status)) {
-    return false;
-  }
-
-  const errorText = (responseText || "").toLowerCase();
-
-  const indicators = [
-    "google_search",
-    "google search",
-    "grounding",
-    "unsupported tool",
-    "tool not supported",
-    "tool is not supported",
-    "not available on free tier",
-    "not enabled for your project",
-    "billing required",
-    "not supported for this model"
-  ];
-
-  return indicators.some(term =>
-    errorText.includes(term)
-  );
-}
-
-// ==================================================
-// 7. GEMINI API REQUEST
-// ==================================================
+// =====================================================
+// 11. GEMINI API CALL
+// =====================================================
 
 async function callGemini(
   targetModel,
@@ -387,63 +504,39 @@ async function callGemini(
   }
 }
 
-// ==================================================
-// 8. EXTRACT GOOGLE SEARCH SOURCES
-// ==================================================
+// =====================================================
+// 12. SEARCH ERROR DETECTION
+// =====================================================
 
-function extractWebSources(responseJson) {
+function isSearchConfigurationError(status, responseText) {
 
-  const candidate = responseJson?.candidates?.[0];
-
-  const metadata = candidate?.groundingMetadata;
-
-  if (!metadata) {
-
-    return {
-      used: false,
-      queries: [],
-      sources: [],
-      citations: []
-    };
-
+  if (![400, 403, 404, 422].includes(status)) {
+    return false;
   }
 
-  const chunks = metadata.groundingChunks || [];
+  const errorText = (responseText || "").toLowerCase();
 
-  const sources = chunks
-    .filter(item => item.web?.uri)
-    .map(item => ({
-      title: item.web.title || "منبع اینترنتی",
-      url: item.web.uri
-    }));
-
-  const uniqueSources = [
-    ...new Map(
-      sources.map(source => [
-        source.url,
-        source
-      ])
-    ).values()
+  const indicators = [
+    "google_search",
+    "google search",
+    "grounding",
+    "unsupported tool",
+    "tool not supported",
+    "tool is not supported",
+    "not available on free tier",
+    "not enabled for your project",
+    "billing required",
+    "not supported for this model"
   ];
 
-  const citations = (
-    metadata.groundingSupports || []
-  ).map(item => ({
-    segment: item.segment || null,
-    sources: item.groundingChunkIndices || []
-  }));
-
-  return {
-    used: true,
-    queries: metadata.webSearchQueries || [],
-    sources: uniqueSources,
-    citations
-  };
+  return indicators.some(term =>
+    errorText.includes(term)
+  );
 }
 
-// ==================================================
-// 9. BUILD GROQ MESSAGES
-// ==================================================
+// =====================================================
+// 13. BUILD GROQ MESSAGES
+// =====================================================
 
 function createGroqMessages(contents, systemPrompt) {
 
@@ -473,9 +566,9 @@ function createGroqMessages(contents, systemPrompt) {
   return messages;
 }
 
-// ==================================================
-// 10. GROQ FALLBACK
-// ==================================================
+// =====================================================
+// 14. GROQ FALLBACK
+// =====================================================
 
 async function callGroq(apiKey, messages) {
 
@@ -516,9 +609,10 @@ async function callGroq(apiKey, messages) {
 
     if (!response.ok) {
 
+      console.error("Groq API error:", response.status);
+
       return {
-        success: false,
-        error: responseText
+        success: false
       };
 
     }
@@ -558,9 +652,9 @@ async function callGroq(apiKey, messages) {
   }
 }
 
-// ==================================================
-// 11. GET REQUEST - QUOTA STATUS
-// ==================================================
+// =====================================================
+// 15. GET REQUEST - QUOTA
+// =====================================================
 
 export async function onRequestGet(context) {
 
@@ -576,9 +670,11 @@ export async function onRequestGet(context) {
     if (quota.error) {
 
       return jsonResponse({
+
         error: {
           message: quota.error
         }
+
       }, quota.status);
 
     }
@@ -595,7 +691,7 @@ export async function onRequestGet(context) {
 
   } catch (err) {
 
-    console.error("GET Error:", err);
+    console.error("GET error:", err);
 
     return jsonResponse({
 
@@ -609,9 +705,9 @@ export async function onRequestGet(context) {
 
 }
 
-// ==================================================
-// 12. POST REQUEST - MAIN AI ENGINE
-// ==================================================
+// =====================================================
+// 16. MAIN POST REQUEST
+// =====================================================
 
 export async function onRequestPost(context) {
 
@@ -619,9 +715,9 @@ export async function onRequestPost(context) {
 
   try {
 
-    // ----------------------------------------------
-    // دریافت اطلاعات درخواست
-    // ----------------------------------------------
+    // -----------------------------------------------
+    // دریافت درخواست
+    // -----------------------------------------------
 
     const body = await request.json();
 
@@ -638,32 +734,36 @@ export async function onRequestPost(context) {
     ) {
 
       return jsonResponse({
+
         error: {
           message: "ساختار درخواست یا محتوای پیام معتبر نیست."
         }
+
       }, 400);
 
     }
 
-    // ----------------------------------------------
-    // بررسی کلید Gemini
-    // ----------------------------------------------
+    // -----------------------------------------------
+    // بررسی کلید API
+    // -----------------------------------------------
 
     const apiKey = env.GEMINI_API_KEY;
 
     if (!apiKey) {
 
       return jsonResponse({
+
         error: {
           message: "کلید GEMINI_API_KEY در تنظیمات Cloudflare تعریف نشده است."
         }
+
       }, 500);
 
     }
 
-    // ----------------------------------------------
-    // بررسی سهمیه و اعتبار کاربر
-    // ----------------------------------------------
+    // -----------------------------------------------
+    // احراز هویت و سهمیه
+    // -----------------------------------------------
 
     const quota = await getUserStatusAndQuota(
       request,
@@ -673,9 +773,11 @@ export async function onRequestPost(context) {
     if (quota.error) {
 
       return jsonResponse({
+
         error: {
           message: quota.error
         }
+
       }, quota.status);
 
     }
@@ -704,9 +806,9 @@ export async function onRequestPost(context) {
 
     }
 
-    // ----------------------------------------------
-    // بررسی ضمیمه‌ها
-    // ----------------------------------------------
+    // -----------------------------------------------
+    // بررسی فایل‌های ضمیمه
+    // -----------------------------------------------
 
     const payload = structuredClone(originalPayload);
 
@@ -718,9 +820,9 @@ export async function onRequestPost(context) {
       )
     );
 
-    // ----------------------------------------------
+    // -----------------------------------------------
     // محدودیت کاربران رایگان
-    // ----------------------------------------------
+    // -----------------------------------------------
 
     if (!quota.isPro && (hasAttachment || mode === "coder")) {
 
@@ -743,36 +845,53 @@ export async function onRequestPost(context) {
 
     }
 
-    // ----------------------------------------------
-    // ساخت دستور اصلی مدل
-    // ----------------------------------------------
+    // -----------------------------------------------
+    // ساخت دستورات سیستم
+    // -----------------------------------------------
 
     const systemPrompt = createSystemPrompt(mode);
 
-    // ----------------------------------------------
+    const lastUserMessage = getLastUserMessage(contents);
+
+    // تشخیص نیاز به اطلاعات روز
+    const needsFreshSearch =
+      requiresFreshSearch(lastUserMessage);
+
+    // -----------------------------------------------
     // ساخت پیام‌های Groq
-    // ----------------------------------------------
+    // -----------------------------------------------
 
     const groqMessages = createGroqMessages(
       contents,
       systemPrompt
     );
 
-    // ----------------------------------------------
-    // ساخت زنجیره مدل‌ها
-    // ----------------------------------------------
+    // -----------------------------------------------
+    // زنجیره مدل‌های Gemini
+    // -----------------------------------------------
 
     const geminiModels = uniqueModels([
-      model || "gemini-3.5-flash-lite",
-      ...FALLBACK_GEMINI_MODELS
+
+      model || DEFAULT_GEMINI_MODEL,
+
+      ...GEMINI_MODELS
+
     ]);
 
     let geminiResult = null;
     let lastGeminiError = null;
 
-    // ==================================================
-    // 13. FIRST PASS: GEMINI WITH GOOGLE SEARCH
-    // ==================================================
+    let responseJson = {};
+    let isGroqSuccess = false;
+
+    let pendingResponseDetected = false;
+
+    // =================================================
+    // 17. SMART GOOGLE SEARCH
+    // =================================================
+
+    // در این مرحله Google Search به تمام مدل‌ها ارائه می‌شود.
+    // خود Gemini تشخیص می‌دهد که جست‌وجو لازم است یا خیر.
 
     if (ENABLE_GOOGLE_SEARCH) {
 
@@ -788,21 +907,206 @@ export async function onRequestPost(context) {
             true
           );
 
-          if (result.ok) {
+          if (!result.ok) {
 
-            geminiResult = result;
+            lastGeminiError = {
+              status: result.status,
+              text: result.responseText
+            };
+
+            console.warn(
+              "Gemini Search failed:",
+              targetModel,
+              result.status
+            );
+
+            continue;
+          }
+
+          let candidateJson;
+
+          try {
+
+            candidateJson = JSON.parse(
+              result.responseText
+            );
+
+          } catch {
+
+            continue;
+
+          }
+
+          const answer = getGeminiAnswer(candidateJson);
+
+          const grounded = hasRealGrounding(candidateJson);
+
+          const pending =
+            isPendingSearchMessage(answer);
+
+          const knowledgeFailure =
+            isKnowledgeFailure(answer);
+
+          if (pending || knowledgeFailure) {
+            pendingResponseDetected = true;
+          }
+
+          // برای موضوعات روز، پاسخ بدون Grounding
+          // به‌عنوان پاسخ نهایی پذیرفته نمی‌شود.
+          if (needsFreshSearch && !grounded) {
+
+            console.warn(
+              "Fresh information required but no grounding:",
+              targetModel
+            );
+
+            continue;
+          }
+
+          // رد پیام ناقص
+          if (pending || knowledgeFailure) {
+
+            if (!grounded) continue;
+
+            console.warn(
+              "Incomplete response detected:",
+              targetModel
+            );
+
+            continue;
+          }
+
+          if (!answer) continue;
+
+          geminiResult = {
+            ...result,
+            parsed: candidateJson
+          };
+
+          break;
+
+        } catch (err) {
+
+          lastGeminiError = {
+            status: 502,
+            text: err.message
+          };
+
+          console.error(
+            "Gemini Search exception:",
+            targetModel,
+            err
+          );
+
+        }
+
+      }
+
+    }
+
+    // =================================================
+    // 18. FORCED SEARCH FALLBACK
+    // =================================================
+
+    // اگر مدل‌های اصلی جست‌وجوی واقعی انجام ندادند،
+    // یک درخواست ویژه با مدل جست‌وجوی جایگزین اجرا می‌شود.
+
+    if (
+      !geminiResult &&
+      ENABLE_GOOGLE_SEARCH &&
+      (
+        needsFreshSearch ||
+        pendingResponseDetected
+      )
+    ) {
+
+      const forcedSearchPrompt = systemPrompt + `
+
+دستور ویژه و ضروری:
+
+این درخواست به اطلاعات به‌روز و جست‌وجوی اینترنتی نیاز دارد.
+
+حتماً از ابزار Google Search استفاده کن.
+
+قوانین:
+1. قبل از پاسخ نهایی جست‌وجوی واقعی انجام بده.
+2. نتایج مرتبط را بررسی کن.
+3. برای اطلاعات مهم به منابع معتبر اولویت بده.
+4. اطلاعات جدید را از اطلاعات تاریخی و قدیمی تفکیک کن.
+5. هیچ نتیجه‌ای را حدس نزن.
+6. هرگز فقط اعلام نکن که در حال جست‌وجو هستی.
+7. پاسخ نهایی را در همین درخواست ارائه بده.
+8. اگر اطلاعات کافی وجود ندارد، محدودیت را شفاف بیان کن.
+`;
+
+      const forcedSearchModels = uniqueModels([
+
+        "gemini-3.8-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-3.1-flash-lite",
+        "gemini-2.5-flash-lite"
+
+      ]);
+
+      for (const searchModel of forcedSearchModels) {
+
+        try {
+
+          const result = await callGemini(
+            searchModel,
+            apiKey,
+            payload,
+            forcedSearchPrompt,
+            true
+          );
+
+          if (!result.ok) {
+
+            lastGeminiError = {
+              status: result.status,
+              text: result.responseText
+            };
+
+            console.error(
+              "Forced Search HTTP error:",
+              searchModel,
+              result.status
+            );
+
+            continue;
+          }
+
+          const candidateJson = JSON.parse(
+            result.responseText
+          );
+
+          const answer = getGeminiAnswer(candidateJson);
+
+          // پذیرش فقط پاسخ دارای منابع واقعی
+          if (
+            answer &&
+            hasRealGrounding(candidateJson) &&
+            !isPendingSearchMessage(answer) &&
+            !isKnowledgeFailure(answer)
+          ) {
+
+            geminiResult = {
+              ...result,
+              parsed: candidateJson
+            };
+
+            console.log(
+              "Forced Google Search successful:",
+              searchModel
+            );
+
             break;
 
           }
 
-          lastGeminiError = {
-            status: result.status,
-            text: result.responseText
-          };
-
           console.warn(
-            `Gemini Search failed: ${targetModel}`,
-            result.status
+            "Forced Search returned no usable grounding:",
+            searchModel
           );
 
         } catch (err) {
@@ -813,7 +1117,8 @@ export async function onRequestPost(context) {
           };
 
           console.error(
-            `Gemini Search exception: ${targetModel}`,
+            "Forced Search exception:",
+            searchModel,
             err
           );
 
@@ -823,11 +1128,18 @@ export async function onRequestPost(context) {
 
     }
 
-    // ==================================================
-    // 14. SECOND PASS: GEMINI WITHOUT GOOGLE SEARCH
-    // ==================================================
+    // =================================================
+    // 19. NORMAL GEMINI FALLBACK
+    // =================================================
 
-    if (!geminiResult) {
+    // فقط برای سؤال‌هایی که جست‌وجوی ضروری ندارند.
+    // هرگز پاسخ قدیمی را جایگزین نتیجه جست‌وجوی ناموفق نکن.
+
+    if (
+      !geminiResult &&
+      !needsFreshSearch &&
+      !pendingResponseDetected
+    ) {
 
       for (const targetModel of geminiModels) {
 
@@ -841,22 +1153,36 @@ export async function onRequestPost(context) {
             false
           );
 
-          if (result.ok) {
+          if (!result.ok) {
 
-            geminiResult = result;
+            lastGeminiError = {
+              status: result.status,
+              text: result.responseText
+            };
+
+            continue;
+          }
+
+          const candidateJson = JSON.parse(
+            result.responseText
+          );
+
+          const answer = getGeminiAnswer(candidateJson);
+
+          if (
+            answer &&
+            !isPendingSearchMessage(answer) &&
+            !isKnowledgeFailure(answer)
+          ) {
+
+            geminiResult = {
+              ...result,
+              parsed: candidateJson
+            };
+
             break;
 
           }
-
-          lastGeminiError = {
-            status: result.status,
-            text: result.responseText
-          };
-
-          console.warn(
-            `Gemini normal request failed: ${targetModel}`,
-            result.status
-          );
 
         } catch (err) {
 
@@ -866,7 +1192,8 @@ export async function onRequestPost(context) {
           };
 
           console.error(
-            `Gemini normal exception: ${targetModel}`,
+            "Normal Gemini error:",
+            targetModel,
             err
           );
 
@@ -876,56 +1203,85 @@ export async function onRequestPost(context) {
 
     }
 
-    // ==================================================
-    // 15. PROCESS GEMINI RESPONSE
-    // ==================================================
-
-    let responseJson = {};
-    let isGroqSuccess = false;
+    // =================================================
+    // 20. PROCESS GEMINI RESPONSE
+    // =================================================
 
     if (geminiResult) {
 
-      try {
+      responseJson = geminiResult.parsed;
 
-        responseJson = JSON.parse(
-          geminiResult.responseText
-        );
-
-      } catch (err) {
-
-        return jsonResponse({
-
-          error: {
-            message: "پاسخ دریافتی از Gemini قابل پردازش نیست."
-          }
-
-        }, 502);
-
-      }
-
-      // استخراج منابع جست‌وجو
       responseJson.webSearch = extractWebSources(
         responseJson
       );
 
       responseJson.provider = {
+
         name: "Gemini",
         model: geminiResult.model
+
       };
 
     }
 
-    // ==================================================
-    // 16. THIRD PASS: GROQ FALLBACK
-    // ==================================================
+    // =================================================
+    // 21. REQUIRED SEARCH FAILURE
+    // =================================================
+
+    // سؤال روز نباید با اطلاعات قدیمی پاسخ داده شود.
+    // در این شرایط پاسخ Groq هم جایگزین نمی‌شود.
+
+    if (
+      !geminiResult &&
+      (
+        needsFreshSearch ||
+        pendingResponseDetected
+      )
+    ) {
+
+      console.error(
+        "Required search failed:",
+        lastGeminiError?.status
+      );
+
+      return jsonResponse({
+
+        error: {
+
+          message:
+            "جست‌وجوی اینترنتی در حال حاضر موفق نشد. لطفاً چند لحظه دیگر دوباره سؤال خود را ارسال کنید."
+
+        },
+
+        webSearch: {
+
+          used: false,
+          queries: [],
+          sources: []
+
+        },
+
+        quota: {
+
+          isPro: quota.isPro,
+          used: quota.usedText,
+          limit: quota.limitText
+
+        }
+
+      }, 503);
+
+    }
+
+    // =================================================
+    // 22. GROQ FALLBACK
+    // =================================================
 
     if (!geminiResult) {
 
       const groqApiKey = env.GROQ_API_KEY;
 
-      // فایل‌های ضمیمه فقط برای Gemini هستند.
-      // در صورت خرابی Gemini، آن‌ها را ناقص به Groq نمی‌فرستیم.
-
+      // فایل‌های ضمیمه به Groq ارسال نمی‌شوند.
       if (groqApiKey && !hasAttachment) {
 
         try {
@@ -940,15 +1296,19 @@ export async function onRequestPost(context) {
             responseJson = groqResult.responseJson;
 
             responseJson.provider = {
+
               name: "Groq",
               model: GROQ_MODEL
+
             };
 
             responseJson.webSearch = {
+
               used: false,
               queries: [],
               sources: [],
               citations: []
+
             };
 
             isGroqSuccess = true;
@@ -965,31 +1325,26 @@ export async function onRequestPost(context) {
 
     }
 
-    // ==================================================
-    // 17. FINAL ERROR HANDLING
-    // ==================================================
+    // =================================================
+    // 23. FINAL ERROR HANDLING
+    // =================================================
 
     if (!geminiResult && !isGroqSuccess) {
 
       let errorMessage =
         "در حال حاضر امکان دریافت پاسخ از سرویس هوش مصنوعی وجود ندارد. لطفاً کمی بعد دوباره تلاش کنید.";
 
-      // پیام خطای Google را در لاگ نگه می‌داریم.
-      if (lastGeminiError?.text) {
-
-        console.error(
-          "Last Gemini error:",
-          lastGeminiError.text
-        );
-
-      }
-
-      if (hasAttachment && !geminiResult) {
+      if (hasAttachment) {
 
         errorMessage =
           "پردازش فایل یا تصویر با Gemini ناموفق بود. لطفاً دوباره تلاش کنید.";
 
       }
+
+      console.error(
+        "All AI providers failed:",
+        lastGeminiError?.status
+      );
 
       return jsonResponse({
 
@@ -998,20 +1353,26 @@ export async function onRequestPost(context) {
         },
 
         quota: {
+
           isPro: quota.isPro,
           used: quota.usedText,
           limit: quota.limitText
+
         }
 
       }, 502);
 
     }
 
-    // ==================================================
-    // 18. SAVE QUOTA AFTER SUCCESS
-    // ==================================================
+    // =================================================
+    // 24. SAVE QUOTA
+    // =================================================
 
-    await saveQuota(context, env, quota);
+    await saveQuota(
+      context,
+      env,
+      quota
+    );
 
     responseJson.quota = {
 
@@ -1021,9 +1382,9 @@ export async function onRequestPost(context) {
 
     };
 
-    // ==================================================
-    // 19. FINAL RESPONSE
-    // ==================================================
+    // =================================================
+    // 25. FINAL RESPONSE
+    // =================================================
 
     return jsonResponse(responseJson, 200);
 
@@ -1034,7 +1395,10 @@ export async function onRequestPost(context) {
     return jsonResponse({
 
       error: {
-        message: "خطای داخلی سرور. لطفاً دوباره تلاش کنید."
+
+        message:
+          "خطای داخلی سرور. لطفاً دوباره تلاش کنید."
+
       }
 
     }, 500);
@@ -1043,15 +1407,17 @@ export async function onRequestPost(context) {
 
 }
 
-// ==================================================
-// 20. OPTIONS REQUEST
-// ==================================================
+// =====================================================
+// 26. OPTIONS REQUEST
+// =====================================================
 
 export async function onRequestOptions() {
 
   return new Response(null, {
+
     status: 204,
     headers: corsHeaders
+
   });
 
 }
