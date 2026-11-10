@@ -189,7 +189,7 @@
           از پرداخت و خرید شما سپاسگزاریم!
         </h1>
         <p class="text-xs sm:text-sm text-gray-300 leading-relaxed max-w-lg mx-auto">
-          درخواست فعال‌سازی اشتراک <b class="text-ananas-400">آناناس پرو</b> شما با موفقیت ثبت گردید.
+          درخواست فعال‌سازی اشتراک <b id="thankYouPlanName" class="text-ananas-400">آناناس پرو</b> شما با موفقیت ثبت گردید.
         </p>
       </div>
 
@@ -215,7 +215,7 @@
           <div class="space-y-1">
             <h2 class="text-sm font-extrabold text-white">ارسال پیامکی کد فعال‌سازی</h2>
             <p class="text-xs text-gray-300 leading-relaxed">
-              پس از تکمیل پردازش، <b class="text-emerald-400">کد فعال‌سازی حالت پرو</b> به شماره همراهی که در فرم وارد کرده‌اید پیامک خواهد شد.
+              پس از تکمیل پردازش، <b id="activationCodeLabel" class="text-emerald-400">کد فعال‌سازی اشتراک</b> به شماره همراهی که در فرم وارد کرده‌اید پیامک خواهد شد.
             </p>
           </div>
         </div>
@@ -224,7 +224,7 @@
 
       <!-- راهنمای نحوه استفاده از کد -->
       <p class="text-[11px] sm:text-xs text-gray-400 leading-relaxed">
-        پس از دریافت پیامک حاوی کد فعال‌سازی، کافی است وارد <a href="index.html" class="text-ananas-400 font-bold hover:underline">محیط چت آناناس</a> شوید و در بخش <b>«مدیریت اشتراک پرو»</b> کد خود را وارد کنید.
+        پس از دریافت پیامک حاوی کد فعال‌سازی، کافی است وارد <a href="index.html" class="text-ananas-400 font-bold hover:underline">محیط چت آناناس</a> شوید و در بخش <b id="subscriptionManageLabel">«مدیریت اشتراک»</b> کد خود را وارد کنید.
       </p>
 
       <!-- دکمه‌های بازگشت -->
@@ -262,6 +262,19 @@
   </footer>
 
   <script>
+    // نام پلن از صفحه پرداخت به این صفحه منتقل می‌شود.
+    const purchasedPlan = new URLSearchParams(window.location.search).get("plan") === "ultra" ? "ultra" : "pro";
+    document.addEventListener("DOMContentLoaded", () => {
+      const planName = purchasedPlan === "ultra" ? "آناناس Ultra" : "آناناس Pro";
+      const nameEl = document.getElementById("thankYouPlanName");
+      const codeEl = document.getElementById("activationCodeLabel");
+      const manageEl = document.getElementById("subscriptionManageLabel");
+      if (nameEl) nameEl.textContent = planName;
+      if (codeEl) codeEl.textContent = "کد فعال‌سازی اشتراک " + (purchasedPlan === "ultra" ? "Ultra" : "Pro");
+      if (manageEl) manageEl.textContent = "«مدیریت اشتراک " + (purchasedPlan === "ultra" ? "Ultra" : "Pro") + "»";
+      document.title = "ثبت سفارش " + planName + " | آناناس (AnanasAI)";
+    });
+
     function toggleMobileMenu(show) {
       const drawer = document.getElementById('mobileDrawer');
       const overlay = document.getElementById('menuOverlay');

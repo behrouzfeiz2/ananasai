@@ -483,13 +483,13 @@
 
         if (response.ok) {
           // هدایت خودکار و آنی به صفحه تشکر
-          window.location.href = 'tnx.html';
+          window.location.href = 'tnx.html?plan=' + encodeURIComponent(selectedPlan);
         } else {
           throw new Error('خطا در ثبت اطلاعات');
         }
       } catch (err) {
         // حتی اگر ارتباط با API در حالت تست لوکال برقرار نشد، جهت تجربه کاربری به صفحه تشکر هدایت می‌شود
-        window.location.href = 'tnx.html';
+        window.location.href = 'tnx.html?plan=' + encodeURIComponent(selectedPlan);
       }
     }
   </script>
