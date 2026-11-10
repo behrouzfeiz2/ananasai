@@ -87,7 +87,7 @@ export async function onRequestGet({ request, env }) {
   });
 }
 
-if (!/^[a-zA-Z0-9-]{1,100}$/.test(id)) {
+if (!/^[a-zA-Z0-9_-]{1,100}$/.test(id)) {
   return reply({ error: "شناسه درخواست معتبر نیست." }, 400);
 }
 
