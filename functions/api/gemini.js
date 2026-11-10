@@ -22,13 +22,27 @@ const CONFIG = {
     "gemini-3.5-flash-lite"
   ],
 
+  // فقط مدل‌های مجاز در بک‌اند قابل استفاده هستند.
+  ALLOWED_MODELS: [
+    "gemini-3.8-flash",
+    "gemini-3.5-flash-lite"
+  ],
+
   GROQ_MODEL: "llama-3.1-8b-instant",
 
   GEMINI_TIMEOUT: 35000,
   GROQ_TIMEOUT: 25000,
   DATA_TIMEOUT: 12000,
 
-  // مسیر سرویس‌های داخلی آناناس
+  // حداکثر حجم کل درخواست
+  MAX_REQUEST_BYTES: 8 * 1024 * 1024,
+
+  // حداکثر حجم داده Base64 فایل‌های ضمیمه
+  MAX_INLINE_DATA_BYTES: 7 * 1024 * 1024,
+
+  // حداکثر تعداد فایل در هر درخواست
+  MAX_ATTACHMENTS: 5,
+
   MARKET_ENDPOINT: "/api/nerkh",
   NEWS_ENDPOINT: "/api/news",
   SHOP_ENDPOINT: "/api/shop",
@@ -105,6 +119,106 @@ function hasAttachments(contents) {
   );
 }
 
+function validateAttachments(contents) {
+  const allowedImageTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif"
+  ];
+
+  let attachmentCount = 0;
+  let totalDataSize = 0;
+
+  for (const item of contents || []) {
+    for (const part of item.parts || []) {
+
+      if (part.inlineData) {
+        attachmentCount++;
+
+        const mimeType = String(
+          part.inlineData.mimeType || ""
+        ).toLowerCase();
+
+        const data = String(
+          part.inlineData.data || ""
+        );
+
+        if (!mimeType || !data) {
+          return {
+            valid: false,
+            error: "اطلاعات فایل ضمیمه معتبر نیست."
+          };
+        }
+
+        // بررسی فرمت تصویر
+        if (
+          mimeType.startsWith("image/") &&
+          !allowedImageTypes.includes(mimeType)
+        ) {
+          return {
+            valid: false,
+            error: "فرمت تصویر پشتیبانی نمی‌شود. از JPG، PNG، WEBP یا GIF استفاده کنید."
+          };
+        }
+
+        // بررسی ساختار Base64
+        if (
+          data.length % 4 !== 0 ||
+          !/^[A-Za-z0-9+/]*={0,2}$/.test(data)
+        ) {
+          return {
+            valid: false,
+            error: "ساختار اطلاعات فایل معتبر نیست."
+          };
+        }
+
+        totalDataSize += data.length;
+
+        if (data.length > CONFIG.MAX_INLINE_DATA_BYTES) {
+          return {
+            valid: false,
+            error: "حجم فایل ضمیمه بیش از حد مجاز است."
+          };
+        }
+      }
+
+      if (part.fileData) {
+        attachmentCount++;
+
+        if (
+          !part.fileData.fileUri ||
+          !part.fileData.mimeType
+        ) {
+          return {
+            valid: false,
+            error: "اطلاعات فایل ارسالی معتبر نیست."
+          };
+        }
+      }
+    }
+  }
+
+  if (attachmentCount > CONFIG.MAX_ATTACHMENTS) {
+    return {
+      valid: false,
+      error: `حداکثر ${CONFIG.MAX_ATTACHMENTS} فایل را می‌توانید در هر درخواست ارسال کنید.`
+    };
+  }
+
+  if (totalDataSize > CONFIG.MAX_INLINE_DATA_BYTES) {
+    return {
+      valid: false,
+      error: "حجم مجموع فایل‌های ضمیمه بیش از حد مجاز است."
+    };
+  }
+
+  return {
+    valid: true,
+    count: attachmentCount
+  };
+}
+
 function unique(array) {
   return [...new Set(array.filter(Boolean))];
 }
@@ -114,6 +228,15 @@ function unique(array) {
 // ======================================================
 
 async function getUserStatusAndQuota(request, env) {
+
+  // بررسی در دسترس بودن KV
+  if (!env.ANANAS_KV) {
+    return {
+      error: "سرویس سهمیه‌بندی آناناس در دسترس نیست.",
+      status: 503
+    };
+  }
+
   const userToken = (
     request.headers.get("X-User-Token") || ""
   ).trim();
@@ -125,14 +248,8 @@ async function getUserStatusAndQuota(request, env) {
   let isPro = false;
   let limitText = CONFIG.FREE_LIMIT;
 
+  // بررسی اعتبار کد فعال‌سازی کاربران ویژه
   if (userToken) {
-    if (!env.ANANAS_KV) {
-      return {
-        error: "سیستم احراز هویت در دسترس نیست.",
-        status: 503
-      };
-    }
-
     const tokenData = await env.ANANAS_KV.get(userToken);
 
     if (!tokenData) {
@@ -146,24 +263,30 @@ async function getUserStatusAndQuota(request, env) {
     limitText = CONFIG.PRO_LIMIT;
   }
 
+  // تعیین تاریخ روز بر اساس ساعت تهران
   const today = getTodayTehran();
 
+  // ساخت کلید ذخیره سهمیه کاربر
   const storageKey =
     `usage_${isPro ? "pro_" : "device_"}${isPro ? userToken : deviceUUID}_${today}`;
 
   let usedText = 0;
 
-  if (env.ANANAS_KV) {
-    try {
-      const raw = await env.ANANAS_KV.get(storageKey);
+  // خواندن میزان مصرف قبلی
+  try {
+    const raw = await env.ANANAS_KV.get(storageKey);
 
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        usedText = Math.max(0, Number(parsed.text) || 0);
-      }
-    } catch (error) {
-      console.error("QUOTA_READ_ERROR", error.message);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      usedText = Math.max(0, Number(parsed.text) || 0);
     }
+  } catch (error) {
+    console.error("QUOTA_READ_ERROR", error.message);
+
+    return {
+      error: "خطا در دریافت اطلاعات سهمیه کاربر.",
+      status: 503
+    };
   }
 
   return {
@@ -174,10 +297,9 @@ async function getUserStatusAndQuota(request, env) {
   };
 }
 
+
 async function saveQuota(context, env, quota) {
   quota.usedText++;
-
-  if (!env.ANANAS_KV) return;
 
   const operation = env.ANANAS_KV.put(
     quota.storageKey,
@@ -195,6 +317,7 @@ async function saveQuota(context, env, quota) {
     await operation;
   }
 }
+
 
 function getQuotaInfo(quota) {
   return {
@@ -816,18 +939,12 @@ async function callGemini(
 
   const payload = structuredClone(originalPayload);
 
-  const oldSystem = (
-    payload.systemInstruction?.parts || []
-  )
-    .map(part => part.text || "")
-    .filter(Boolean)
-    .join("\n");
+  // دستورالعمل سیستم فقط از بک‌اند دریافت می‌شود.
+  // systemInstruction ارسالی از فرانت‌اند پذیرفته نمی‌شود.
 
   payload.systemInstruction = {
-    ...(payload.systemInstruction || {}),
     parts: [{
-      text: systemPrompt +
-        (oldSystem ? "\n\n" + oldSystem : "")
+      text: systemPrompt
     }]
   };
 
@@ -872,7 +989,6 @@ async function callGemini(
     clearTimeout(timer);
   }
 }
-
 // ======================================================
 // 9. GROQ FALLBACK
 // ======================================================
@@ -996,15 +1112,47 @@ export async function onRequestPost(context) {
 
   try {
 
-    // دریافت درخواست
-    const body = await request.json();
+   // ==================================================
+// REQUEST VALIDATION
+// ==================================================
 
-    const {
-      model,
-      payload: originalPayload,
-      mode
-    } = body;
+// بررسی حجم درخواست بر اساس Content-Length
+const contentLength = Number(
+  request.headers.get("Content-Length") || 0
+);
 
+if (
+  contentLength > CONFIG.MAX_REQUEST_BYTES
+) {
+  return jsonResponse({
+    error: {
+      message: "حجم درخواست بیش از حد مجاز است."
+    }
+  }, 413);
+}
+
+// دریافت درخواست
+const body = await request.json();
+
+// بررسی حجم واقعی JSON دریافتی
+const actualSize = new TextEncoder().encode(
+  JSON.stringify(body)
+).length;
+
+if (actualSize > CONFIG.MAX_REQUEST_BYTES) {
+  return jsonResponse({
+    error: {
+      message: "حجم درخواست بیش از حد مجاز است."
+    }
+  }, 413);
+}
+
+const {
+  model,
+  payload: originalPayload,
+  mode
+} = body;
+    
     if (
       !originalPayload ||
       !Array.isArray(originalPayload.contents) ||
@@ -1016,6 +1164,40 @@ export async function onRequestPost(context) {
         }
       }, 400);
     }
+
+    // ==================================================
+// MODEL VALIDATION
+// ==================================================
+
+const requestedModel = String(
+  model || CONFIG.DEFAULT_MODEL
+).replace(/^models\//, "");
+
+if (
+  !CONFIG.ALLOWED_MODELS.includes(requestedModel)
+) {
+  return jsonResponse({
+    error: {
+      message: "مدل انتخاب‌شده معتبر یا مجاز نیست."
+    }
+  }, 400);
+}
+
+// ==================================================
+// ATTACHMENT VALIDATION
+// ==================================================
+
+const attachmentValidation = validateAttachments(
+  originalPayload.contents
+);
+
+if (!attachmentValidation.valid) {
+  return jsonResponse({
+    error: {
+      message: attachmentValidation.error
+    }
+  }, 400);
+}
 
     // بررسی کلید گوگل
     const geminiKey = env.GEMINI_API_KEY;
@@ -1148,9 +1330,11 @@ export async function onRequestPost(context) {
     let lastError = null;
 
     const models = unique([
-      model || CONFIG.DEFAULT_MODEL,
-      ...CONFIG.FALLBACK_MODELS
-    ]);
+  requestedModel,
+  ...CONFIG.FALLBACK_MODELS
+]).filter(modelName =>
+  CONFIG.ALLOWED_MODELS.includes(modelName)
+);
 
     for (const targetModel of models) {
       try {
