@@ -67,7 +67,7 @@
   <div><h2 class="font-bold text-lg">۴. درخواست تغییر در پروژه</h2><p class="text-xs text-gray-400 mt-1">تغییر موردنظر را به زبان طبیعی توضیح دهید.</p></div>
   <textarea id="taskInput" rows="5" class="w-full rounded-xl bg-ananas-dark border border-ananas-border p-4 text-sm leading-7 text-white outline-none focus:border-amber-400" placeholder="مثلاً: طراحی صفحه ورود را واکنش‌گرا کن، اعتبارسنجی فرم را اضافه کن و ظاهر فعلی سایت را حفظ کن..."></textarea>
   <div class="rounded-xl border border-amber-400/20 bg-amber-400/5 p-3 text-xs text-amber-100 leading-6">برای ایمنی، آناناس تغییرات را در شاخه جداگانه ایجاد می‌کند و Pull Request می‌سازد. شاخه اصلی پروژه مستقیماً تغییر نمی‌کند. فایل‌های محرمانه و GitHub Actions workflowها از ویرایش خودکار مستثنا هستند.</div>
-  <button id="applyBtn" onclick="applyChanges()" disabled class="rounded-xl bg-gradient-to-l from-amber-400 to-yellow-300 text-slate-950 font-extrabold px-6 py-3 text-sm disabled:opacity-40">اجرای درخواست و ساخت Pull Request</button>
+  <button id="applyBtn" onclick="applyChanges()" disabled class="rounded-xl bg-gradient-to-l from-amber-400 to-yellow-300 text-slate-950 font-extrabold px-6 py-3 text-sm disabled:opacity-40">تهیه پیش‌نمایش تغییرات</button>
   <div id="workStatus" class="hidden rounded-xl bg-black/20 border border-ananas-border p-4 text-sm text-gray-300 leading-7"></div>
  </section>
  <section class="text-center text-[11px] text-gray-600 py-3">AnanasAI Code Agent · Powered by Gemini · GitHub API</section>
@@ -75,7 +75,7 @@
 <script>
 const userToken=localStorage.getItem("ananas_user_token")||"";
 const deviceUUID=localStorage.getItem("ananas_device_uuid")||"";
-let repositories=[],selectedRepo=null,files=[];
+let repositories=[],selectedRepo=null,files=[],pendingProposalId=null;
 const $=id=>document.getElementById(id);
 function headers(){return{"Content-Type":"application/json","X-User-Token":userToken,"X-Device-UUID":deviceUUID};}
 async function api(action,method="GET",data=null){
@@ -146,17 +146,51 @@ async function analyzeProject(){
  catch(e){showError(e.message);}
  finally{$("analyzeBtn").disabled=false;$("analyzeBtn").textContent="تحلیل ساختار پروژه";}
 }
+function renderProposalPreview(d){
+ const status=$("workStatus");
+ pendingProposalId=d.proposal_id;
+ const rows=(d.stats||[]).map(x=>'<tr class="border-t border-ananas-border"><td class="py-2 pr-2 code text-cyan-300">'+escapeHtml(x.path)+'</td><td class="py-2 text-center text-emerald-300">+'+Number(x.added||0)+'</td><td class="py-2 text-center text-red-300">-'+Number(x.deleted||0)+'</td><td class="py-2 text-center">'+(x.high_risk?'<span class="text-red-300">پرریسک</span>':'<span class="text-emerald-300">عادی</span>')+'</td></tr>').join("");
+ const snippets=(d.preview||[]).map(file=>'<div class="mt-4"><div class="text-xs font-bold text-cyan-300 mb-2">'+escapeHtml(file.path)+'</div>'+(file.edits||[]).map(edit=>'<div class="grid md:grid-cols-2 gap-2 mb-2"><div class="rounded-lg bg-red-950/30 border border-red-900/40 p-2"><div class="text-[10px] text-red-300 mb-1">قبل</div><pre class="code whitespace-pre-wrap break-all text-[11px] text-gray-300">'+escapeHtml(edit.before)+'</pre></div><div class="rounded-lg bg-emerald-950/20 border border-emerald-900/40 p-2"><div class="text-[10px] text-emerald-300 mb-1">بعد</div><pre class="code whitespace-pre-wrap break-all text-[11px] text-gray-300">'+escapeHtml(edit.after)+'</pre></div></div>').join("")+'</div>').join("");
+ status.innerHTML='<div class="font-bold text-amber-300 text-base">پیش‌نمایش تغییرات — هنوز چیزی در GitHub ثبت نشده است</div>'+
+ '<p class="mt-2">'+escapeHtml(d.summary||"")+'</p>'+
+ '<p class="mt-2 text-xs text-gray-400">'+escapeHtml(d.message||"")+' این پیش‌نمایش تا '+Number(d.expires_in_minutes||15)+' دقیقه معتبر است.</p>'+
+ '<div class="overflow-x-auto mt-3"><table class="w-full text-xs"><thead><tr class="text-gray-400"><th class="text-right py-2">فایل</th><th>افزوده</th><th>حذف</th><th>ریسک</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+ '<div class="mt-4 border-t border-ananas-border pt-3"><div class="font-bold text-sm mb-2">نمونه دقیق اصلاحات (قبل / بعد)</div>'+snippets+'</div>'+
+ (d.high_risk?'<div class="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">هشدار: این تغییرات از حد معمول بزرگ‌ترند. قبل از تأیید، فایل‌ها و تعداد خطوط حذف‌شده را بررسی کنید.</div>':'')+
+ '<div class="mt-4 flex flex-wrap gap-2"><button onclick="confirmChanges()" class="rounded-xl bg-emerald-400 text-slate-950 font-bold px-5 py-3 text-sm">تأیید تغییرات و ساخت Draft PR</button><button onclick="cancelPreview()" class="rounded-xl border border-ananas-border px-4 py-3 text-sm">لغو پیش‌نمایش</button></div>'+
+ '<p class="mt-3 text-[11px] text-gray-500">پس از تأیید نیز فقط Draft Pull Request ساخته می‌شود؛ Merge انجام نمی‌شود.</p>';
+}
+function cancelPreview(){
+ pendingProposalId=null;
+ $("workStatus").textContent="پیش‌نمایش لغو شد؛ هیچ تغییری در GitHub ثبت نشده است.";
+}
 async function applyChanges(){
  const task=$("taskInput").value.trim();if(!task)return showError("شرح تغییرات را بنویسید.");
- if(!confirm("عامل کدنویس تغییرات را در شاخه جدید ایجاد می‌کند و یک Pull Request می‌سازد. ادامه می‌دهید؟"))return;
- hideError();$("applyBtn").disabled=true;$("applyBtn").textContent="عامل کدنویس در حال کار است...";
- const status=$("workStatus");status.classList.remove("hidden");status.textContent="در حال خواندن فایل‌های پروژه و آماده‌سازی تغییرات...";
+ if(!confirm("درخواست به Gemini ارسال شود تا ابتدا فقط پیش‌نمایش تغییرات تهیه شود؟ در این مرحله هیچ فایلی در GitHub تغییر نمی‌کند."))return;
+ hideError();pendingProposalId=null;$("applyBtn").disabled=true;$("applyBtn").textContent="در حال تهیه پیش‌نمایش...";
+ const status=$("workStatus");status.classList.remove("hidden");status.textContent="در حال تحلیل درخواست و تهیه اصلاحات پیشنهادی؛ هنوز هیچ تغییری در GitHub ثبت نمی‌شود...";
  try{
   const d=await api(null,"POST",{action:"apply",repo:selectedRepo.full_name,branch:$("branchInput").value.trim(),task});
-  status.innerHTML='<div class="font-bold text-emerald-300">عملیات پایان یافت</div><p class="mt-2">'+escapeHtml(d.summary||"")+'</p>'+
-   (d.applied?'<p class="mt-2">فایل‌های تغییر یافته:</p><ul class="list-disc pr-5">'+(d.files||[]).map(x=>'<li class="code">'+escapeHtml(x)+'</li>').join("")+'</ul><a class="inline-flex mt-4 rounded-lg bg-emerald-500 text-black px-4 py-2 font-bold" target="_blank" rel="noopener" href="'+escapeHtml(d.pull_request)+'">مشاهده Pull Request در GitHub</a>':'<p class="mt-2">تغییری اعمال نشد.</p>');
+  if(d.preview_required){renderProposalPreview(d);}
+  else{status.textContent=d.summary||"تغییری پیشنهاد نشد.";}
  }catch(e){status.textContent="خطا: "+e.message;}
- finally{$("applyBtn").disabled=false;$("applyBtn").textContent="اجرای درخواست و ساخت Pull Request";}
+ finally{$("applyBtn").disabled=false;$("applyBtn").textContent="تهیه پیش‌نمایش تغییرات";}
+}
+async function confirmChanges(){
+ if(!pendingProposalId)return showError("پیش‌نمایش معتبری برای تأیید وجود ندارد.");
+ if(!confirm("تأیید نهایی: اصلاحات نمایش‌داده‌شده روی یک شاخه جدید ثبت و به‌صورت Draft Pull Request ارسال شوند؟ شاخه اصلی تغییر نمی‌کند."))return;
+ const proposalId=pendingProposalId;
+ $("applyBtn").disabled=true;
+ const status=$("workStatus");status.textContent="در حال بررسی مجدد نسخه پایه و ساخت شاخه مستقل و Draft Pull Request...";
+ try{
+  const d=await api(null,"POST",{action:"confirm",repo:selectedRepo.full_name,proposal_id:proposalId});
+  pendingProposalId=null;
+  status.innerHTML='<div class="font-bold text-emerald-300">Draft Pull Request با موفقیت ساخته شد</div><p class="mt-2">'+escapeHtml(d.summary||"")+'</p>'+
+   '<p class="mt-2 text-xs text-gray-400">فایل‌های تغییر یافته:</p><ul class="list-disc pr-5">'+(d.files||[]).map(x=>'<li class="code">'+escapeHtml(x)+'</li>').join("")+'</ul>'+
+   '<a class="inline-flex mt-4 rounded-lg bg-emerald-400 text-black px-4 py-2 font-bold" target="_blank" rel="noopener" href="'+escapeHtml(d.pull_request)+'">بررسی Draft Pull Request در GitHub</a>'+
+   '<p class="mt-3 text-xs text-amber-200">این PR هنوز Draft است و هیچ Merge خودکاری انجام نشده است.</p>';
+ }catch(e){status.textContent="خطا: "+e.message;}
+ finally{$("applyBtn").disabled=false;}
 }
 boot();
 </script>
