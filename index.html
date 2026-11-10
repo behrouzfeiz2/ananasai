@@ -1169,6 +1169,13 @@
         return;
       }
 
+      const imageMatch = !hadAttachment ? userText.match(/^(?:لطفاً\\s*)?(?:یک\\s*)?(?:تصویر|عکس)\\s*(?:بساز|تولید\\s*کن|ایجاد\\s*کن)\\s*[:：-]?\\s*([\\s\\S]+)$/i) : null;
+      if (imageMatch) {
+        if (!userToken || !(quotaState.isUltra || quotaState.tier === 'ultra' || userToken.startsWith('ULTRA-'))) currentSession.messages.push({role:'model',isError:true,text:'⚠️ تولید تصویر فقط برای کاربران Ultra فعال است.'});
+        else currentSession.messages.push({role:'model',text:'مدل تولید تصویر را انتخاب کنید.',imageWizard:{prompt:imageMatch[1].trim(),model:null,step:'model'}});
+        saveSessions(); renderMessages(); renderHistoryList(); return;
+      }
+
       const isMarketQuery = currentMode === 'chat' && !hadAttachment && (
         lowerText === 'دلار' ||
         lowerText === 'قیمت دلار' ||
@@ -1466,6 +1473,8 @@
           `;
 
         } else {
+          if (msg.imageWizard) return renderImageWizard(idx,msg.imageWizard);
+          if (msg.generatedImageUrl) return `<div class="flex justify-end"><div class="max-w-[90%] rounded-2xl bg-ananas-card border border-fuchsia-500/30 p-4 space-y-3"><b class="text-fuchsia-200">🖼️ تصویر آماده است</b><img src="${escapeHtml(msg.generatedImageUrl)}" class="w-full rounded-xl" alt="تصویر تولیدشده"><a href="${escapeHtml(msg.generatedImageUrl)}" target="_blank" rel="noopener" class="inline-block px-4 py-2 rounded-lg bg-fuchsia-500 text-white text-xs">⬇ دریافت تصویر</a><p class="text-[10px] text-gray-500">لینک خروجی آلفا موقت است؛ تصویر را دانلود کنید.</p></div></div>`;
           if (msg.ttsWizard) return renderTtsWizard(idx, msg.ttsWizard);
           const parsedMd = renderAssistantContent(msg.text || '');
           const playableAudioUrl = (msg.audioId && audioObjectUrls[msg.audioId]) || msg.audioUrl;
@@ -1550,6 +1559,30 @@
       }
       return '<div class="flex justify-end"><div class="rounded-xl bg-ananas-card border border-fuchsia-500/30 p-4 text-sm text-fuchsia-200">در حال ساخت فایل صوتی...</div></div>';
     }
+    function renderImageWizard(idx,w){
+      if(w.step==='model')return `<div class="flex justify-end"><div class="max-w-[90%] rounded-xl bg-ananas-card border border-fuchsia-500/30 p-4 space-y-3"><b class="text-fuchsia-200">🖼️ انتخاب مدل تصویر</b><p class="text-xs text-gray-300">${escapeHtml(w.prompt)}</p><button onclick="selectImageModel(${idx},'flux-dev')" class="w-full text-right p-3 rounded-lg border border-ananas-border"><b>FLUX Dev</b><small class="block text-gray-400">جزئیات و پایبندی بیشتر به متن</small></button><button onclick="selectImageModel(${idx},'z-image')" class="w-full text-right p-3 rounded-lg border border-ananas-border"><b>Z-Image</b><small class="block text-gray-400">سریع‌تر و اقتصادی‌تر</small></button></div></div>`;
+      if(w.step==='confirm')return `<div class="flex justify-end"><div class="max-w-[90%] rounded-xl bg-ananas-card border border-fuchsia-500/30 p-4 space-y-3"><b class="text-fuchsia-200">تأیید ساخت تصویر</b><p class="text-xs">${escapeHtml(w.prompt)}</p><p class="text-xs">مدل: <b>${w.model==='flux-dev'?'FLUX Dev':'Z-Image'}</b></p><button onclick="generateImageFromWizard(${idx})" class="px-4 py-2 rounded-lg bg-fuchsia-500 text-white text-xs">تأیید و ساخت تصویر</button> <button onclick="backToImageModels(${idx})" class="px-3 py-2 rounded-lg border border-ananas-border text-xs">تغییر مدل</button></div></div>`;
+      return '<div class="flex justify-end"><div class="rounded-xl bg-ananas-card p-4 text-sm text-fuchsia-200">در حال تولید تصویر...</div></div>';
+    }
+    function getImageWizard(idx){const s=sessions.find(x=>x.id===activeSessionId),m=s&&s.messages[idx];return m&&m.imageWizard?m:null;}
+    function selectImageModel(idx,model){const m=getImageWizard(idx);if(!m||!['flux-dev','z-image'].includes(model))return;m.imageWizard.model=model;m.imageWizard.step='confirm';saveSessions();renderMessages();}
+    function backToImageModels(idx){const m=getImageWizard(idx);if(!m)return;m.imageWizard.step='model';saveSessions();renderMessages();}
+    async function generateImageFromWizard(idx){
+      const m=getImageWizard(idx);if(!m||isGenerating)return;
+      if(!userToken||!(quotaState.isUltra||quotaState.tier==='ultra'||userToken.startsWith('ULTRA-'))){m.imageWizard=null;m.isError=true;m.text='⚠️ فقط کاربران Ultra مجاز هستند.';saveSessions();renderMessages();return;}
+      const w=m.imageWizard;isGenerating=true;w.step='generating';saveSessions();renderMessages();
+      try{
+        const headers={'Content-Type':'application/json','X-User-Token':userToken};
+        const start=await fetch('/api/image',{method:'POST',headers,body:JSON.stringify({prompt:w.prompt,model:w.model,width:1024,height:1024})});
+        const job=await start.json();if(!start.ok||!job.success)throw new Error(job.error||'ثبت درخواست تصویر ناموفق بود.');
+        let url=null;
+        for(let i=0;i<300;i++){await new Promise(r=>setTimeout(r,3000));const res=await fetch('/api/image?id='+encodeURIComponent(job.id),{headers:{'X-User-Token':userToken}});const data=await res.json();if(!res.ok)throw new Error(data.error||'خطا در دریافت وضعیت تصویر.');if(data.status==='ready'&&data.output?.url){url=data.output.url;break;}if(data.status==='failed')throw new Error(data.error?.message||'تولید تصویر ناموفق بود.');}
+        if(!url)throw new Error('زمان انتظار تولید تصویر به پایان رسید.');
+        m.imageWizard=null;m.text='🖼️ تصویر با موفقیت تولید شد.';m.generatedImageUrl=url;
+      }catch(e){m.imageWizard=null;m.isError=true;m.text='⚠️ '+e.message;}
+      finally{isGenerating=false;saveSessions();renderMessages();renderHistoryList();}
+    }
+
     function getTtsWizardMessage(idx) { const s=sessions.find(x=>x.id===activeSessionId); const m=s&&s.messages[idx]; return m&&m.ttsWizard?m:null; }
     function selectTtsSpeaker(idx,id) { const m=getTtsWizardMessage(idx); if(!m||!TTS_SPEAKERS.some(x=>x[0]===id))return; m.ttsWizard.speaker=id; m.ttsWizard.step='tone'; saveSessions(); renderMessages(); }
     function selectTtsTone(idx,id) { const m=getTtsWizardMessage(idx),x=TTS_TONES.find(y=>y[0]===id); if(!m||!x)return; m.ttsWizard.tone=x[2]; m.ttsWizard.step='confirm'; saveSessions(); renderMessages(); }
