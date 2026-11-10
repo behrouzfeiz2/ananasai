@@ -110,7 +110,7 @@ export async function onRequest(context) {
 
       if (key.name.startsWith('PAY-')) {
         payments.push(parsed);
-      } else if (key.name.startsWith('PRO-')) {
+      } else if ((key.name.startsWith('PRO-') || key.name.startsWith('ULTRA-'))) {
         tokens.push({ name: key.name, data: parsed });
       }
     }
@@ -147,7 +147,7 @@ export async function onRequest(context) {
       const tokenName = body.token.trim();
       const tokenData = {
         created: Date.now(),
-        note: body.note || ''
+        note: body.note || '', tier: body.tier === 'ultra' || tokenName.startsWith('ULTRA-') ? 'ultra' : 'pro'
       };
       await kv.put(tokenName, JSON.stringify(tokenData));
       return new Response(JSON.stringify({ ok: true }), {
