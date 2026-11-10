@@ -12,8 +12,9 @@ const corsHeaders = {
 // ======================================================
 
 const CONFIG = {
-  FREE_LIMIT: 10,
+  FREE_LIMIT: 5,
   PRO_LIMIT: 100,
+  ULTRA_LIMIT: 150,
 
   DEFAULT_MODEL: "gemini-3.8-flash",
 
@@ -246,6 +247,8 @@ async function getUserStatusAndQuota(request, env) {
   ).trim();
 
   let isPro = false;
+  let isUltra = false;
+  let tier = "free";
   let limitText = CONFIG.FREE_LIMIT;
 
   // بررسی اعتبار کد فعال‌سازی کاربران ویژه
@@ -259,8 +262,9 @@ async function getUserStatusAndQuota(request, env) {
       };
     }
 
-    isPro = true;
-    limitText = CONFIG.PRO_LIMIT;
+    let parsedToken = {}; try { parsedToken = JSON.parse(tokenData); } catch {}
+    isPro = true; isUltra = parsedToken.tier === "ultra" || userToken.startsWith("ULTRA-");
+    tier = isUltra ? "ultra" : "pro"; limitText = isUltra ? CONFIG.ULTRA_LIMIT : CONFIG.PRO_LIMIT;
   }
 
   // تعیین تاریخ روز بر اساس ساعت تهران
@@ -289,12 +293,9 @@ async function getUserStatusAndQuota(request, env) {
     };
   }
 
-  return {
-    isPro,
-    limitText,
-    usedText,
-    storageKey
-  };
+  const audioKey = isUltra ? `tts_ultra_${userToken}_${today}` : null;
+  let audioUsed = 0; if (audioKey) { try { audioUsed = Number(JSON.parse(await env.ANANAS_KV.get(audioKey) || "{}").used) || 0; } catch {} }
+  return { isPro, isUltra, tier, limitText, usedText, storageKey, audioUsed };
 }
 
 
@@ -321,9 +322,7 @@ async function saveQuota(context, env, quota) {
 
 function getQuotaInfo(quota) {
   return {
-    isPro: quota.isPro,
-    used: quota.usedText,
-    limit: quota.limitText
+    isPro: quota.isPro, isUltra: Boolean(quota.isUltra), tier: quota.tier || (quota.isPro ? "pro" : "free"), used: quota.usedText, limit: quota.limitText, audioUsed: quota.audioUsed || 0, audioLimit: quota.isUltra ? 5 : 0
   };
 }
 
