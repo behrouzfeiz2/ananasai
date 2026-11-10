@@ -497,21 +497,8 @@
     <div id="messagesContainer" class="flex-1 overflow-y-auto px-4 lg:px-8 py-6 space-y-6">
 
       <div id="welcomeScreen" class="max-w-2xl mx-auto text-center py-10 sm:py-16 space-y-6">
-        <div class="relative mx-auto w-20 h-20 flex items-center justify-center">
-          <div class="absolute inset-0 rounded-full bg-ananas-500/20 blur-xl pineapple-glow"></div>
-          <div class="relative w-16 h-16 rounded-3xl bg-ananas-card border border-ananas-500/40 flex items-center justify-center text-4xl shadow-xl">
-            🍍
-          </div>
-        </div>
-
-        <div class="space-y-2">
-          <h2 class="text-2xl sm:text-3xl font-extrabold text-white">
-            سلام! به هوش مصنوعی <span class="text-ananas-400">آناناس</span> خوش آمدید
-          </h2>
-
-          <p class="text-sm text-gray-400 max-w-md mx-auto leading-relaxed">
-            دستیار هوشمند شما برای تولید محتوا و کدنویسی پیشرفته
-          </p>
+        <div class="pt-2">
+          <h2 class="text-2xl sm:text-3xl font-bold text-white">از آناناس بپرس</h2>
         </div>
 
         <!-- پیشنهادهای آماده گفتگو -->
@@ -556,13 +543,26 @@
 
         <form onsubmit="handleSubmit(event)" class="relative flex items-end gap-2 bg-ananas-card border border-ananas-border focus-within:border-ananas-500/70 rounded-2xl p-2">
 
-          <input type="file" id="fileInput" accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.bmp,.heic,.heif,.txt,.js,.py,.html,.css,.json,.pdf,.php,.sql,.cs,.cpp,.java,.ts,.md" class="absolute w-px h-px opacity-0 overflow-hidden" onchange="handleFileSelect(event)" />
+          <input type="file" id="fileInput" accept=".txt,.js,.py,.html,.css,.json,.pdf,.php,.sql,.cs,.cpp,.java,.ts,.md,.doc,.docx,.xls,.xlsx,.csv,.zip" class="hidden" onchange="handleFileSelect(event)" />
+          <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="handleFileSelect(event)" />
+          <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="handleFileSelect(event)" />
 
-          <button type="button" onclick="triggerAttachmentClick()" title="پیوست فایل و بررسی کد (ویژه حساب پرو)" class="p-2 rounded-xl text-gray-400 hover:text-ananas-400 hover:bg-ananas-dark/60 transition shrink-0 relative">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
-            </svg>
-          </button>
+          <div class="relative shrink-0">
+            <button type="button" id="attachmentMenuButton" onclick="toggleAttachmentMenu(event)" aria-label="افزودن پیوست" aria-expanded="false" title="افزودن پیوست" class="w-10 h-10 rounded-full border border-[#555] bg-[#292929] text-white hover:bg-[#383838] hover:border-white transition flex items-center justify-center">
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+            <div id="attachmentMenu" class="hidden absolute bottom-full right-0 mb-2 w-52 rounded-2xl border border-[#454545] bg-[#202020] p-1.5 shadow-2xl z-40">
+              <button type="button" onclick="triggerAttachmentClick('file')" class="w-full flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-white hover:bg-[#383838] text-right">
+                <span class="w-8 h-8 rounded-lg bg-[#333] flex items-center justify-center text-lg">📎</span><span>فایل</span>
+              </button>
+              <button type="button" onclick="triggerAttachmentClick('image')" class="w-full flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-white hover:bg-[#383838] text-right">
+                <span class="w-8 h-8 rounded-lg bg-[#333] flex items-center justify-center text-lg">🖼️</span><span>عکس</span>
+              </button>
+              <button type="button" onclick="triggerAttachmentClick('camera')" class="w-full flex items-center gap-3 rounded-xl px-3 py-3 text-sm text-white hover:bg-[#383838] text-right">
+                <span class="w-8 h-8 rounded-lg bg-[#333] flex items-center justify-center text-lg">📷</span><span>دوربین</span>
+              </button>
+            </div>
+          </div>
 
           <button type="button" id="micBtn" onclick="toggleSpeechRecognition()" title="تایپ صوتی" class="p-2 rounded-xl text-gray-400 hover:text-ananas-400 hover:bg-ananas-dark/60 transition shrink-0 relative">
             <svg id="micIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1015,13 +1015,32 @@
       handleSubmit();
     }
 
-    function triggerAttachmentClick() {
+    function toggleAttachmentMenu(event) {
+      if (event) event.stopPropagation();
+      const menu = document.getElementById('attachmentMenu');
+      const button = document.getElementById('attachmentMenuButton');
+      const willOpen = menu.classList.contains('hidden');
+      menu.classList.toggle('hidden', !willOpen);
+      button.setAttribute('aria-expanded', String(willOpen));
+    }
+
+    function closeAttachmentMenu() {
+      const menu = document.getElementById('attachmentMenu');
+      const button = document.getElementById('attachmentMenuButton');
+      if (menu) menu.classList.add('hidden');
+      if (button) button.setAttribute('aria-expanded', 'false');
+    }
+
+    function triggerAttachmentClick(type = 'file') {
+      closeAttachmentMenu();
       if (!userToken) {
         openSettingsModal('🔒 امکان ضمیمه کردن فایل و بررسی کد فقط برای اکانت پرو فعال است.');
         return;
       }
 
-      document.getElementById('fileInput').click();
+      const inputId = type === 'image' ? 'imageInput' : (type === 'camera' ? 'cameraInput' : 'fileInput');
+      const input = document.getElementById(inputId);
+      if (input) input.click();
     }
 
     function showCoderInfoIfNeeded() {
@@ -1112,7 +1131,10 @@
 
     function removeAttachment() {
       attachedFile = null;
-      document.getElementById('fileInput').value = '';
+      ['fileInput', 'imageInput', 'cameraInput'].forEach(id => {
+        const input = document.getElementById(id);
+        if (input) input.value = '';
+      });
       document.getElementById('attachmentPreview').classList.add('hidden');
     }
 
@@ -2262,6 +2284,12 @@
       };
       reader.readAsText(file);
     }
+
+    document.addEventListener('click', (event) => {
+      const menu = document.getElementById('attachmentMenu');
+      const button = document.getElementById('attachmentMenuButton');
+      if (menu && button && !menu.contains(event.target) && !button.contains(event.target)) closeAttachmentMenu();
+    });
 
     /* Enter در همه دستگاه‌ها سطر جدید می‌سازد؛ Ctrl/Command + Enter ارسال می‌کند */
     function handleEnterKey(e) {
