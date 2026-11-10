@@ -500,15 +500,19 @@
         </div>
 
         <!-- پیشنهادهای آماده گفتگو -->
-        <div id="chatSuggestions" class="max-w-2xl mx-auto flex flex-wrap justify-center items-center gap-2 px-1 pt-2">
-          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">قیمت دلار چنده؟</button>
-          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">چطور یک بروز رسانی در زبان Rust انجام بدم؟</button>
-          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">چطور یک کیک تولد خانگی درست کنم؟</button>
-          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">در پایان نامه ام دچار مشکل شدم، راهنمایی لازم دارم؟</button>
-          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">در ترجمه متن کمک می خوام</button>
-          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">کپشن اینستاگرام برام تولید کن</button>
-          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">یک پرامپت برای تولید ویدئو لازم دارم به زبان انگلیسی</button>
-          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">موزیک متال از چه دورانی شروع شد؟</button>
+        <div id="chatSuggestions" class="max-w-3xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-3 px-1 pt-2">
+          <button type="button" data-prompt="قیمت طلا چنده؟" onclick="sendSuggestion(this)" class="chat-suggestion w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-ananas-card border border-ananas-border hover:border-emerald-500/60 hover:bg-emerald-500/5 text-gray-200 text-right text-sm transition shadow-md">
+            <span>قیمت طلا چنده؟</span><span class="shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">رایگان</span>
+          </button>
+          <button type="button" data-prompt="فایلی که ارسال کردم رو بررسی می‌کنی؟" onclick="sendSuggestion(this)" class="chat-suggestion w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-ananas-card border border-ananas-border hover:border-sky-500/60 hover:bg-sky-500/5 text-gray-200 text-right text-sm transition shadow-md">
+            <span>فایلی که ارسال کردم رو بررسی می‌کنی؟</span><span class="shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/30">پرو</span>
+          </button>
+          <button type="button" data-prompt="این متن رو به صدا با لحن تبلیغاتی تبدیل کن؟" onclick="sendSuggestion(this)" class="chat-suggestion w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-ananas-card border border-ananas-border hover:border-fuchsia-500/60 hover:bg-fuchsia-500/5 text-gray-200 text-right text-sm transition shadow-md">
+            <span>این متن رو به صدا با لحن تبلیغاتی تبدیل کن؟</span><span class="shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full bg-fuchsia-500/15 text-fuchsia-300 border border-fuchsia-500/30">الترا</span>
+          </button>
+          <button type="button" data-prompt="یک عکس می‌خوام درست کنم؟" onclick="sendSuggestion(this)" class="chat-suggestion w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-ananas-card border border-ananas-border hover:border-fuchsia-500/60 hover:bg-fuchsia-500/5 text-gray-200 text-right text-sm transition shadow-md">
+            <span>یک عکس می‌خوام درست کنم؟</span><span class="shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full bg-fuchsia-500/15 text-fuchsia-300 border border-fuchsia-500/30">الترا</span>
+          </button>
         </div>
       </div>
 
@@ -874,7 +878,7 @@
       const input = document.getElementById('promptInput');
       if (!input || !button) return;
 
-      input.value = button.textContent.trim();
+      input.value = (button.dataset.prompt || button.textContent).trim();
       autoResizeTextarea(input);
       handleSubmit();
     }
@@ -1141,7 +1145,7 @@
       const lowerText = userText.toLowerCase();
 
       // تشخیص فرمان تبدیل متن به گفتار؛ پیش از ارسال هر درخواستی به Gemini
-      const ttsCommand = /^(?:لطفاً|لطفا)?\s*(?:(?:این|یک)\s*)?(?:متن|عبارت)?\s*(?:(?:را|رو)\s*)?(?:(?:به\s*)?(?:صورت\s*)?(?:صوتی|صوت|صدا|گفتار)?\s*)?(?:تبدیل\s*(?:کن|کنید)|بخوان|بخون|بخوانید|بخونید)\s*[:：،-]?\s*([\s\S]*)$/i;
+      const ttsCommand = /^(?:لطفاً|لطفا)?\s*(?:(?:این|یک)\s*)?(?:متن|عبارت)?\s*(?:(?:را|رو)\s*)?(?:(?:به\s*)?(?:صورت\s*)?(?:صوتی|صوت|صدا|گفتار)?\s*)?(?:با\s*لحن\s*[^:：،-]+\s*)?(?:تبدیل\s*(?:کن|کنید)|بخوان|بخون|بخوانید|بخونید)\s*[:：،-]?\s*([\s\S]*)$/i;
       const ttsReverseCommand = /^(?:لطفاً|لطفا)?\s*(?:(?:این|یک)\s*)?(?:متن|عبارت)\s*(?:(?:را|رو)\s*)?(?:بخوان|بخون|بخوانید|بخونید)\s*[:：،-]?\s*([\s\S]*)$/i;
       const ttsMatch = !hadAttachment
         ? (userText.match(ttsCommand) || userText.match(ttsReverseCommand))
@@ -1169,9 +1173,10 @@
         return;
       }
 
-      const imageMatch = !hadAttachment ? userText.match(/^(?:لطفاً\s*)?(?:یک\s*)?(?:تصویر|عکس)\s*(?:بساز|تولید\s*کن|ایجاد\s*کن)\s*[:：-]?\s*([\s\S]+)$/i) : null;
+      const imageMatch = !hadAttachment ? userText.match(/^(?:لطفاً\s*)?(?:یک\s*)?(?:تصویر|عکس)\s*(?:(?:بساز|تولید\s*کن|ایجاد\s*کن)\s*[:：-]?\s*([\s\S]*)|(?:می\s*خواهم|می\s*خوام)\s*(?:درست\s*کنم|بسازم)\s*[؟?]?)$/i) : null;
       if (imageMatch) {
         if (!userToken || !(quotaState.isUltra || quotaState.tier === 'ultra' || userToken.startsWith('ULTRA-'))) currentSession.messages.push({role:'model',isError:true,text:'⚠️ تولید تصویر فقط برای کاربران Ultra فعال است.'});
+        else if (!(imageMatch[1] || '').trim()) currentSession.messages.push({role:'model',text:'حتماً! چه تصویری می‌خواهید بسازم؟ لطفاً سوژه و جزئیات تصویر را بنویسید.'});
         else currentSession.messages.push({role:'model',text:'مدل تولید تصویر را انتخاب کنید.',imageWizard:{prompt:imageMatch[1].trim(),model:null,step:'model'}});
         saveSessions(); renderMessages(); renderHistoryList(); return;
       }
