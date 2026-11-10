@@ -21,7 +21,8 @@ export async function onRequestPost(context) {
 
   try {
     const body = await request.json();
-    const { fullName, phone, senderCard, amount } = body;
+    const { fullName, phone, senderCard, amount, tier } = body;
+    const selectedTier = tier === 'ultra' ? 'ultra' : 'pro';
 
     if (!fullName || !phone || !senderCard) {
       return new Response(JSON.stringify({ error: 'اطلاعات ناقص است' }), {
@@ -36,7 +37,8 @@ export async function onRequestPost(context) {
       fullName: fullName.trim(),
       phone: phone.trim(),
       senderCard: senderCard.trim(),
-      amount: amount || '450.000 تومان',
+      amount: amount || (selectedTier === 'ultra' ? '750.000 تومان' : '450.000 تومان'),
+      tier: selectedTier,
       status: 'pending', // pending | done
       created: Date.now()
     };
