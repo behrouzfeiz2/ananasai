@@ -58,6 +58,27 @@
       overflow: hidden;
     }
 
+    /* انتخاب متن در موبایل و دسکتاپ */
+    body {
+      -webkit-user-select: text;
+      user-select: text;
+    }
+
+    .prose-ananas,
+    .prose-ananas * {
+      -webkit-user-select: text !important;
+      user-select: text !important;
+      -webkit-touch-callout: default;
+    }
+
+    .prose-ananas pre,
+    .prose-ananas pre *,
+    .prose-ananas code {
+      -webkit-user-select: text !important;
+      user-select: text !important;
+      -webkit-touch-callout: default;
+    }
+
     ::-webkit-scrollbar {
       width: 6px;
       height: 6px;
@@ -89,12 +110,13 @@
       background: #090d14;
       border: 1px solid #232f46;
       border-radius: 0.75rem;
-      padding: 1rem;
+      padding: 3rem 1rem 1rem;
       overflow-x: auto;
       direction: ltr;
       text-align: left;
       margin: 0.75rem 0;
       font-size: 0.875rem;
+      -webkit-overflow-scrolling: touch;
     }
 
     .prose-ananas code {
@@ -127,6 +149,109 @@
     .prose-ananas li {
       margin-bottom: 0.25rem;
       line-height: 1.75;
+    }
+
+    /* دکمه کپی بلوک‌های کد */
+    .ananas-code-block {
+      position: relative;
+      margin: 0.75rem 0;
+    }
+
+    .ananas-code-block pre {
+      margin: 0;
+    }
+
+    /* بلوک‌های مستقل متن مانند کپشن و پرامپت */
+    .ananas-copyable {
+      position: relative;
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      background: rgba(245, 158, 11, 0.045);
+      border-radius: 0.8rem;
+      padding: 2.7rem 0.9rem 0.75rem;
+      margin: 0.75rem 0;
+    }
+
+    .ananas-copyable > :last-child {
+      margin-bottom: 0 !important;
+    }
+
+    .ananas-copy-control {
+      position: absolute;
+      top: 7px;
+      right: 7px;
+      z-index: 5;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      min-height: 29px;
+      padding: 4px 9px;
+      border-radius: 8px;
+      background: #232f46;
+      border: 1px solid rgba(255,255,255,0.08);
+      color: #d1d5db;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      direction: rtl;
+    }
+
+    .ananas-copy-control:hover {
+      background: #37465f;
+      color: #fff;
+      border-color: rgba(245, 158, 11, 0.4);
+    }
+
+    .ananas-copy-control:active {
+      transform: scale(0.96);
+    }
+
+    .ananas-code-block .ananas-copy-control {
+      top: 8px;
+      right: 8px;
+    }
+
+    /* ابزارهای بالای پاسخ آناناس */
+    .assistant-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .assistant-tool-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      min-width: 30px;
+      height: 29px;
+      padding: 4px 7px;
+      border-radius: 8px;
+      color: #9ca3af;
+      background: transparent;
+      border: 1px solid transparent;
+      font-size: 11px;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .assistant-tool-btn:hover {
+      color: #fff;
+      background: #232f46;
+      border-color: rgba(255,255,255,0.08);
+    }
+
+    .assistant-tool-btn.speaking {
+      color: #fbbf24;
+      background: rgba(245, 158, 11, 0.12);
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    .assistant-tool-btn svg,
+    .ananas-copy-control svg {
+      width: 15px;
+      height: 15px;
+      flex-shrink: 0;
     }
 
     @keyframes pulseGlow {
@@ -181,10 +306,25 @@
         display: none !important;
       }
     }
+
+    @media (max-width: 640px) {
+      .ananas-copyable {
+        padding-top: 2.6rem;
+      }
+
+      .assistant-tool-btn {
+        min-width: 28px;
+        padding: 4px 6px;
+      }
+
+      .prose-ananas pre {
+        font-size: 12px;
+      }
+    }
   </style>
 </head>
 
-<body class="flex h-full w-full select-none md:select-auto">
+<body class="flex h-full w-full select-text">
 
   <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-30 hidden lg:hidden"></div>
 
@@ -360,37 +500,14 @@
 
         <!-- پیشنهادهای آماده گفتگو -->
         <div id="chatSuggestions" class="max-w-2xl mx-auto flex flex-wrap justify-center items-center gap-2 px-1 pt-2">
-          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">
-            قیمت دلار چنده؟
-          </button>
-
-          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">
-            چطور یک بروز رسانی در زبان Rust انجام بدم؟
-          </button>
-
-          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">
-            چطور یک کیک تولید خانگی درست کنم؟
-          </button>
-
-          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">
-            در پایان نامه ام دچار مشکل شدم، راهنمایی لازم دارم؟
-          </button>
-
-          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">
-            در ترجمه متن کمک می خوام
-          </button>
-
-          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">
-            کپشن اینستاگرام برام تولید کن
-          </button>
-
-          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">
-            یک پرامپت برای تولید ویدئو لازم دارم به زبان انگلیسی
-          </button>
-
-          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">
-            موزیک متال از چه دورانی شروع شد؟
-          </button>
+          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">قیمت دلار چنده؟</button>
+          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">چطور یک بروز رسانی در زبان Rust انجام بدم؟</button>
+          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">چطور یک کیک تولید خانگی درست کنم؟</button>
+          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">در پایان نامه ام دچار مشکل شدم، راهنمایی لازم دارم؟</button>
+          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">در ترجمه متن کمک می خوام</button>
+          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">کپشن اینستاگرام برام تولید کن</button>
+          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">یک پرامپت برای تولید ویدئو لازم دارم به زبان انگلیسی</button>
+          <button type="button" onclick="sendSuggestion(this)" class="chat-suggestion px-3 py-2 rounded-full bg-ananas-card border border-ananas-border hover:border-ananas-500/70 hover:bg-ananas-500/10 text-gray-300 hover:text-ananas-400 text-xs sm:text-sm transition shadow-md">موزیک متال از چه دورانی شروع شد؟</button>
         </div>
       </div>
 
@@ -528,6 +645,10 @@
       limit: userToken ? 100 : 10
     };
 
+    /* وضعیت بلندخوانی */
+    let activeSpeechUtterance = null;
+    let activeSpeechButton = null;
+
     window.addEventListener('DOMContentLoaded', () => {
       updateAccountStatusBadge();
       renderHistoryList();
@@ -645,7 +766,6 @@
       const hint = document.getElementById('modeHintText');
       const suggestions = document.getElementById('chatSuggestions');
 
-      // پیشنهادها فقط در حالت گفتگو نمایش داده شوند
       if (suggestions) {
         suggestions.classList.toggle('hidden', mode !== 'chat');
       }
@@ -671,12 +791,11 @@
       }
     }
 
-    // ارسال پیشنهاد آماده به عنوان پیام کاربر
     function sendSuggestion(button) {
-      if (isGenerating) return;
+      if (isGenerating || currentMode !== 'chat') return;
 
       const input = document.getElementById('promptInput');
-      if (!input) return;
+      if (!input || !button) return;
 
       input.value = button.textContent.trim();
       autoResizeTextarea(input);
@@ -732,14 +851,15 @@
 
       const file = e.target.files[0];
       if (!file) return;
-      // محدودیت حجم فایل: حداکثر ۵ مگابایت
-const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
-if (file.size > MAX_FILE_SIZE) {
-  alert('حجم فایل نباید بیشتر از ۵ مگابایت باشد.');
-  e.target.value = '';
-  return;
-}
+      const MAX_FILE_SIZE = 5 * 1024 * 1024;
+
+      if (file.size > MAX_FILE_SIZE) {
+        alert('حجم فایل نباید بیشتر از ۵ مگابایت باشد.');
+        e.target.value = '';
+        return;
+      }
+
       const reader = new FileReader();
       const isImage = file.type.startsWith('image/');
 
@@ -845,7 +965,9 @@ if (file.size > MAX_FILE_SIZE) {
       }
 
       if (inputEl) {
-        inputEl.placeholder = 'پیام خود را برای آناناس بنویسید (یا صحبت کنید)...';
+        inputEl.placeholder = currentMode === 'coder'
+          ? 'کد یا سوال برنامه‌نویسی خود را بنویسید یا فایل کد را ضمیمه کنید...'
+          : 'پیام خود را برای آناناس بنویسید (یا صحبت کنید)...';
       }
     }
 
@@ -941,8 +1063,7 @@ if (file.size > MAX_FILE_SIZE) {
 
       const lowerText = userText.toLowerCase();
 
-      // بررسی نرخ بازار فقط با تطابق دقیق کلمات و در غیر از حالت کدنویسی
-     const isMarketQuery = currentMode === 'chat' && !hadAttachment && (
+      const isMarketQuery = currentMode === 'chat' && !hadAttachment && (
         lowerText === 'دلار' ||
         lowerText === 'قیمت دلار' ||
         lowerText === 'قیمت دلار چنده؟' ||
@@ -1007,27 +1128,23 @@ if (file.size > MAX_FILE_SIZE) {
             const parts = [];
 
             if (m.text) {
-  parts.push({ text: m.text });
-}
+              parts.push({ text: m.text });
+            }
 
-// ارسال فایل پیوست به مدل
-if (m.fileData && m.fileMime) {
+            if (m.fileData && m.fileMime) {
+              if (!m.text && m.fileMime.startsWith('image/')) {
+                parts.push({
+                  text: 'لطفاً تصویر پیوست‌شده را با دقت بررسی کن و محتوای آن را توضیح بده.'
+                });
+              }
 
-  // اگر کاربر فقط تصویر فرستاده و توضیحی ننوشته،
-  // یک دستور پیش‌فرض برای تحلیل تصویر ارسال شود.
-  if (!m.text && m.fileMime.startsWith('image/')) {
-    parts.push({
-      text: 'لطفاً تصویر پیوست‌شده را با دقت بررسی کن و محتوای آن را توضیح بده.'
-    });
-  }
-
-  parts.push({
-    inlineData: {
-      mimeType: m.fileMime,
-      data: m.fileData
-    }
-  });
-}
+              parts.push({
+                inlineData: {
+                  mimeType: m.fileMime,
+                  data: m.fileData
+                }
+              });
+            }
 
             return {
               role: m.role === 'user' ? 'user' : 'model',
@@ -1066,12 +1183,146 @@ if (m.fileData && m.fileMime) {
       }
     }
 
+    /* ساخت دکمه‌های کپی برای بلوک‌های کد و متن‌های مستقل */
+    function createCopyControl(label = 'کپی') {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'ananas-copy-control';
+      button.title = label;
+      button.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="8" y="8" width="13" height="13" rx="2"></rect>
+          <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"></path>
+        </svg>
+        <span>کپی</span>
+      `;
+      return button;
+    }
+
+    function wrapCopyableNodes(nodes, root) {
+      if (!nodes || !nodes.length) return;
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'ananas-copyable';
+
+      const firstNode = nodes[0];
+      firstNode.parentNode.insertBefore(wrapper, firstNode);
+
+      nodes.forEach(node => {
+        if (node.parentNode) {
+          wrapper.appendChild(node);
+        }
+      });
+
+      const button = createCopyControl('کپی متن');
+      button.onclick = function() {
+        copyContentBlock(this);
+      };
+
+      wrapper.insertBefore(button, wrapper.firstChild);
+    }
+
+    function renderAssistantContent(rawText) {
+      const template = document.createElement('template');
+      template.innerHTML = marked.parse(rawText || '');
+
+      const root = template.content;
+
+      /* کدها: هر pre یک دکمه کپی مستقل می‌گیرد */
+      root.querySelectorAll('pre').forEach(pre => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'ananas-code-block';
+
+        pre.parentNode.insertBefore(wrapper, pre);
+        wrapper.appendChild(pre);
+
+        const button = createCopyControl('کپی کد');
+        button.onclick = function() {
+          copyCodeBlock(this);
+        };
+
+        wrapper.insertBefore(button, pre);
+      });
+
+      /* عنوان‌هایی که معمولاً متن آماده انتشار یا کپشن را معرفی می‌کنند */
+      const copyHeadingPattern = /^(کپشن|کپشن اینستاگرام|متن آماده انتشار|متن پیشنهادی|متن نهایی|متن قابل انتشار|پرامپت|پرامپت پیشنهادی|متن تبلیغاتی|متن پست|متن استوری|متن توییت|متن شبکه اجتماعی)\s*[:：]?$/i;
+
+      const headingsAndLabels = Array.from(root.querySelectorAll('h1,h2,h3,h4,h5,h6,p'));
+
+      headingsAndLabels.forEach(marker => {
+        if (!marker.parentNode || marker.closest('.ananas-copyable')) return;
+
+        const markerText = (marker.textContent || '').trim();
+
+        /* عنوان کپشن یا پرامپت که در یک پاراگراف مستقل آمده */
+        if (marker.tagName === 'P' && copyHeadingPattern.test(markerText)) {
+          const nodes = [];
+          let next = marker.nextElementSibling;
+
+          while (
+            next &&
+            !/^H[1-6]$/.test(next.tagName) &&
+            !copyHeadingPattern.test((next.textContent || '').trim())
+          ) {
+            nodes.push(next);
+            next = next.nextElementSibling;
+          }
+
+          if (nodes.length) {
+            wrapCopyableNodes(nodes, root);
+          }
+
+          return;
+        }
+
+        /* عنوان Markdown مانند ### کپشن پیشنهادی */
+        if (/^H[1-6]$/.test(marker.tagName) && copyHeadingPattern.test(markerText.replace(/[📌✍️📝]/g, '').trim())) {
+          const nodes = [];
+          let next = marker.nextElementSibling;
+
+          while (
+            next &&
+            !/^H[1-6]$/.test(next.tagName) &&
+            !copyHeadingPattern.test((next.textContent || '').trim())
+          ) {
+            nodes.push(next);
+            next = next.nextElementSibling;
+          }
+
+          if (nodes.length) {
+            wrapCopyableNodes(nodes, root);
+          }
+        }
+      });
+
+      /* پاراگراف‌هایی که عنوان و متن کپشن در یک خط دارند */
+      root.querySelectorAll('p').forEach(p => {
+        if (p.closest('.ananas-copyable')) return;
+
+        const text = (p.textContent || '').trim();
+        const inlineLabelPattern = /^(کپشن|متن آماده انتشار|متن پیشنهادی|متن نهایی|پرامپت|متن تبلیغاتی)\s*[:：]\s*\S+/i;
+
+        if (inlineLabelPattern.test(text)) {
+          wrapCopyableNodes([p], root);
+        }
+      });
+
+      /* نقل‌قول‌ها هم به عنوان متن مستقل قابل کپی باشند */
+      root.querySelectorAll('blockquote').forEach(blockquote => {
+        if (blockquote.closest('.ananas-copyable')) return;
+        wrapCopyableNodes([blockquote], root);
+      });
+
+      return template.innerHTML;
+    }
+
     function renderMessages() {
       const welcome = document.getElementById('welcomeScreen');
       const container = document.getElementById('chatMessages');
       const currentSession = sessions.find(s => s.id === activeSessionId);
 
       if (!currentSession || currentSession.messages.length === 0) {
+        stopTextToSpeech();
         welcome.classList.remove('hidden');
         container.innerHTML = '';
 
@@ -1109,15 +1360,44 @@ if (m.fileData && m.fileMime) {
           `;
 
         } else {
-          const parsedMd = marked.parse(msg.text || '');
+          const parsedMd = renderAssistantContent(msg.text || '');
 
           return `
             <div class="flex items-start gap-3 justify-end">
               <div class="flex-1 max-w-[90%] sm:max-w-[82%] rounded-2xl rounded-tl-xs bg-ananas-card border ${msg.isError ? 'border-red-500/50' : 'border-ananas-border'} px-4 py-3.5 shadow-md">
-                <div class="flex items-center justify-between mb-1.5 pb-1.5 border-b border-ananas-border/60">
+                <div class="flex items-center justify-between mb-2 pb-1.5 border-b border-ananas-border/60">
                   <span class="text-xs font-bold text-ananas-400 flex items-center gap-1">🍍 آناناس (AnanasAI)</span>
-                  <button onclick="copyMessageText(${idx})" class="text-[11px] text-gray-400 hover:text-white transition">کپی متن</button>
+
+                  <div class="assistant-toolbar">
+                    <button
+                      type="button"
+                      onclick="speakMessage(${idx}, this)"
+                      class="assistant-tool-btn"
+                      title="خواندن پاسخ با صدای دستگاه"
+                      aria-label="خواندن پاسخ"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                      </svg>
+                    </button>
+
+                    <button
+                      type="button"
+                      onclick="copyMessageText(${idx}, this)"
+                      class="assistant-tool-btn"
+                      title="کپی کل پاسخ"
+                      aria-label="کپی کل پاسخ"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="8" y="8" width="13" height="13" rx="2"></rect>
+                        <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"></path>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
+
                 <div class="prose-ananas text-sm text-gray-200">${parsedMd}</div>
               </div>
             </div>
@@ -1160,6 +1440,7 @@ if (m.fileData && m.fileMime) {
     }
 
     function startNewChat() {
+      stopTextToSpeech();
       activeSessionId = null;
       renderMessages();
       renderHistoryList();
@@ -1170,6 +1451,7 @@ if (m.fileData && m.fileMime) {
     }
 
     function loadSession(id) {
+      stopTextToSpeech();
       activeSessionId = id;
       renderMessages();
       renderHistoryList();
@@ -1179,13 +1461,13 @@ if (m.fileData && m.fileMime) {
       }
     }
 
-    // حذف یک چت خاص
     function deleteSession(id) {
       if (!confirm('آیا از حذف این گفتگو مطمئن هستید؟')) return;
 
       sessions = sessions.filter(s => s.id !== id);
 
       if (activeSessionId === id) {
+        stopTextToSpeech();
         activeSessionId = sessions.length > 0 ? sessions[0].id : null;
         renderMessages();
       }
@@ -1194,7 +1476,6 @@ if (m.fileData && m.fileMime) {
       renderHistoryList();
     }
 
-    // پین/آن‌پین کردن چت
     function togglePinSession(id) {
       const session = sessions.find(s => s.id === id);
 
@@ -1208,6 +1489,7 @@ if (m.fileData && m.fileMime) {
     function clearAllHistory() {
       if (!confirm('آیا تمام تاریخچه گفتگوها پاک شود؟')) return;
 
+      stopTextToSpeech();
       sessions = [];
       activeSessionId = null;
 
@@ -1240,7 +1522,6 @@ if (m.fileData && m.fileMime) {
         return;
       }
 
-      // مرتب‌سازی: چت‌های پین‌شده بالا قرار بگیرند
       const sortedSessions = [...sessions].sort((a, b) => {
         if (a.isPinned && !b.isPinned) return -1;
         if (!a.isPinned && b.isPinned) return 1;
@@ -1267,15 +1548,181 @@ if (m.fileData && m.fileMime) {
       `).join('');
     }
 
-    function copyMessageText(idx) {
+    /* کپی متن با پشتیبانی از مرورگرهای قدیمی‌تر */
+    async function copyTextToClipboard(text, button) {
+      const originalHTML = button ? button.innerHTML : null;
+
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          const textarea = document.createElement('textarea');
+          textarea.value = text;
+          textarea.style.position = 'fixed';
+          textarea.style.opacity = '0';
+          textarea.style.pointerEvents = 'none';
+          document.body.appendChild(textarea);
+          textarea.focus();
+          textarea.select();
+
+          const successful = document.execCommand('copy');
+          textarea.remove();
+
+          if (!successful) {
+            throw new Error('کپی انجام نشد');
+          }
+        }
+
+        if (button) {
+          button.innerHTML = '✓ کپی شد';
+          button.classList.add('text-emerald-400');
+
+          setTimeout(() => {
+            button.innerHTML = originalHTML;
+            button.classList.remove('text-emerald-400');
+          }, 1600);
+        }
+
+      } catch (error) {
+        alert('امکان کپی خودکار وجود ندارد. متن را انتخاب و کپی کنید.');
+      }
+    }
+
+    /* کپی کل پاسخ */
+    function copyMessageText(idx, button) {
       const currentSession = sessions.find(s => s.id === activeSessionId);
 
       if (!currentSession || !currentSession.messages[idx]) return;
 
-      navigator.clipboard.writeText(currentSession.messages[idx].text || '');
+      copyTextToClipboard(currentSession.messages[idx].text || '', button);
     }
 
-    // توابع پشتیبان‌گیری (بکاپ) و بازیابی (ریستور) با یک کلیک
+    /* کپی فقط کد داخل بلوک */
+    function copyCodeBlock(button) {
+      const wrapper = button.closest('.ananas-code-block');
+      const code = wrapper ? wrapper.querySelector('pre code') : null;
+
+      if (!code) return;
+
+      copyTextToClipboard(code.textContent || '', button);
+    }
+
+    /* کپی متن داخل بلوک کپشن یا پرامپت */
+    function copyContentBlock(button) {
+      const wrapper = button.closest('.ananas-copyable');
+
+      if (!wrapper) return;
+
+      const clone = wrapper.cloneNode(true);
+      clone.querySelectorAll('.ananas-copy-control').forEach(el => el.remove());
+
+      const text = clone.innerText || clone.textContent || '';
+      copyTextToClipboard(text.trim(), button);
+    }
+
+    /* تبدیل Markdown به متن ساده برای بلندخوانی */
+    function markdownToPlainText(markdown) {
+      const template = document.createElement('template');
+      template.innerHTML = marked.parse(markdown || '');
+
+      template.content.querySelectorAll('script,style').forEach(el => el.remove());
+
+      return (template.content.textContent || '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    }
+
+    /* توقف بلندخوانی */
+    function stopTextToSpeech() {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+
+      if (activeSpeechButton) {
+        activeSpeechButton.classList.remove('speaking');
+        activeSpeechButton.title = 'خواندن پاسخ با صدای دستگاه';
+        activeSpeechButton.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+          </svg>
+        `;
+      }
+
+      activeSpeechUtterance = null;
+      activeSpeechButton = null;
+    }
+
+    /* بلندخوانی پاسخ با موتور داخلی سیستم */
+    function speakMessage(idx, button) {
+      if (!('speechSynthesis' in window) || !('SpeechSynthesisUtterance' in window)) {
+        alert('مرورگر یا دستگاه شما از قابلیت بلندخوانی پشتیبانی نمی‌کند.');
+        return;
+      }
+
+      if (activeSpeechButton === button) {
+        stopTextToSpeech();
+        return;
+      }
+
+      stopTextToSpeech();
+
+      const currentSession = sessions.find(s => s.id === activeSessionId);
+      if (!currentSession || !currentSession.messages[idx]) return;
+
+      const messageText = markdownToPlainText(currentSession.messages[idx].text || '');
+
+      if (!messageText) {
+        alert('متنی برای خواندن وجود ندارد.');
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(messageText);
+
+      utterance.lang = 'fa-IR';
+      utterance.rate = 0.95;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+
+      /* انتخاب صدای فارسی در صورت نصب بودن روی دستگاه */
+      const voices = window.speechSynthesis.getVoices();
+      const persianVoice = voices.find(voice =>
+        voice.lang && voice.lang.toLowerCase().startsWith('fa')
+      );
+
+      if (persianVoice) {
+        utterance.voice = persianVoice;
+      }
+
+      activeSpeechUtterance = utterance;
+      activeSpeechButton = button;
+
+      button.classList.add('speaking');
+      button.title = 'توقف بلندخوانی';
+      button.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <rect x="6" y="5" width="4" height="14" rx="1"></rect>
+          <rect x="14" y="5" width="4" height="14" rx="1"></rect>
+        </svg>
+      `;
+
+      utterance.onend = () => {
+        if (activeSpeechUtterance === utterance) {
+          stopTextToSpeech();
+        }
+      };
+
+      utterance.onerror = () => {
+        if (activeSpeechUtterance === utterance) {
+          stopTextToSpeech();
+        }
+      };
+
+      window.speechSynthesis.speak(utterance);
+    }
+
+    /* توابع پشتیبان‌گیری و بازیابی */
     function exportChatsBackup() {
       if (!sessions || sessions.length === 0) {
         alert('هیچ گفتگویی برای پشتیبان‌گیری وجود ندارد.');
@@ -1333,6 +1780,8 @@ if (m.fileData && m.fileMime) {
             }
           }
 
+          stopTextToSpeech();
+
           sessions = parsedData.sessions;
           activeSessionId = sessions.length > 0 ? sessions[0].id : null;
 
@@ -1353,8 +1802,13 @@ if (m.fileData && m.fileMime) {
       reader.readAsText(file);
     }
 
+    /* Enter در همه دستگاه‌ها سطر جدید می‌سازد؛ Ctrl/Command + Enter ارسال می‌کند */
     function handleEnterKey(e) {
-      if (e.key === 'Enter' && !e.shiftKey) {
+      if (
+        e.key === 'Enter' &&
+        !e.shiftKey &&
+        (e.ctrlKey || e.metaKey)
+      ) {
         e.preventDefault();
         handleSubmit();
       }
@@ -1370,14 +1824,12 @@ if (m.fileData && m.fileMime) {
       mc.scrollTop = mc.scrollHeight;
     }
 
-    // آپدیت تابع تغییر وضعیت سایدبار برای پشتیبانی از حالت دسکتاپ
     function toggleSidebar(force) {
       const sb = document.getElementById('sidebar');
       const ov = document.getElementById('sidebarOverlay');
       const headerBtn = document.getElementById('headerSidebarBtn');
 
       if (window.innerWidth >= 1024) {
-        // تنظیمات بستن/باز کردن در دسکتاپ
         const isClosed = sb.classList.contains('desktop-sidebar-hidden');
 
         if (isClosed) {
@@ -1389,7 +1841,6 @@ if (m.fileData && m.fileMime) {
         }
 
       } else {
-        // تنظیمات کشویی استاندارد برای موبایل
         const isHidden = sb.classList.contains('translate-x-full');
         const show = typeof force === 'boolean' ? force : isHidden;
 
