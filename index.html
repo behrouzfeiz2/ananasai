@@ -642,7 +642,11 @@
     let quotaState = {
       isPro: Boolean(userToken),
       used: 0,
-      limit: userToken ? 100 : 10
+      tier: 'free',
+      isUltra: false,
+      limit: userToken ? 100 : 5,
+      audioUsed: 0,
+      audioLimit: 0
     };
 
     /* وضعیت بلندخوانی */
@@ -673,7 +677,7 @@
         if (res.status === 401 || (userToken && data && data.quota && data.quota.isPro === false)) {
           userToken = '';
           localStorage.removeItem('ananas_user_token');
-          quotaState = { isPro: false, used: 0, limit: 10 };
+          quotaState = { isPro: false, tier: 'free', isUltra: false, used: 0, limit: 5, audioUsed: 0, audioLimit: 0 };
           updateAccountStatusBadge();
           return;
         }
@@ -696,17 +700,19 @@
       const upgradeBtn = document.getElementById('upgradeProLinkBtn');
 
       const isProActive = Boolean(userToken) && quotaState.isPro !== false;
-      const limit = isProActive ? 100 : 10;
+      const isUltraActive = isProActive && (quotaState.isUltra || quotaState.tier === 'ultra');
+      const limit = Number(quotaState.limit || (isUltraActive ? 150 : isProActive ? 100 : 5));
       const used = Math.min(limit, Number(quotaState.used || 0));
       const percent = Math.min(100, Math.round((used / limit) * 100));
 
       quotaCounterText.textContent = `${used} از ${limit} پیام`;
+      if (isUltraActive && quotaState.audioLimit) quotaCounterText.textContent += ` · صوت: ${quotaState.audioUsed || 0} از ${quotaState.audioLimit}`;
       quotaProgressBar.style.width = `${percent}%`;
       quotaProgressBar.className = `h-full transition-all duration-300 ${percent >= 90 ? 'bg-red-500' : (isProActive ? 'bg-amber-400' : 'bg-ananas-500')}`;
 
       if (isProActive) {
-        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> حساب پرو (Pro)';
-        badge.className = 'flex items-center gap-1.5 text-amber-400 font-bold';
+        badge.innerHTML = isUltraActive ? '<span class="w-2 h-2 rounded-full bg-fuchsia-400 animate-pulse"></span> حساب Ultra' : '<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> حساب پرو (Pro)';
+        badge.className = isUltraActive ? 'flex items-center gap-1.5 text-fuchsia-300 font-bold' : 'flex items-center gap-1.5 text-amber-400 font-bold';
         actionBtnText.textContent = 'مدیریت کد فعال‌سازی ⚙️';
 
         if (upgradeBtn) upgradeBtn.classList.add('hidden');
@@ -1062,6 +1068,40 @@
       renderHistoryList();
 
       const lowerText = userText.toLowerCase();
+
+      // فرمان تبدیل متن به گفتار؛ فقط Ultra و بدون فراخوانی مدل زبانی
+      const ttsMatch = !hadAttachment && userText.match(/^\\s*(?:این متن را بخوان|این متن رو بخون|این متن را به صدا تبدیل کن|این متن رو به صدا تبدیل کن|متن زیر را بخوان|متن زیر رو بخون)\\s*[:：-]?\\s*([\\s\\S]*)$/i);
+      if (ttsMatch) {
+        isGenerating = true;
+        appendLoadingBubble(false, false);
+        try {
+          if (!userToken || !(quotaState.isUltra || quotaState.tier === 'ultra' || userToken.startsWith('ULTRA-'))) throw new Error('فرمان تبدیل متن به صدای حرفه‌ای فقط برای کاربران Ultra فعال است.');
+          const speechText = (ttsMatch[1] || '').trim();
+          if (!speechText) throw new Error('بعد از دستور، متن موردنظر را بنویسید. نمونه: این متن را بخوان: سلام، حال شما چطور است؟');
+          if (speechText.length > 2500) throw new Error('حداکثر طول متن برای هر بار تبدیل ۲۵۰۰ نویسه است.');
+          const headers = { 'Content-Type': 'application/json', 'X-User-Token': userToken };
+          const startResponse = await fetch('/api/tts', { method: 'POST', headers, body: JSON.stringify({ text: speechText }) });
+          const started = await startResponse.json();
+          if (!startResponse.ok || !started.success) throw new Error(started.error || 'شروع تبدیل صوت ناموفق بود.');
+          if (started.quota) { quotaState.audioUsed = started.quota.used; quotaState.audioLimit = started.quota.limit; updateAccountStatusBadge(); }
+          let audioUrl = null;
+          for (let attempt = 0; attempt < 30; attempt++) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            const pollResponse = await fetch('/api/tts?id=' + encodeURIComponent(started.id), { headers: { 'X-User-Token': userToken } });
+            const poll = await pollResponse.json();
+            if (!pollResponse.ok) throw new Error(poll.error || 'دریافت وضعیت صوت ناموفق بود.');
+            if (poll.output) { const output = poll.output; audioUrl = typeof output === 'string' ? output : (output.url || output.audio_url || output[0]?.url || null); if (audioUrl) break; }
+            if (poll.status === 'failed' || poll.status === 'error') throw new Error(poll.error?.message || 'تولید فایل صوتی ناموفق بود.');
+          }
+          if (!audioUrl) throw new Error('تولید صوت بیش از زمان انتظار طول کشید.');
+          currentSession.messages.push({ role: 'model', text: '🔊 فایل صوتی آماده شد: ' + audioUrl });
+        } catch (err) {
+          currentSession.messages.push({ role: 'model', isError: true, text: '⚠️ ' + err.message });
+        } finally {
+          removeLoadingBubble(); isGenerating = false; saveSessions(); renderMessages(); renderHistoryList();
+        }
+        return;
+      }
 
       const isMarketQuery = currentMode === 'chat' && !hadAttachment && (
         lowerText === 'دلار' ||
