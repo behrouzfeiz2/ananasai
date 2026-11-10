@@ -79,9 +79,17 @@ export async function onRequestGet({ request, env }) {
 
   const id = new URL(request.url).searchParams.get("id");
 
-  if (!id || !/^[a-zA-Z0-9-]{1,100}$/.test(id)) {
-    return reply({ error: "شناسه درخواست معتبر نیست." }, 400);
-  }
+  if (!id) {
+  return reply({
+    success: true,
+    message: "سرویس تبدیل متن به صوت آناناس فعال است.",
+    usage: "برای تولید صوت از POST /api/tts استفاده کنید."
+  });
+}
+
+if (!/^[a-zA-Z0-9-]{1,100}$/.test(id)) {
+  return reply({ error: "شناسه درخواست معتبر نیست." }, 400);
+}
 
   try {
     const response = await fetch(`${API}/generations/${id}`, {
