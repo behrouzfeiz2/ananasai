@@ -94,9 +94,9 @@
   <script>
     let pass = "";
 
-    function makeRandomCodeString() {
+    function makeRandomCodeString(tier = document.getElementById('newTokenTier')?.value || 'pro') {
       const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-      let result = 'PRO-';
+      let result = tier === 'ultra' ? 'ULTRA-' : 'PRO-';
       for (let i = 0; i < 8; i++) {
         result += chars.charAt(Math.floor(Math.random() * chars.length));
       }
@@ -104,7 +104,8 @@
     }
 
     function generateRandomCode() {
-      document.getElementById('newTokenInput').value = makeRandomCodeString();
+      const tier = document.getElementById('newTokenTier')?.value || 'pro';
+      document.getElementById('newTokenInput').value = makeRandomCodeString(tier);
     }
 
     // تغییر منطق لاگین برای پشتیبانی از کپچا و هندل کردن خطای لاکت شدن
@@ -241,6 +242,7 @@
             <div>
               <div class="flex items-center gap-2">
                 <span class="font-mono text-amber-400 font-bold text-sm tracking-wide select-all">${t.name}</span>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${(t.data.tier === 'ultra' || t.name.startsWith('ULTRA-')) ? 'bg-fuchsia-500/15 text-fuchsia-300 border border-fuchsia-500/30' : 'bg-amber-500/10 text-amber-300 border border-amber-500/20'}">${(t.data.tier === 'ultra' || t.name.startsWith('ULTRA-')) ? 'ULTRA' : 'PRO'}</span>
                 ${t.data.note ? `<span class="text-gray-300 font-normal mr-2">(${t.data.note})</span>` : ''}
               </div>
               <p class="text-[11px] text-gray-400 mt-0.5">انقضا تا: ${new Date(expireTime).toLocaleDateString('fa-IR')}</p>
@@ -254,8 +256,8 @@
       }).join('');
     }
 
-    async function issueCodeForPayment(paymentId, fullName, phone) {
-      const newCode = makeRandomCodeString();
+    async function issueCodeForPayment(paymentId, fullName, phone, tier = 'pro') {
+      const newCode = makeRandomCodeString(tier);
       const createRes = await fetch('/api/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Admin-Password': pass },

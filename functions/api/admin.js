@@ -93,27 +93,24 @@ export async function onRequest(context) {
 
   // ۱. دریافت لیست کدهای پرو + لیست درخواست‌های پرداخت (GET)
   if (request.method === 'GET') {
-    const list = await kv.list();
     const tokens = [];
     const payments = [];
-
-    for (const key of list.keys) {
-      const rawVal = await kv.get(key.name);
-      if (!rawVal) continue;
-
-      let parsed = {};
-      try {
-        parsed = JSON.parse(rawVal);
-      } catch {
-        parsed = { created: Date.now() };
+    let cursor;
+    do {
+      const page = await kv.list({ cursor, limit: 1000 });
+      for (const key of page.keys) {
+        const rawVal = await kv.get(key.name);
+        if (!rawVal) continue;
+        let parsed = {};
+        try { parsed = JSON.parse(rawVal); }
+        catch { parsed = { created: Date.now() }; }
+        if (key.name.startsWith('PAY-')) payments.push(parsed);
+        else if (key.name.startsWith('PRO-') || key.name.startsWith('ULTRA-')) {
+          tokens.push({ name: key.name, data: parsed });
+        }
       }
-
-      if (key.name.startsWith('PAY-')) {
-        payments.push(parsed);
-      } else if ((key.name.startsWith('PRO-') || key.name.startsWith('ULTRA-'))) {
-        tokens.push({ name: key.name, data: parsed });
-      }
-    }
+      cursor = page.list_complete ? undefined : page.cursor;
+    } while (cursor);
 
     payments.sort((a, b) => (b.created || 0) - (a.created || 0));
     tokens.sort((a, b) => (b.data?.created || 0) - (a.data?.created || 0));
