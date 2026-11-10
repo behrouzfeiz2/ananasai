@@ -734,7 +734,7 @@
           const card=document.createElement('div');card.className='rounded-xl border border-ananas-border bg-ananas-dark/70 p-3 space-y-2';
           const img=document.createElement('img');img.src=objectUrl;img.alt=item.name||'تصویر تولیدشده';img.className='w-full aspect-square object-cover rounded-lg bg-black';
           const title=document.createElement('p');title.className='text-xs text-gray-200 line-clamp-2';title.textContent=item.name||'تصویر تولیدشده';
-          const meta=document.createElement('p');meta.className='text-[10px] text-gray-500';meta.textContent=(item.model==='flux-dev'?'FLUX Dev':'Z-Image')+' · '+new Intl.DateTimeFormat('fa-IR',{dateStyle:'medium'}).format(new Date(item.createdAt))+' · '+Math.round((item.size||0)/1024)+' KB';
+          const meta=document.createElement('p');meta.className='text-[10px] text-gray-500';meta.textContent=(item.model==='flux-dev'?'FLUX Dev':item.model==='qwen-image-edit'?'Qwen Image Edit':'Z-Image')+' · '+new Intl.DateTimeFormat('fa-IR',{dateStyle:'medium'}).format(new Date(item.createdAt))+' · '+Math.round((item.size||0)/1024)+' KB';
           const actions=document.createElement('div');actions.className='flex items-center gap-2';
           const download=document.createElement('a');download.href=objectUrl;download.download='AnanasAI-'+item.id+'.'+(item.contentType==='image/jpeg'?'jpg':item.contentType==='image/webp'?'webp':'png');download.className='flex-1 text-center px-3 py-2 rounded-lg bg-fuchsia-500 text-white text-xs';download.textContent='⬇ دانلود';
           const del=document.createElement('button');del.className='px-3 py-2 rounded-lg border border-red-500/30 text-red-300 text-xs';del.textContent='حذف';del.onclick=()=>deleteImageFromLibrary(item.id);
@@ -1226,6 +1226,15 @@
       const hasImageSubject = /(?:عکس|تصویر|لوگو|پوستر|بنر|تصویرسازی|آواتار|کاور|والپیپر)/i.test(imageCommandText);
       const hasImageCreationIntent = /(?:بساز(?:م|ید)?|درست\s*کن(?:م|ید)?|طراحی\s*کن(?:م|ید)?|تولید\s*کن(?:م|ید)?|ایجاد\s*کن(?:م|ید)?|می\s*(?:خواهم|خوام)|می\s*خواستم)/i.test(imageCommandText);
       const imageRequestIsGeneric = /^(?:لطفا\s*)?(?:(?:من\s*)?(?:یک\s*)?(?:عکس|تصویر)\s*(?:(?:می\s*(?:خواهم|خوام))(?:\s*(?:درست\s*کنم|بسازم))?|(?:درست\s*کنم|بسازم|بساز|تولید\s*کن|ایجاد\s*کن))|(?:می\s*(?:خواهم|خوام)\s*)?(?:یک\s*)?(?:عکس|تصویر)\s*(?:بساز|درست\s*کن|تولید\s*کن|ایجاد\s*کن))\s*[؟?.!]*$/i.test(imageCommandText);
+      const attachedImageForEdit = hadAttachment && Boolean(userMsg.fileMime && userMsg.fileMime.startsWith('image/')) && Boolean(userMsg.fileData);
+      const isImageEditRequest = attachedImageForEdit && /(?:موکاپ|ماکاپ|ویرایش|تغییر|پس\\s*زمینه|پسزمینه|تبدیل|سه\\s*بعدی|3d|رندر|بازطراحی|طراحی|درست\\s*کن|بساز|تولید)/i.test(imageCommandText);
+      if (isImageEditRequest) {
+        const editPrompt = userText.trim() || 'تصویر ضمیمه‌شده را به یک موکاپ سه‌بعدی حرفه‌ای تبدیل کن و جزئیات اصلی محصول، نوشته‌ها، لوگو و رنگ‌ها را حفظ کن.';
+        if (!userToken || !(quotaState.isUltra || quotaState.tier === 'ultra' || userToken.startsWith('ULTRA-'))) currentSession.messages.push({role:'model',isError:true,text:'⚠️ ویرایش تصویر فقط برای کاربران Ultra فعال است.'});
+        else currentSession.messages.push({role:'model',text:'تصویر ضمیمه‌شده آماده ویرایش است. مدل Qwen Image Edit برای حفظ و تغییر تصویر مرجع انتخاب شده است.',imageWizard:{prompt:editPrompt,model:'qwen-image-edit',step:'confirm',hasReference:true}});
+        saveSessions(); renderMessages(); renderHistoryList(); return;
+      }
+
       const isImageGenerationRequest = !hadAttachment && hasImageSubject && hasImageCreationIntent;
       if (isImageGenerationRequest) {
         // متن کامل کاربر حفظ می‌شود تا نام برند، نوع طراحی و جزئیات درخواست از بین نرود.
@@ -1621,11 +1630,11 @@
     }
     function renderImageWizard(idx,w){
       if(w.step==='model')return `<div class="flex justify-end"><div class="max-w-[90%] rounded-xl bg-ananas-card border border-fuchsia-500/30 p-4 space-y-3"><b class="text-fuchsia-200">🖼️ انتخاب مدل تصویر</b><p class="text-xs text-gray-300">${escapeHtml(w.prompt)}</p><button onclick="selectImageModel(${idx},'flux-dev')" class="w-full text-right p-3 rounded-lg border border-ananas-border"><b>FLUX Dev</b><small class="block text-gray-400">جزئیات و پایبندی بیشتر به متن</small></button><button onclick="selectImageModel(${idx},'z-image')" class="w-full text-right p-3 rounded-lg border border-ananas-border"><b>Z-Image</b><small class="block text-gray-400">سریع‌تر و اقتصادی‌تر</small></button></div></div>`;
-      if(w.step==='confirm')return `<div class="flex justify-end"><div class="max-w-[90%] rounded-xl bg-ananas-card border border-fuchsia-500/30 p-4 space-y-3"><b class="text-fuchsia-200">تأیید ساخت تصویر</b><p class="text-xs">${escapeHtml(w.prompt)}</p><p class="text-xs">مدل: <b>${w.model==='flux-dev'?'FLUX Dev':'Z-Image'}</b></p><button onclick="generateImageFromWizard(${idx})" class="px-4 py-2 rounded-lg bg-fuchsia-500 text-white text-xs">تأیید و ساخت تصویر</button> <button onclick="backToImageModels(${idx})" class="px-3 py-2 rounded-lg border border-ananas-border text-xs">تغییر مدل</button></div></div>`;
+      if(w.step==='confirm')return `<div class="flex justify-end"><div class="max-w-[90%] rounded-xl bg-ananas-card border border-fuchsia-500/30 p-4 space-y-3"><b class="text-fuchsia-200">${w.hasReference?'تأیید ویرایش تصویر ضمیمه‌شده':'تأیید ساخت تصویر'}</b><p class="text-xs">${escapeHtml(w.prompt)}</p><p class="text-xs">مدل: <b>${w.model==='qwen-image-edit'?'Qwen Image Edit':w.model==='flux-dev'?'FLUX Dev':'Z-Image'}</b></p>${w.hasReference?'<p class="text-[11px] text-emerald-300">تصویر اصلی به‌عنوان مرجع حفظ می‌شود. درخواست ویرایش جزو سهمیه روزانه ۵ تصویر است.</p>':''}<button onclick="generateImageFromWizard(${idx})" class="px-4 py-2 rounded-lg bg-fuchsia-500 text-white text-xs">تأیید و شروع ${w.hasReference?'ویرایش':'ساخت تصویر'}</button> ${w.hasReference?'':'<button onclick="backToImageModels('+idx+')" class="px-3 py-2 rounded-lg border border-ananas-border text-xs">تغییر مدل</button>'}</div></div>`;
       return '<div class="flex justify-end"><div class="rounded-xl bg-ananas-card p-4 text-sm text-fuchsia-200">در حال تولید تصویر...</div></div>';
     }
     function getImageWizard(idx){const s=sessions.find(x=>x.id===activeSessionId),m=s&&s.messages[idx];return m&&m.imageWizard?m:null;}
-    function selectImageModel(idx,model){const m=getImageWizard(idx);if(!m||!['flux-dev','z-image'].includes(model))return;m.imageWizard.model=model;m.imageWizard.step='confirm';saveSessions();renderMessages();}
+    function selectImageModel(idx,model){const m=getImageWizard(idx);if(!m||!['flux-dev','z-image'].includes(model)||m.imageWizard.hasReference)return;m.imageWizard.model=model;m.imageWizard.step='confirm';saveSessions();renderMessages();}
     function backToImageModels(idx){const m=getImageWizard(idx);if(!m)return;m.imageWizard.step='model';saveSessions();renderMessages();}
     async function generateImageFromWizard(idx){
       const m=getImageWizard(idx);if(!m||isGenerating)return;
@@ -1633,7 +1642,16 @@
       const w=m.imageWizard;isGenerating=true;w.step='generating';saveSessions();renderMessages();
       try{
         const headers={'Content-Type':'application/json','X-User-Token':userToken};
-        const start=await fetch('/api/image',{method:'POST',headers,body:JSON.stringify({prompt:w.prompt,model:w.model,width:1024,height:1024})});
+        let referenceId=null;
+        if(w.hasReference){
+          const session=sessions.find(x=>x.id===activeSessionId);
+          const sourceMessage=session&&session.messages.slice(0,idx).reverse().find(x=>x.role==='user'&&x.fileData&&x.fileMime&&x.fileMime.startsWith('image/'));
+          if(!sourceMessage)throw new Error('تصویر ضمیمه‌شده در تاریخچه این گفتگو پیدا نشد؛ لطفاً تصویر را دوباره ارسال کنید.');
+          const upload=await fetch('/api/image-reference',{method:'POST',headers,body:JSON.stringify({mimeType:sourceMessage.fileMime,data:sourceMessage.fileData})});
+          const uploaded=await upload.json();if(!upload.ok||!uploaded.success)throw new Error(uploaded.error||'بارگذاری تصویر مرجع ناموفق بود.');
+          referenceId=uploaded.referenceId;
+        }
+        const start=await fetch('/api/image',{method:'POST',headers,body:JSON.stringify({prompt:w.prompt,model:w.model,width:1024,height:1024,...(referenceId?{referenceId}:{})})});
         const job=await start.json();if(!start.ok||!job.success)throw new Error(job.error||'ثبت درخواست تصویر ناموفق بود.');
         let url=null,librarySaved=false;
         for(let i=0;i<300;i++){await new Promise(r=>setTimeout(r,3000));const res=await fetch('/api/image?id='+encodeURIComponent(job.id),{headers:{'X-User-Token':userToken}});const data=await res.json();if(!res.ok)throw new Error(data.error||'خطا در دریافت وضعیت تصویر.');if(data.status==='ready'&&data.output?.url){url=data.output.url;librarySaved=Boolean(data.librarySaved);break;}if(data.status==='failed')throw new Error(data.error?.message||'تولید تصویر ناموفق بود.');}
@@ -2127,7 +2145,7 @@
       if (title) title.textContent = isUltra ? 'مدیریت اشتراک Ultra آناناس' : (userToken ? 'مدیریت اشتراک Pro آناناس' : 'مدیریت کد فعال‌سازی آناناس');
       if (benefitsTitle) benefitsTitle.innerHTML = isUltra ? '🍍 <b>مزایای اشتراک ۳۰ روزه Ultra:</b>' : '💡 <b>مزایای اشتراک ۳۰ روزه Pro:</b>';
       if (benefitsList) benefitsList.innerHTML = isUltra
-        ? '<li>تمام امکانات پلن Pro و <b>۱۵۰ پیام در روز</b></li><li><b>۵ درخواست تبدیل متن به صدای حرفه‌ای در هر روز</b></li><li><b>۵ تصویر در هر روز</b> با مدل‌های FLUX Dev و Z-Image</li><li>کتابخانه شخصی آنلاین برای مشاهده و دانلود تصاویر تولیدشده</li><li>امکان تولید پادکست صوتی</li><li>دسترسی به مدل‌های پیشرفته برنامه‌نویسی، طراحی بانک اطلاعاتی و تحلیل اطلاعات</li>'
+        ? '<li>تمام امکانات پلن Pro و <b>۱۵۰ پیام در روز</b></li><li><b>۵ درخواست تبدیل متن به صدای حرفه‌ای در هر روز</b></li><li><b>۵ تصویر در هر روز</b> با مدل‌های FLUX Dev و Z-Image و امکان ویرایش تصویر ضمیمه‌شده با Qwen Image Edit</li><li>کتابخانه شخصی آنلاین برای مشاهده و دانلود تصاویر تولیدشده</li><li>امکان تولید پادکست صوتی</li><li>دسترسی به مدل‌های پیشرفته برنامه‌نویسی، طراحی بانک اطلاعاتی و تحلیل اطلاعات</li>'
         : '<li>۱۰۰ پیام هوش مصنوعی در روز</li><li>دسترسی به مدل‌های پیشرفته برنامه‌نویسی و طراحی بانک اطلاعاتی</li><li>امکان ضمیمه و تحلیل فایل‌ها و داده‌ها</li>';
       if (benefitsBox) benefitsBox.className = 'p-3 rounded-xl space-y-1 ' + (isUltra ? 'bg-fuchsia-500/10 border border-fuchsia-500/30 text-fuchsia-200' : 'bg-amber-500/10 border border-amber-500/30 text-amber-300');
       if (benefitsFooter) benefitsFooter.innerHTML = 'برای مشاهده پلن‌ها و ارتقای اشتراک، به صفحه <a href="pro.html" class="underline font-bold text-amber-400 hover:text-amber-300 transition">پلن‌های آناناس</a> مراجعه کنید.';

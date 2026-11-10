@@ -32,10 +32,18 @@ export async function onRequestPost({request,env}){
   try{
     const b=await request.json(),prompt=String(b.prompt||"").trim(),model=String(b.model||"");
     if(!prompt||prompt.length>4000)return out({error:"متن تصویر الزامی است (حداکثر ۴۰۰۰ نویسه)."},400);
-    if(!["flux-dev","z-image"].includes(model))return out({error:"مدل نامعتبر است."},400);
+    if(!["flux-dev","z-image","qwen-image-edit"].includes(model))return out({error:"مدل نامعتبر است."},400);
+    let referenceUrl=null;
+    if(model==="qwen-image-edit"){
+      const referenceId=String(b.referenceId||"");
+      if(!/^[a-f0-9-]{36}$/i.test(referenceId))return out({error:"تصویر مرجع ارسال نشده یا شناسه آن نامعتبر است."},400);
+      const ref=await env.ANANAS_KV.getWithMetadata("imgref_"+referenceId,"arrayBuffer");
+      if(!ref||!ref.value||!ref.metadata||ref.metadata.owner!==await tokenHash(u.token))return out({error:"تصویر مرجع منقضی شده یا در دسترس نیست؛ لطفاً دوباره تصویر را ضمیمه کنید."},410);
+      referenceUrl=new URL("/api/image-reference?id="+encodeURIComponent(referenceId),request.url).toString();
+    }
     const q=JSON.parse(await env.ANANAS_KV.get(u.key)||"{}"),used=Number(q.used)||0;
     if(used>=5)return out({error:"سهمیه روزانه ۵ تصویر شما تمام شده است.",quota:{used,limit:5}},429);
-    const r=await fetch(API+"/generations",{method:"POST",headers:{Authorization:"Bearer "+env.ALPHA_KEY,"Content-Type":"application/json"},body:JSON.stringify({model,prompt,width:1024,height:1024})});
+    const r=await fetch(API+"/generations",{method:"POST",headers:{Authorization:"Bearer "+env.ALPHA_KEY,"Content-Type":"application/json"},body:JSON.stringify({model,prompt,width:1024,height:1024,...(referenceUrl?{image:referenceUrl}:{})})});
     const j=await r.json();if(!r.ok||j.error||!j.id)return out({error:j.error?.message||"ثبت درخواست ناموفق بود."},r.status||502);
     await env.ANANAS_KV.put(u.key,JSON.stringify({used:used+1}),{expirationTtl:172800});
     await env.ANANAS_KV.put("imagejob_"+j.id,JSON.stringify({token:u.token,key:u.key,released:false,prompt,model}),{expirationTtl:86400});
