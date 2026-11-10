@@ -1075,7 +1075,11 @@
 
       recognition.onstart = () => {
         isRecording = true;
-        micBtn.classList.add('text-red-500', 'bg-red-500/15', 'animate-pulse');
+        micBtn.classList.remove('text-gray-400');
+        micBtn.classList.add('text-red-300', 'bg-red-500/20', 'ring-2', 'ring-red-400/60', 'animate-pulse', 'px-3');
+        micBtn.setAttribute('aria-label', 'در حال گوش دادن؛ برای توقف کلیک کنید');
+        micBtn.title = 'در حال گوش دادن؛ برای توقف کلیک کنید';
+        micBtn.innerHTML = '<span class="inline-flex items-center gap-2 whitespace-nowrap"><span class="relative flex h-2.5 w-2.5"><span class="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75 animate-ping"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-400"></span></span><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M5 10a7 7 0 0 0 14 0M12 17v5m-4 0h8"></path></svg><span class="text-xs font-bold">در حال گوش دادن</span></span>';
         inputEl.placeholder = 'در حال گوش دادن... صحبت کنید...';
       };
 
@@ -1111,7 +1115,11 @@
       const inputEl = document.getElementById('promptInput');
 
       if (micBtn) {
-        micBtn.classList.remove('text-red-500', 'bg-red-500/15', 'animate-pulse');
+        micBtn.classList.remove('text-red-300', 'bg-red-500/20', 'ring-2', 'ring-red-400/60', 'animate-pulse', 'px-3');
+        micBtn.classList.add('text-gray-400');
+        micBtn.setAttribute('aria-label', 'شروع تایپ صوتی');
+        micBtn.title = 'تایپ صوتی';
+        micBtn.innerHTML = '<svg id="micIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>';
       }
 
       if (inputEl) {
@@ -1248,7 +1256,7 @@
       const hasImageCreationIntent = /(?:بساز(?:م|ید)?|درست\s*کن(?:م|ید)?|طراحی\s*کن(?:م|ید)?|تولید\s*کن(?:م|ید)?|ایجاد\s*کن(?:م|ید)?|می\s*(?:خواهم|خوام)|می\s*خواستم)/i.test(imageCommandText);
       const imageRequestIsGeneric = /^(?:لطفا\s*)?(?:(?:من\s*)?(?:یک\s*)?(?:عکس|تصویر)\s*(?:(?:می\s*(?:خواهم|خوام))(?:\s*(?:درست\s*کنم|بسازم))?|(?:درست\s*کنم|بسازم|بساز|تولید\s*کن|ایجاد\s*کن))|(?:می\s*(?:خواهم|خوام)\s*)?(?:یک\s*)?(?:عکس|تصویر)\s*(?:بساز|درست\s*کن|تولید\s*کن|ایجاد\s*کن))\s*[؟?.!]*$/i.test(imageCommandText);
       const attachedImageForEdit = hadAttachment && Boolean(userMsg.fileMime && userMsg.fileMime.startsWith('image/')) && Boolean(userMsg.fileData);
-      const isImageEditRequest = attachedImageForEdit && /(?:موکاپ|ماکاپ|ویرایش|تغییر|پس\s*زمینه|پسزمینه|تبدیل|سه\s*بعدی|3d|رندر|بازطراحی|طراحی|درست\s*کن|بساز|تولید)/i.test(imageCommandText);
+      const isImageEditRequest = attachedImageForEdit && /(?:موکاپ|ماکاپ|ویرایش|ادیت|ادیت\s*کردن|تغییر(?:\s*(?:رنگ|پس\s*زمینه|پسزمینه|اندازه|ظاهر|بافت))?|براق(?:\s*کردن)?|درخشان(?:\s*کردن)?|حذف(?:\s*(?:کردن|کن|کنید|شیء|چیز|عنصر))?|پاک(?:\s*کردن)?|برداشتن|محو(?:\s*کردن)?|تار(?:\s*کردن)?|مات(?:\s*کردن)?|بلور(?:\s*کردن)?|روتوش|اصلاح(?:\s*کردن)?|ترمیم|شارپ(?:\s*کردن)?|پس\s*زمینه|پسزمینه|تبدیل|سه\s*بعدی|3d|رندر|بازطراحی|طراحی|درست\s*کن|بساز|تولید)/i.test(imageCommandText);
       if (isImageEditRequest) {
         const editPrompt = userText.trim() || 'تصویر ضمیمه‌شده را به یک موکاپ سه‌بعدی حرفه‌ای تبدیل کن و جزئیات اصلی محصول، نوشته‌ها، لوگو و رنگ‌ها را حفظ کن.';
         if (!userToken || !(quotaState.isUltra || quotaState.tier === 'ultra' || userToken.startsWith('ULTRA-'))) currentSession.messages.push({role:'model',isError:true,text:'⚠️ ویرایش تصویر فقط برای کاربران Ultra فعال است.'});
@@ -1597,8 +1605,7 @@
 
                 <div class="prose-ananas text-sm text-gray-200">${parsedMd}</div>
                 ${audioPlayer}
-                <p class="mt-2 text-[10px] text-amber-300">این مورد ممکن است در ذخیره محلی ذخیره نشود؛ لطفاً آن را هرچه سریع‌تر دانلود کنید.</p>
-              </div>
+                </div>
             </div>
           `;
         }
