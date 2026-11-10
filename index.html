@@ -589,7 +589,7 @@
       <div class="flex items-center justify-between border-b border-ananas-border pb-3">
         <div class="flex items-center gap-2">
           <span class="text-xl">🔑</span>
-          <h3 class="font-bold text-white text-base">مدیریت اشتراک پرو آناناس</h3>
+          <h3 id="subscriptionModalTitle" class="font-bold text-white text-base">مدیریت اشتراک آناناس</h3>
         </div>
         <button onclick="closeSettingsModal()" class="text-gray-400 hover:text-white">✕</button>
       </div>
@@ -597,19 +597,19 @@
       <div class="space-y-3 text-xs leading-relaxed">
         <div id="proModalNotice" class="hidden p-2.5 rounded-xl bg-cyan-500/15 border border-cyan-500/40 text-cyan-300 font-medium"></div>
 
-        <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 space-y-1">
-          <p>💡 <b>مزایای اشتراک ۳۰ روزه پرو:</b></p>
-          <ul class="list-disc pr-4 space-y-0.5">
-            <li>ارتقای سهمیه روزانه از ۱۰ پیام به <b>۱۰۰ پیام در روز</b></li>
-            <li>دسترسی کامل به دستیار تخصصی <b>«کد نویس»</b></li>
-            <li>امکان <b>ضمیمه کردن فایل‌ها</b> و بررسی تخصصی کد و خطاها</li>
+        <div id="subscriptionBenefitsBox" class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 space-y-1">
+          <p id="subscriptionBenefitsTitle">💡 <b>مزایای اشتراک Pro:</b></p>
+          <ul id="subscriptionBenefitsList" class="list-disc pr-4 space-y-0.5">
+            <li>۱۰۰ پیام هوش مصنوعی در روز</li>
+            <li>دسترسی به مدل‌های پیشرفته برنامه‌نویسی و طراحی بانک اطلاعاتی</li>
+            <li>امکان ضمیمه و تحلیل فایل‌ها و داده‌ها</li>
           </ul>
-          <p class="pt-1">برای تهیه کد فعال‌سازی و خرید اشتراک به صفحه <a href="pro.html" class="underline font-bold text-amber-400 hover:text-amber-300 transition">خرید پرو</a> مراجعه کنید.</p>
+          <p id="subscriptionBenefitsFooter" class="pt-1">برای مشاهده پلن‌ها و ارتقای اشتراک، به صفحه <a href="pro.html" class="underline font-bold text-amber-400 hover:text-amber-300 transition">پلن‌های آناناس</a> مراجعه کنید.</p>
         </div>
 
         <div>
-          <label class="block text-gray-300 font-medium mb-1">کد فعال‌سازی پرو:</label>
-          <input id="userTokenInput" type="text" placeholder="مثلاً: PRO-XXXXX" class="w-full bg-ananas-dark border border-ananas-border rounded-xl px-3 py-2 text-white focus:outline-none focus:border-ananas-500 dir-ltr text-left font-mono" />
+          <label id="userTokenLabel" class="block text-gray-300 font-medium mb-1">کد فعال‌سازی اشتراک:</label>
+          <input id="userTokenInput" type="text" placeholder="مثلاً: PRO-XXXXX یا ULTRA-XXXXX" class="w-full bg-ananas-dark border border-ananas-border rounded-xl px-3 py-2 text-white focus:outline-none focus:border-ananas-500 dir-ltr text-left font-mono" />
         </div>
       </div>
 
@@ -1070,7 +1070,8 @@
       const lowerText = userText.toLowerCase();
 
       // فرمان تبدیل متن به گفتار؛ فقط Ultra و بدون فراخوانی مدل زبانی
-      const ttsMatch = !hadAttachment && userText.match(/^\\s*(?:این متن را بخوان|این متن رو بخون|این متن را به صدا تبدیل کن|این متن رو به صدا تبدیل کن|متن زیر را بخوان|متن زیر رو بخون)\\s*[:：-]?\\s*([\\s\\S]*)$/i);
+      const ttsMatch = !hadAttachment && userText.match(/^\\s*(?:(?:لطفاً|لطفا)\\s*)?(?:(?:این|این\s+متن|متن\s+زیر|یک\s+متن|متنی\s+را)\\s*)?(?:(?:را|رو)\\s*)?(?:(?:به\s+صورت\s+)?(?:صوتی|صوت|صدا|گفتار)\\s*)?(?:تبدیل\\s*(?:کن|کنید)|بخوان|بخون|بخوانید|بخونید|تبدیلش\\s*کن)\\s*[:：،-]?\\s*([\\s\\S]*)$/i)
+        || (!hadAttachment && userText.match(/^\\s*(?:این متن را بخوان|این متن رو بخون|متن زیر را بخوان|متن زیر رو بخون)\\s*[:：-]?\\s*([\\s\\S]*)$/i));
       if (ttsMatch) {
         isGenerating = true;
         appendLoadingBubble(false, false);
@@ -1094,7 +1095,7 @@
             if (poll.status === 'failed' || poll.status === 'error') throw new Error(poll.error?.message || 'تولید فایل صوتی ناموفق بود.');
           }
           if (!audioUrl) throw new Error('تولید صوت بیش از زمان انتظار طول کشید.');
-          currentSession.messages.push({ role: 'model', text: '🔊 فایل صوتی آماده شد: ' + audioUrl });
+          currentSession.messages.push({ role: 'model', text: '🔊 تبدیل متن به صدا با موفقیت انجام شد.', audioUrl });
         } catch (err) {
           currentSession.messages.push({ role: 'model', isError: true, text: '⚠️ ' + err.message });
         } finally {
@@ -1401,6 +1402,7 @@
 
         } else {
           const parsedMd = renderAssistantContent(msg.text || '');
+          const audioPlayer = msg.audioUrl ? `<div class="mt-3 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/10 p-3"><div class="text-xs text-fuchsia-200 mb-2">🎧 فایل صوتی آماده پخش است</div><audio controls preload="none" class="w-full" src="${escapeHtml(msg.audioUrl)}"></audio></div>` : '';
 
           return `
             <div class="flex items-start gap-3 justify-end">
@@ -1545,6 +1547,7 @@
           messages: s.messages.map(m => ({
             role: m.role,
             text: m.text,
+            audioUrl: m.audioUrl,
             isError: m.isError,
             fileName: m.fileName
           }))
@@ -1896,6 +1899,21 @@
 
     function openSettingsModal(customNotice) {
       document.getElementById('userTokenInput').value = userToken;
+      const isUltra = Boolean(userToken) && (quotaState.isUltra || quotaState.tier === 'ultra' || userToken.startsWith('ULTRA-'));
+      const title = document.getElementById('subscriptionModalTitle');
+      const benefitsTitle = document.getElementById('subscriptionBenefitsTitle');
+      const benefitsList = document.getElementById('subscriptionBenefitsList');
+      const benefitsBox = document.getElementById('subscriptionBenefitsBox');
+      const benefitsFooter = document.getElementById('subscriptionBenefitsFooter');
+      const tokenLabel = document.getElementById('userTokenLabel');
+      if (title) title.textContent = isUltra ? 'مدیریت اشتراک Ultra آناناس' : (userToken ? 'مدیریت اشتراک Pro آناناس' : 'مدیریت کد فعال‌سازی آناناس');
+      if (benefitsTitle) benefitsTitle.innerHTML = isUltra ? '🍍 <b>مزایای اشتراک ۳۰ روزه Ultra:</b>' : '💡 <b>مزایای اشتراک ۳۰ روزه Pro:</b>';
+      if (benefitsList) benefitsList.innerHTML = isUltra
+        ? '<li>تمام امکانات پلن Pro و <b>۱۵۰ پیام در روز</b></li><li><b>۵ درخواست تبدیل متن به صدای حرفه‌ای در هر روز</b></li><li>امکان تولید پادکست صوتی</li><li>دسترسی به مدل‌های پیشرفته برنامه‌نویسی، طراحی بانک اطلاعاتی و تحلیل اطلاعات</li>'
+        : '<li>۱۰۰ پیام هوش مصنوعی در روز</li><li>دسترسی به مدل‌های پیشرفته برنامه‌نویسی و طراحی بانک اطلاعاتی</li><li>امکان ضمیمه و تحلیل فایل‌ها و داده‌ها</li>';
+      if (benefitsBox) benefitsBox.className = 'p-3 rounded-xl space-y-1 ' + (isUltra ? 'bg-fuchsia-500/10 border border-fuchsia-500/30 text-fuchsia-200' : 'bg-amber-500/10 border border-amber-500/30 text-amber-300');
+      if (benefitsFooter) benefitsFooter.innerHTML = 'برای مشاهده پلن‌ها و ارتقای اشتراک، به صفحه <a href="pro.html" class="underline font-bold text-amber-400 hover:text-amber-300 transition">پلن‌های آناناس</a> مراجعه کنید.';
+      if (tokenLabel) tokenLabel.textContent = isUltra ? 'کد فعال‌سازی Ultra:' : 'کد فعال‌سازی اشتراک:';
 
       const noticeEl = document.getElementById('proModalNotice');
 
@@ -1938,8 +1956,10 @@
         return;
       }
 
+      const activatedUltra = Boolean(quotaState.isUltra || quotaState.tier === 'ultra' || userToken.startsWith('ULTRA-'));
+      updateAccountStatusBadge();
       closeSettingsModal();
-      alert('کد فعال‌سازی پرو با موفقیت اعمال شد!');
+      alert(activatedUltra ? 'کد Ultra شما با موفقیت فعال شد!' : 'کد Pro شما با موفقیت فعال شد!');
     }
 
     function removeUserToken() {
