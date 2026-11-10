@@ -191,16 +191,20 @@ async function handlePost({ request, env }) {
   try {
     const account = await getAccount(request, env);
     if (account.error) return json({ error: account.error }, account.status);
-    const linked = await getLinked(env, account.token);
-    if (!linked) return json({ error: "ابتدا GitHub را متصل کنید." }, 409);
     const contentLength = Number(request.headers.get("Content-Length") || 0);
     if (contentLength > 16000) return json({ error: "حجم درخواست بیش از حد مجاز است." }, 413);
     let body;
     try { body = await request.json(); } catch { return json({ error: "بدنه درخواست JSON معتبر نیست." }, 400); }
     if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "ساختار درخواست معتبر نیست." }, 400);
     const action = body.action, repository = body.repo;
-    if (!repoOK(repository)) return json({ error: "مخزن نامعتبر است." }, 400);
+    if (action === "disconnect") {
+      await env.ANANAS_KV.delete("github_link:" + await sha256(account.token));
+      return json({ disconnected: true });
+    }
     if (!["confirm", "analyze", "apply"].includes(action)) return json({ error: "درخواست ناشناخته است." }, 404);
+    if (!repoOK(repository)) return json({ error: "مخزن نامعتبر است." }, 400);
+    const linked = await getLinked(env, account.token);
+    if (!linked) return json({ error: "ابتدا GitHub را متصل کنید." }, 409);
 
     if (action === "confirm") {
       const proposalId = String(body.proposal_id || "");
