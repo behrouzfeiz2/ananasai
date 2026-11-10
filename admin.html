@@ -69,6 +69,7 @@
     <!-- بخش ۲: ساخت دستی کد رندوم جدید -->
     <div class="space-y-2 pt-2 border-t border-[#232f46]">
       <label class="block text-xs font-bold text-gray-300">تولید دستی کد فعال‌سازی ۳۰ روزه:</label>
+      <select id="newTokenTier" onchange="generateRandomCode()" class="w-full bg-[#0b0f17] border border-[#232f46] rounded-xl px-3 py-2 text-xs text-white"><option value="pro">اشتراک Pro</option><option value="ultra">اشتراک Ultra</option></select>
       <div class="flex flex-col sm:flex-row gap-2">
         <input id="newTokenInput" type="text" readonly placeholder="روی دکمه تولید کلیک کنید..." class="flex-1 bg-[#0b0f17] border border-[#232f46] rounded-xl px-3.5 py-2.5 text-sm text-amber-400 font-mono focus:outline-none text-left" dir="ltr">
         <input id="newTokenNote" type="text" placeholder="توضیح اختیاری (مثلاً نام یا موبایل کاربر)" class="flex-1 bg-[#0b0f17] border border-[#232f46] rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-amber-500">
@@ -170,6 +171,7 @@
 
       payEl.innerHTML = payments.map(p => {
         const dateStr = new Date(p.created || Date.now()).toLocaleString('fa-IR');
+        const planName = p.tier === 'ultra' ? 'Ultra' : 'Pro';
         const isDone = p.status === 'done';
         const statusBadge = isDone
           ? `<span class="px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold">✅ کد ارسال شد ${p.assignedToken ? `(${p.assignedToken})` : ''}</span>`
@@ -191,7 +193,7 @@
             </div>
             <div class="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end shrink-0">
               ${!isDone ? `
-                <button onclick="issueCodeForPayment('${p.id}', '${p.fullName}', '${p.phone}')" class="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-[11px] transition cursor-pointer shadow">
+                <button onclick="issueCodeForPayment('${p.id}', '${p.fullName}', '${p.phone}', '${p.tier === 'ultra' ? 'ultra' : 'pro'}')" class="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-[11px] transition cursor-pointer shadow">
                   ⚡ صدور خودکار
                 </button>
               ` : ''}
@@ -257,7 +259,7 @@
       const createRes = await fetch('/api/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Admin-Password': pass },
-        body: JSON.stringify({ token: newCode, note: `${fullName} - ${phone}` })
+        body: JSON.stringify({ token: newCode, note: `${fullName} - ${phone}`, tier })
       });
 
       if (!createRes.ok) return alert('خطا در ساخت کد پرو!');
@@ -268,7 +270,7 @@
         body: JSON.stringify({ action: 'togglePayment', id: paymentId, assignedToken: newCode })
       });
 
-      const smsText = `${fullName} عزیز، پرداخت شما تایید شد.\nکد فعال‌سازی اشتراک ۳۰ روزه آناناس پرو:\n${newCode}\nاین کد را در بخش مدیریت اشتراک پرو در محیط چت وارد نمایید.🍍`;
+      const smsText = `${fullName} عزیز، پرداخت شما تایید شد.\nکد فعال‌سازی اشتراک ۳۰ روزه آناناس ${tier === 'ultra' ? 'Ultra' : 'Pro'}:\n${newCode}\nاین کد را در بخش مدیریت اشتراک پرو در محیط چت وارد نمایید.🍍`;
       try {
         await navigator.clipboard.writeText(smsText);
         alert(`✅ کد ${newCode} ساخته شد و متن پیامک در کلیپ‌بورد کپی گردید!`);
@@ -300,19 +302,20 @@
     async function createToken() {
       const token = document.getElementById('newTokenInput').value.trim();
       const note = document.getElementById('newTokenNote').value.trim();
+      const tier = document.getElementById('newTokenTier')?.value || (token.startsWith('ULTRA-') ? 'ultra' : 'pro');
       if (!token) return alert('ابتدا یک کد رندوم تولید کنید');
       
       const res = await fetch('/api/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Admin-Password': pass },
-        body: JSON.stringify({ token, note })
+        body: JSON.stringify({ token, note, tier })
       });
       
       if (res.ok) {
         document.getElementById('newTokenNote').value = '';
         loadAdminData();
         generateRandomCode();
-        alert('کد فعال‌سازی پرو با موفقیت ساخته شد!');
+        alert(`کد فعال‌سازی ${tier === 'ultra' ? 'Ultra' : 'Pro'} با موفقیت ساخته شد!`);
       } else {
         alert('خطا در ساخت کد. لطفاً دوباره تلاش کنید.');
       }
