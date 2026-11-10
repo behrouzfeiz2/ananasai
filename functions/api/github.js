@@ -268,7 +268,7 @@ async function handlePost({ request, env }) {
         const result = applyExactEdits(source.content, change.edits, change.path);
         if (result.content.length > 180000) return json({ error: "اندازه فایل پیشنهادی از سقف ایمنی بیشتر است: " + change.path }, 422);
         const highRisk = (result.beforeLines && result.deleted / result.beforeLines > 0.25) || result.deleted > 120 || result.added + result.deleted > 260;
-        changes.push({ path: change.path, content: result.content, base_file_sha: source.sha });
+        changes.push({ path: change.path, content: result.content, base_file_sha: source.sha, preview_edits: change.edits.slice(0, 8).map(edit => ({ before: edit.find.slice(0, 500), after: edit.replace.slice(0, 500) })) });
         stats.push({ path: change.path, added: result.added, deleted: result.deleted, before_lines: result.beforeLines, after_lines: result.afterLines, high_risk: !!highRisk });
       }
       const previewId = encode64(crypto.getRandomValues(new Uint8Array(24))).replace(/[+/=]/g, "");
@@ -280,7 +280,7 @@ async function handlePost({ request, env }) {
       };
       await env.ANANAS_KV.put("github_proposal:" + await sha256(account.token) + ":" + previewId, JSON.stringify(stored), { expirationTtl: 900 });
       return json({
-        preview_required: true, proposal_id: previewId, summary, stats,
+        preview_required: true, proposal_id: previewId, summary, stats, preview: changes.map(item => ({ path: item.path, edits: item.preview_edits })),
         high_risk: stats.some(item => item.high_risk), expires_in_minutes: 15,
         message: stats.some(item => item.high_risk)
           ? "این پیشنهاد از سقف تغییر معمول عبور می‌کند؛ تعداد خطوط و فایل‌ها را با دقت بررسی کنید."
