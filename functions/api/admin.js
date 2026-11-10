@@ -86,6 +86,13 @@ export async function onRequest(context) {
   const isAuthValid = auth.ok;
 
   if (!isAuthValid) {
+    // درخواست بررسی نشست منقضی‌شده نباید به‌عنوان تلاش رمز اشتباه شمرده شود.
+    if (!request.headers.get('X-Admin-Password')) {
+      return new Response(JSON.stringify({ error: 'نشست ادمین معتبر نیست یا منقضی شده است.' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
     // ثبت تلاش ناموفق
     failData.attempts += 1;
     if (failData.attempts >= 3) {
