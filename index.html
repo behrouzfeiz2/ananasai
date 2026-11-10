@@ -1173,11 +1173,14 @@
         return;
       }
 
-      const imageMatch = !hadAttachment ? userText.match(/^(?:لطفاً\s*)?(?:یک\s*)?(?:تصویر|عکس)\s*(?:(?:بساز|تولید\s*کن|ایجاد\s*کن)\s*[:：-]?\s*([\s\S]*)|(?:می\s*خواهم|می\s*خوام)\s*(?:درست\s*کنم|بسازم)\s*[؟?]?)$/i) : null;
+      // تشخیص فرمان تولید تصویر؛ نیم‌فاصله‌های فارسی پیش از تطبیق یکسان‌سازی می‌شوند.
+      const imageCommandText = userText.replace(/[\u200c\u200f]/g, ' ');
+      const imageMatch = !hadAttachment ? imageCommandText.match(/^(?:لطفاً\s*)?(?:(?:یک\s*)?(?:تصویر|عکس)\s*(?:(?:بساز|تولید\s*کن|ایجاد\s*کن)\s*[:：-]?\s*([\s\S]*)|می\s*(?:خواهم|خوام)\s*(?:درست\s*کنم|بسازم)\s*[؟?]?)|(?:برای\s+(.+?)\s+)?(?:یک\s*)?(?:تصویر|عکس)\s*می\s*(?:خواهم|خوام)\s*[؟?]?)$/i) : null;
       if (imageMatch) {
+        const imagePrompt = (imageMatch[1] || imageMatch[2] || '').trim();
         if (!userToken || !(quotaState.isUltra || quotaState.tier === 'ultra' || userToken.startsWith('ULTRA-'))) currentSession.messages.push({role:'model',isError:true,text:'⚠️ تولید تصویر فقط برای کاربران Ultra فعال است.'});
-        else if (!(imageMatch[1] || '').trim()) currentSession.messages.push({role:'model',text:'حتماً! چه تصویری می‌خواهید بسازم؟ لطفاً سوژه و جزئیات تصویر را بنویسید.'});
-        else currentSession.messages.push({role:'model',text:'مدل تولید تصویر را انتخاب کنید.',imageWizard:{prompt:imageMatch[1].trim(),model:null,step:'model'}});
+        else if (!imagePrompt) currentSession.messages.push({role:'model',text:'حتماً! چه تصویری می‌خواهید بسازم؟ لطفاً سوژه و جزئیات تصویر را بنویسید.'});
+        else currentSession.messages.push({role:'model',text:'مدل تولید تصویر را انتخاب کنید.',imageWizard:{prompt:imagePrompt,model:null,step:'model'}});
         saveSessions(); renderMessages(); renderHistoryList(); return;
       }
 
