@@ -801,11 +801,9 @@
       hydrateMessageAudio();
       hydrateMessageImages();
 
-      if (sessions.length > 0 && sessions[0].messages && sessions[0].messages.length > 0) {
-        loadSession(sessions[0].id);
-      } else {
-        renderMessages();
-      }
+      // Always open the fresh-chat welcome screen on page load; keep history intact.
+      activeSessionId = null;
+      renderMessages();
 
       fetchQuotaFromServer();
     });
@@ -1829,8 +1827,8 @@
           </button>
 
           <div class="flex items-center gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity px-1 shrink-0">
-            <button onclick="togglePinSession('${s.id}')" class="text-gray-400 hover:text-amber-400 transition text-sm" title="${s.isPinned ? 'برداشتن سنجاق' : 'سنجاق کردن'}">
-              ${s.isPinned ? '📍' : '📌'}
+            <button onclick="togglePinSession('${s.id}')" class="w-7 h-7 inline-flex items-center justify-center rounded-full text-gray-500 hover:text-amber-300 hover:bg-white/5 transition opacity-70 hover:opacity-100" title="${s.isPinned ? 'برداشتن سنجاق' : 'سنجاق کردن'}" aria-label="${s.isPinned ? 'برداشتن سنجاق' : 'سنجاق کردن'}">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="${s.isPinned ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 5 5-4 1-4 4-1 5-2-2-5 5-1-1 5-5-2-2 5-1 4-4z"/></svg>
             </button>
 
             <button onclick="deleteSession('${s.id}')" class="text-gray-400 hover:text-red-400 transition text-sm" title="حذف گفتگو">
