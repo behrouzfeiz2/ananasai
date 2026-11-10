@@ -769,13 +769,16 @@
     const generatedImageObjectUrls = {};
     async function hydrateMessageImages(){
       const ids=[...new Set(sessions.flatMap(x=>x.messages||[]).map(m=>m.generatedImageLibraryId).filter(Boolean))];
-      if(!ids.length || !userToken || !(quotaState.isUltra || quotaState.tier==='ultra' || userToken.startsWith('ULTRA-')))return;
+      if(!ids.length || !userToken)return;
       try{
         const headers={'X-User-Token':userToken};
         const response=await fetch('/api/image-library',{headers});
         if(!response.ok)return;
         const data=await response.json();
         const available=new Set((data.items||[]).map(item=>item.id));
+        for(const id of Object.keys(generatedImageObjectUrls)){
+          if(!available.has(id)){URL.revokeObjectURL(generatedImageObjectUrls[id]);delete generatedImageObjectUrls[id];}
+        }
         for(const id of ids){
           if(!available.has(id)||generatedImageObjectUrls[id])continue;
           const file=await fetch('/api/image-library?file='+encodeURIComponent(id),{headers});
