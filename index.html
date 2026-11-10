@@ -1227,7 +1227,7 @@
       const hasImageCreationIntent = /(?:بساز(?:م|ید)?|درست\s*کن(?:م|ید)?|طراحی\s*کن(?:م|ید)?|تولید\s*کن(?:م|ید)?|ایجاد\s*کن(?:م|ید)?|می\s*(?:خواهم|خوام)|می\s*خواستم)/i.test(imageCommandText);
       const imageRequestIsGeneric = /^(?:لطفا\s*)?(?:(?:من\s*)?(?:یک\s*)?(?:عکس|تصویر)\s*(?:(?:می\s*(?:خواهم|خوام))(?:\s*(?:درست\s*کنم|بسازم))?|(?:درست\s*کنم|بسازم|بساز|تولید\s*کن|ایجاد\s*کن))|(?:می\s*(?:خواهم|خوام)\s*)?(?:یک\s*)?(?:عکس|تصویر)\s*(?:بساز|درست\s*کن|تولید\s*کن|ایجاد\s*کن))\s*[؟?.!]*$/i.test(imageCommandText);
       const attachedImageForEdit = hadAttachment && Boolean(userMsg.fileMime && userMsg.fileMime.startsWith('image/')) && Boolean(userMsg.fileData);
-      const isImageEditRequest = attachedImageForEdit && /(?:موکاپ|ماکاپ|ویرایش|تغییر|پس\s*زمینه|پسزمینه|تبدیل|سه\\s*بعدی|3d|رندر|بازطراحی|طراحی|درست\\s*کن|بساز|تولید)/i.test(imageCommandText);
+      const isImageEditRequest = attachedImageForEdit && /(?:موکاپ|ماکاپ|ویرایش|تغییر|پس\s*زمینه|پسزمینه|تبدیل|سه\s*بعدی|3d|رندر|بازطراحی|طراحی|درست\s*کن|بساز|تولید)/i.test(imageCommandText);
       if (isImageEditRequest) {
         const editPrompt = userText.trim() || 'تصویر ضمیمه‌شده را به یک موکاپ سه‌بعدی حرفه‌ای تبدیل کن و جزئیات اصلی محصول، نوشته‌ها، لوگو و رنگ‌ها را حفظ کن.';
         if (!userToken || !(quotaState.isUltra || quotaState.tier === 'ultra' || userToken.startsWith('ULTRA-'))) currentSession.messages.push({role:'model',isError:true,text:'⚠️ ویرایش تصویر فقط برای کاربران Ultra فعال است.'});
