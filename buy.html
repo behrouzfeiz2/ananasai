@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>پرداخت و ثبت سفارش اشتراک پرو | آناناس (AnanasAI)</title>
+  <title>پرداخت و ثبت سفارش اشتراک آناناس | AnanasAI</title>
   
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍍</text></svg>">
   <link rel="canonical" href="https://ananas.ai/buy" />
@@ -213,7 +213,7 @@
         <span>درگاه کارت به کارت و فعال‌سازی سریع اشتراک</span>
       </div>
       <h1 class="text-2xl sm:text-4xl font-extrabold text-white leading-tight">
-        پرداخت و ارتقا به <span class="text-ananas-400">نسخه پرو (Pro)</span>
+        پرداخت و ارتقا به <span id="selectedPlanTitle" class="text-ananas-400">اشتراک Pro</span>
       </h1>
       <p class="text-xs sm:text-sm text-gray-400 leading-relaxed">
         مبلغ اشتراک را به شماره کارت زیر واریز کرده و سپس مشخصات پرداخت خود را در فرم ثبت نمایید تا کد فعال‌سازی اختصاصی برایتان پیامک شود.
@@ -221,7 +221,7 @@
 
       <!-- بنر برجسته مبلغ قابل پرداخت -->
       <div class="inline-flex flex-wrap items-center justify-center gap-3 px-5 py-3 rounded-2xl bg-ananas-card border border-ananas-border shadow-lg">
-        <span class="text-xs sm:text-sm text-gray-300 font-medium">مبلغ قابل پرداخت جهت اشتراک پرو:</span>
+        <span class="text-xs sm:text-sm text-gray-300 font-medium">مبلغ قابل پرداخت:</span>
         <span id="paymentPrice" class="text-xl sm:text-2xl font-black text-ananas-400 tracking-tight">450.000 تومان</span>
         <button type="button" id="priceCopyBtn" onclick="copyValue('450.000 تومان', 'priceCopyBtn', 'کپی مبلغ')" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-ananas-dark border border-ananas-border text-xs font-bold text-gray-200 hover:text-ananas-400 hover:border-ananas-500/50 transition" aria-label="کپی مبلغ">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2" stroke-width="2"/><path d="M16 8V5a2 2 0 00-2-2H5a2 2 0 00-2 2v9a2 2 0 002 2h3" stroke-width="2"/></svg>
@@ -381,6 +381,16 @@
   </footer>
 
   <script>
+    const selectedPlan = new URLSearchParams(window.location.search).get('plan') === 'ultra' ? 'ultra' : 'pro';
+    const planPrice = selectedPlan === 'ultra' ? '750.000 تومان' : '450.000 تومان';
+    document.addEventListener('DOMContentLoaded', () => {
+      const title = document.getElementById('selectedPlanTitle');
+      if (title) title.textContent = selectedPlan === 'ultra' ? 'اشتراک Ultra' : 'اشتراک Pro';
+      const price = document.getElementById('paymentPrice');
+      if (price) price.textContent = planPrice;
+      const copy = document.getElementById('priceCopyBtn');
+      if (copy) copy.setAttribute('onclick', "copyValue('" + planPrice + "', 'priceCopyBtn', 'کپی مبلغ')");
+    });
     const TARGET_CARD_NUMBER = "6104337986855177";
 
     function toggleMobileMenu(show) {
@@ -459,7 +469,8 @@
             fullName, 
             phone, 
             senderCard: formattedSenderCard, 
-            amount: '450.000 تومان',
+            amount: planPrice,
+            tier: selectedPlan,
             created: Date.now()
           })
         });
