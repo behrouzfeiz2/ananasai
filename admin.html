@@ -80,16 +80,23 @@
       </div>
     </div>
 
-    <!-- بخش ۳: لیست کدهای فعال پرو -->
-    <div class="space-y-2">
-      <div class="flex items-center justify-between text-xs text-gray-400 px-1">
-        <span class="font-bold text-gray-300">🔑 کدهای فعال پرو در سیستم</span>
-        <span>وضعیت اعتبار / عملیات</span>
-      </div>
-      <div class="max-h-72 overflow-y-auto border border-[#232f46] rounded-2xl p-3 space-y-2 bg-[#0b0f17]/60" id="tokenList"></div>
+    <!-- فهرست مستقل کدهای Pro و Ultra -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <section class="space-y-2 min-w-0">
+        <div class="flex items-center justify-between text-xs text-gray-400 px-1">
+          <span class="font-bold text-amber-300">🔑 کاربران و کدهای Pro</span><span id="proTokenCount">۰ کد</span>
+        </div>
+        <div class="max-h-96 overflow-y-auto border border-amber-500/20 rounded-2xl p-3 space-y-2 bg-[#0b0f17]/60" id="proTokenList"></div>
+      </section>
+      <section class="space-y-2 min-w-0">
+        <div class="flex items-center justify-between text-xs text-gray-400 px-1">
+          <span class="font-bold text-fuchsia-300">🍍 کاربران و کدهای Ultra</span><span id="ultraTokenCount">۰ کد</span>
+        </div>
+        <div class="max-h-96 overflow-y-auto border border-fuchsia-500/20 rounded-2xl p-3 space-y-2 bg-[#0b0f17]/60" id="ultraTokenList"></div>
+      </section>
     </div>
 
-  </div>
+      </div>
 
   <script>
     let pass = "";
@@ -211,51 +218,32 @@
     }
 
     function renderTokens(tokens) {
-      const listEl = document.getElementById('tokenList');
-      if (tokens.length === 0) {
-        listEl.innerHTML = '<p class="text-xs text-gray-500 text-center py-6">هنوز کدی ساخته نشده است</p>';
-        return;
-      }
-
-      const now = Date.now();
-      const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
-
-      listEl.innerHTML = tokens.map(t => {
-        const createdTime = t.data.created || now;
-        const expireTime = createdTime + thirtyDaysMs;
-        const timeLeftMs = expireTime - now;
-        
-        let timeRemainingText = '';
-        let badgeColor = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30';
-
-        if (timeLeftMs <= 0) {
-          timeRemainingText = 'منقضی شده';
-          badgeColor = 'text-red-400 bg-red-500/10 border-red-500/30';
-        } else {
-          const daysLeft = Math.floor(timeLeftMs / (1000 * 60 * 60 * 24));
-          const hoursLeft = Math.floor((timeLeftMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-          timeRemainingText = `${daysLeft} روز و ${hoursLeft} ساعت باقی‌مانده`;
-        }
-
-        return `
-          <div class="flex items-center justify-between bg-[#151c28] border border-[#232f46] px-3.5 py-2.5 rounded-xl text-xs">
-            <div>
-              <div class="flex items-center gap-2">
-                <span class="font-mono text-amber-400 font-bold text-sm tracking-wide select-all">${t.name}</span>
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${(t.data.tier === 'ultra' || t.name.startsWith('ULTRA-')) ? 'bg-fuchsia-500/15 text-fuchsia-300 border border-fuchsia-500/30' : 'bg-amber-500/10 text-amber-300 border border-amber-500/20'}">${(t.data.tier === 'ultra' || t.name.startsWith('ULTRA-')) ? 'ULTRA' : 'PRO'}</span>
-                ${t.data.note ? `<span class="text-gray-300 font-normal mr-2">(${t.data.note})</span>` : ''}
-              </div>
-              <p class="text-[11px] text-gray-400 mt-0.5">انقضا تا: ${new Date(expireTime).toLocaleDateString('fa-IR')}</p>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="px-2.5 py-1 rounded-full border text-[11px] font-medium ${badgeColor}">${timeRemainingText}</span>
-              <button onclick="deleteKey('${t.name}')" title="حذف کد" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 transition cursor-pointer">🗑️</button>
-            </div>
-          </div>
-        `;
-      }).join('');
+      const proTokens = tokens.filter(t => !(t.data?.tier === 'ultra' || t.name.startsWith('ULTRA-')));
+      const ultraTokens = tokens.filter(t => t.data?.tier === 'ultra' || t.name.startsWith('ULTRA-'));
+      const renderList = (items, elementId, countId, emptyText) => {
+        const listEl = document.getElementById(elementId);
+        document.getElementById(countId).textContent = `${items.length.toLocaleString('fa-IR')} کد`;
+        if (!items.length) { listEl.innerHTML = `<p class="text-xs text-gray-500 text-center py-6">${emptyText}</p>`; return; }
+        const now = Date.now(), duration = 30 * 86400000;
+        listEl.innerHTML = items.map(t => {
+          const expiry = (t.data.created || now) + duration, left = expiry - now;
+          let remaining = 'منقضی شده', badge = 'text-red-400 bg-red-500/10 border-red-500/30';
+          if (left > 0) {
+            remaining = `${Math.floor(left / 86400000)} روز و ${Math.floor((left % 86400000) / 3600000)} ساعت باقی‌مانده`;
+            badge = 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30';
+          }
+          const safeName = t.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          const safeNote = String(t.data.note || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          return `<div class="flex items-center justify-between gap-2 bg-[#151c28] border border-[#232f46] px-3 py-2.5 rounded-xl text-xs">
+            <div class="min-w-0"><div class="flex flex-wrap items-center gap-2"><span class="font-mono text-amber-400 font-bold text-sm tracking-wide select-all" dir="ltr">${safeName}</span>${safeNote ? `<span class="text-gray-300">${safeNote}</span>` : ''}</div>
+            <p class="text-[11px] text-gray-400 mt-1">انقضا: ${new Date(expiry).toLocaleDateString('fa-IR')}</p></div>
+            <div class="flex items-center gap-2 shrink-0"><span class="px-2 py-1 rounded-full border text-[10px] ${badge}">${remaining}</span>
+            <button onclick="deleteKey('${safeName}')" title="حذف کد" class="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20">🗑️</button></div></div>`;
+        }).join('');
+      };
+      renderList(proTokens, 'proTokenList', 'proTokenCount', 'هنوز کد Pro ساخته نشده است');
+      renderList(ultraTokens, 'ultraTokenList', 'ultraTokenCount', 'هنوز کد Ultra ساخته نشده است');
     }
-
     async function issueCodeForPayment(paymentId, fullName, phone, tier = 'pro') {
       const newCode = makeRandomCodeString(tier);
       const createRes = await fetch('/api/admin', {
@@ -266,11 +254,16 @@
 
       if (!createRes.ok) return alert('خطا در ساخت کد پرو!');
 
-      await fetch('/api/admin', {
+      const assignRes = await fetch('/api/admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Admin-Password': pass },
-        body: JSON.stringify({ action: 'togglePayment', id: paymentId, assignedToken: newCode })
+        body: JSON.stringify({ action: 'assignPaymentToken', id: paymentId, assignedToken: newCode })
       });
+      if (!assignRes.ok) {
+        alert(`کد ${newCode} ساخته شد، اما اتصال آن به سفارش ناموفق بود. کد را ذخیره کنید و سفارش را بررسی کنید.`);
+        await loadAdminData();
+        return;
+      }
 
       const smsText = `${fullName} عزیز، پرداخت شما تایید شد.\nکد فعال‌سازی اشتراک ۳۰ روزه آناناس ${tier === 'ultra' ? 'Ultra' : 'Pro'}:\n${newCode}\nاین کد را در بخش مدیریت اشتراک پرو در محیط چت وارد نمایید.🍍`;
       try {

@@ -153,6 +153,19 @@ export async function onRequest(context) {
       });
     }
 
+    // اتصال کد تازه به سفارش و ثبت قطعی وضعیت انجام‌شده
+    if (body.action === 'assignPaymentToken' && body.id && body.assignedToken) {
+      const raw = await kv.get(body.id);
+      if (!raw) return new Response(JSON.stringify({ error: 'سفارش پیدا نشد' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+      const payment = JSON.parse(raw);
+      const tokenRaw = await kv.get(body.assignedToken);
+      if (!tokenRaw) return new Response(JSON.stringify({ error: 'کد فعال‌سازی پیدا نشد' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+      payment.status = 'done';
+      payment.assignedToken = body.assignedToken;
+      await kv.put(body.id, JSON.stringify(payment));
+      return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+
     // تغییر وضعیت سفارش پرداخت
     if (body.action === 'togglePayment' && body.id) {
       const raw = await kv.get(body.id);
