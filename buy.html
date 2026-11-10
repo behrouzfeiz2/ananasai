@@ -269,9 +269,9 @@
                 <span>📝</span>
                 <span>فرم اطلاع از پرداخت</span>
               </h2>
-              <p class="text-xs text-gray-400 mt-1">مشخصات واریز مبلغ 450.000 تومان را جهت دریافت کد فعال‌سازی وارد کنید</p>
+              <p class="text-xs text-gray-400 mt-1">مشخصات واریز مبلغ <span id="formPlanPrice">450.000 تومان</span> را جهت دریافت کد فعال‌سازی وارد کنید</p>
             </div>
-            <span class="px-3 py-1 rounded-xl bg-ananas-500/15 text-ananas-400 text-xs font-bold border border-ananas-500/30 shrink-0">450.000 تومان</span>
+            <span id="formPlanPriceBadge" class="px-3 py-1 rounded-xl bg-ananas-500/15 text-ananas-400 text-xs font-bold border border-ananas-500/30 shrink-0">450.000 تومان</span>
           </div>
 
           <!-- فرم متصل به بک‌اند داخلی (/api/payment) -->
@@ -299,7 +299,7 @@
             <!-- شماره همراه -->
             <div class="space-y-2">
               <label for="phoneNumber" class="block text-xs sm:text-sm font-bold text-gray-200">
-                شماره همراه (جهت پیامک شدن کد فعال‌سازی پرو) <span class="text-rose-400">*</span>
+                شماره همراه (جهت ارسال کد فعال‌سازی اشتراک) <span class="text-rose-400">*</span>
               </label>
               <div class="relative">
                 <input 
@@ -314,7 +314,7 @@
                   class="w-full rounded-2xl bg-ananas-dark border border-ananas-border focus:border-ananas-500 focus:ring-2 focus:ring-ananas-500/20 px-4 py-3.5 text-sm text-white placeholder-gray-500 outline-none transition font-mono text-left"
                 />
               </div>
-              <p class="text-[11px] text-gray-400">کد فعال‌سازی اشتراک پرو به این شماره پیامک خواهد شد.</p>
+              <p class="text-[11px] text-gray-400">کد فعال‌سازی اشتراک انتخابی به این شماره پیامک خواهد شد.</p>
             </div>
 
             <!-- شماره کارتی که با آن واریز شده -->
@@ -334,7 +334,7 @@
                   class="w-full rounded-2xl bg-ananas-dark border border-ananas-border focus:border-ananas-500 focus:ring-2 focus:ring-ananas-500/20 px-4 py-3.5 text-base font-bold text-ananas-400 placeholder-gray-600 outline-none transition font-mono text-center tracking-widest"
                 />
               </div>
-              <p class="text-[11px] text-gray-400">شماره ۱۶ رقمی کارت بانکی مبدا که مبلغ 450.000 تومان از آن واریز شده است.</p>
+              <p class="text-[11px] text-gray-400">شماره ۱۶ رقمی کارت بانکی مبدأ که مبلغ اشتراک انتخابی از آن واریز شده است.</p>
             </div>
 
             <!-- پیام خطای احتمالی -->
@@ -348,7 +348,7 @@
                 class="w-full py-4 px-6 rounded-2xl bg-gradient-to-l from-ananas-500 to-ananas-400 hover:from-ananas-400 hover:to-ananas-500 text-ananas-dark font-extrabold text-sm shadow-lg shadow-ananas-500/25 flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-60"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                <span id="submitBtnText">ثبت اطلاعات پرداخت (450.000 تومان)</span>
+                <span id="submitBtnText">ثبت اطلاعات پرداخت</span>
               </button>
             </div>
 
@@ -388,6 +388,12 @@
       if (title) title.textContent = selectedPlan === 'ultra' ? 'اشتراک Ultra' : 'اشتراک Pro';
       const price = document.getElementById('paymentPrice');
       if (price) price.textContent = planPrice;
+      const formPrice = document.getElementById('formPlanPrice');
+      if (formPrice) formPrice.textContent = planPrice;
+      const formPriceBadge = document.getElementById('formPlanPriceBadge');
+      if (formPriceBadge) formPriceBadge.textContent = planPrice;
+      const submitText = document.getElementById('submitBtnText');
+      if (submitText) submitText.textContent = 'ثبت اطلاعات پرداخت (' + planPrice + ')';
       const copy = document.getElementById('priceCopyBtn');
       if (copy) copy.setAttribute('onclick', "copyValue('" + planPrice + "', 'priceCopyBtn', 'کپی مبلغ')");
     });
