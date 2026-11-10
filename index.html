@@ -1169,7 +1169,7 @@
         return;
       }
 
-      const imageMatch = !hadAttachment ? userText.match(/^(?:لطفاً\\s*)?(?:یک\\s*)?(?:تصویر|عکس)\\s*(?:بساز|تولید\\s*کن|ایجاد\\s*کن)\\s*[:：-]?\\s*([\\s\\S]+)$/i) : null;
+      const imageMatch = !hadAttachment ? userText.match(/^(?:لطفاً\s*)?(?:یک\s*)?(?:تصویر|عکس)\s*(?:بساز|تولید\s*کن|ایجاد\s*کن)\s*[:：-]?\s*([\s\S]+)$/i) : null;
       if (imageMatch) {
         if (!userToken || !(quotaState.isUltra || quotaState.tier === 'ultra' || userToken.startsWith('ULTRA-'))) currentSession.messages.push({role:'model',isError:true,text:'⚠️ تولید تصویر فقط برای کاربران Ultra فعال است.'});
         else currentSession.messages.push({role:'model',text:'مدل تولید تصویر را انتخاب کنید.',imageWizard:{prompt:imageMatch[1].trim(),model:null,step:'model'}});
