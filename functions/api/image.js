@@ -52,7 +52,11 @@ export async function onRequestPost({request,env}){
 }
 export async function onRequestGet({request,env}){
   const u=await auth(request,env);if(u.error)return out({error:u.error},u.status);
-  const id=new URL(request.url).searchParams.get("id");if(!id)return out({success:true});
+  const id=new URL(request.url).searchParams.get("id");
+  if(!id){
+    const usage=JSON.parse(await env.ANANAS_KV.get(u.key)||"{}");
+    return out({success:true,quota:{used:Math.max(0,Number(usage.used)||0),limit:5}});
+  }
   if(!/^[a-zA-Z0-9_-]{1,100}$/.test(id))return out({error:"شناسه نامعتبر است."},400);
   const raw=await env.ANANAS_KV.get("imagejob_"+id);if(!raw)return out({error:"درخواست تصویر پیدا نشد."},404);
   let job={};try{job=JSON.parse(raw)}catch{}
