@@ -472,7 +472,7 @@
           <span>گفتگو</span>
         </button>
 
-        <button id="modeCoderBtn" onclick="setMode('coder')" class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white">
+        <button id="modeCoderBtn" onclick="openCoderWorkspace()" class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white">
           <span>💻</span>
           <span>کد نویس</span>
           <span id="coderLockIcon" class="text-[10px]">🔒</span>
@@ -915,6 +915,14 @@
           setMode('chat');
         }
       }
+    }
+
+    function openCoderWorkspace() {
+      if (!userToken) {
+        openSettingsModal('🔒 عامل کدنویس آناناس ویژه کاربران Pro و Ultra است. لطفاً کد اشتراک خود را فعال کنید.');
+        return;
+      }
+      window.location.href = 'coder.html';
     }
 
     function setMode(mode) {
