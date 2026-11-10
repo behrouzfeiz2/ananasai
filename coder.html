@@ -39,6 +39,7 @@
   <div class="flex flex-wrap gap-2">
    <button id="connectBtn" onclick="connectGitHub()" class="rounded-xl bg-white text-gray-900 font-bold px-5 py-3 text-sm hover:bg-gray-200 transition"> <span class="mr-1">●</span> اتصال حساب GitHub</button>
    <button id="reloadReposBtn" onclick="loadRepos()" class="hidden rounded-xl border border-ananas-border px-4 py-3 text-sm text-gray-200 hover:border-amber-400">بارگذاری دوباره پروژه‌ها</button>
+   <button id="disconnectBtn" onclick="disconnectGitHub()" class="hidden rounded-xl border border-red-500/40 text-red-300 px-4 py-3 text-sm hover:bg-red-500/10">لغو اتصال GitHub</button>
   </div>
   <p class="text-[11px] text-gray-500">توکن GitHub در مرورگر ذخیره نمی‌شود؛ اتصال رمزگذاری‌شده در فضای امن سمت سرور نگهداری می‌شود. هر زمان بخواهید می‌توانید دسترسی آناناس را از تنظیمات GitHub لغو کنید.</p>
  </section>
@@ -102,13 +103,26 @@ async function boot(){
   const status=await api({action:"status"});
   const clientTier=qd.quota.isUltra||qd.quota.tier==="ultra"?"ultra":"pro";
   if(status.tier && status.tier!==clientTier){showError("سطح اشتراک در سرویس‌ها یکسان نیست. لطفاً یک‌بار از حساب خارج و دوباره وارد شوید.");$("connectBtn").disabled=true;return;}
-  if(status.connected){$("githubStatus").textContent="متصل به @"+status.login;$("connectBtn").classList.add("hidden");$("reloadReposBtn").classList.remove("hidden");$("connectIntro").classList.add("hidden");await loadRepos();}
+  if(status.connected){$("githubStatus").textContent="متصل به @"+status.login;$("connectBtn").classList.add("hidden");$("reloadReposBtn").classList.remove("hidden");$("disconnectBtn").classList.remove("hidden");$("connectIntro").classList.add("hidden");await loadRepos();}else{$("githubStatus").textContent="هنوز متصل نشده";$("connectBtn").classList.remove("hidden");$("reloadReposBtn").classList.add("hidden");$("disconnectBtn").classList.add("hidden");$("connectIntro").classList.remove("hidden");}
  }catch(e){showError(e.message);}
 }
 async function connectGitHub(){
  hideError();$("connectBtn").disabled=true;$("connectBtn").textContent="در حال آماده‌سازی اتصال...";
  try{const d=await api({action:"connect"});if(!d.url)throw new Error("لینک اتصال از سرور دریافت نشد.");location.href=d.url;}
  catch(e){showError(e.message);$("connectBtn").disabled=false;$("connectBtn").textContent="اتصال حساب GitHub";}
+}
+async function disconnectGitHub(){
+ if(!confirm("اتصال حساب GitHub از آناناس لغو شود؟ پس از لغو، دسترسی عامل کدنویس به مخازن قطع می‌شود؛ برای استفاده دوباره باید مجدداً متصل شوید."))return;
+ hideError();$("disconnectBtn").disabled=true;$("disconnectBtn").textContent="در حال لغو اتصال...";
+ try{
+  await api(null,"POST",{action:"disconnect"});
+  repositories=[];selectedRepo=null;files=[];pendingProposalId=null;
+  $("projectSection").classList.add("hidden");$("analysisSection").classList.add("hidden");$("taskSection").classList.add("hidden");$("workStatus").classList.add("hidden");
+  $("repoSelect").innerHTML='<option value="">انتخاب پروژه...</option>';$("repoMeta").textContent="";
+  $("githubStatus").textContent="اتصال لغو شد";$("connectBtn").classList.remove("hidden");$("connectBtn").disabled=false;$("connectBtn").innerHTML='<span class="mr-1">●</span> اتصال حساب GitHub';
+  $("reloadReposBtn").classList.add("hidden");$("disconnectBtn").classList.add("hidden");$("connectIntro").classList.remove("hidden");
+ }catch(e){showError(e.message);}
+ finally{$("disconnectBtn").disabled=false;$("disconnectBtn").textContent="لغو اتصال GitHub";}
 }
 async function loadRepos(){
  hideError();$("reloadReposBtn").disabled=true;
