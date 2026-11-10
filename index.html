@@ -386,6 +386,7 @@
         <span>🏠 صفحه اصلی (Home)</span>
       </a>
       <button onclick="openAudioLibrary()" class="w-full py-2 px-3 rounded-xl bg-fuchsia-500/10 border border-fuchsia-500/30 hover:border-fuchsia-400 text-fuchsia-200 text-xs flex items-center justify-center gap-2 transition">🎧 کتابخانه فایل‌های صوتی</button>
+      <button id="imageLibrarySidebarBtn" onclick="openImageLibrary()" class="hidden w-full py-2 px-3 rounded-xl bg-amber-500/10 border border-amber-500/30 hover:border-amber-400 text-amber-200 text-xs flex items-center justify-center gap-2 transition">🖼️ کتابخانه تصاویر من</button>
     </div>
 
     <div class="px-3 py-1 text-xs font-medium text-gray-400 flex items-center justify-between shrink-0">
@@ -596,6 +597,13 @@
       <div class="p-3 border-t border-ananas-border text-[11px] text-gray-500">برای نگهداری دائمی یا انتقال به دستگاه دیگر، فایل را دانلود کنید.</div>
     </div>
   </div>
+  <div id="imageLibraryModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[70] hidden items-center justify-center p-3 sm:p-5">
+    <div class="bg-ananas-card border border-amber-500/30 rounded-2xl max-w-5xl w-full max-h-[90vh] flex flex-col shadow-2xl">
+      <div class="p-4 border-b border-ananas-border flex items-center justify-between gap-3"><div><h3 class="font-bold text-white">🖼️ کتابخانه تصاویر من</h3><p class="text-[11px] text-gray-400 mt-1">تصاویر تولیدشده شما به‌صورت شخصی و آنلاین ذخیره می‌شوند.</p></div><button onclick="closeImageLibrary()" class="text-gray-400 hover:text-white text-xl">✕</button></div>
+      <div id="imageLibraryList" class="p-4 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"><p class="text-sm text-gray-400 text-center py-8 col-span-full">در حال بارگذاری...</p></div>
+      <div class="p-3 border-t border-ananas-border text-[11px] text-gray-500">دسترسی به این کتابخانه فقط با کد Ultra صاحب حساب امکان‌پذیر است.</div>
+    </div>
+  </div>
   <div id="settingsModal" class="fixed inset-0 bg-black/75 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
     <div class="bg-ananas-card border border-ananas-border rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
       <div class="flex items-center justify-between border-b border-ananas-border pb-3">
@@ -709,6 +717,44 @@
       sessions.flatMap(x=>x.messages||[]).forEach(m=>{if(m.audioId===id){m.audioId=null;m.audioUrl=null;}});
       saveSessions();
     }
+    const imageLibraryObjectUrls = {};
+    async function openImageLibrary(){
+      if(!userToken||!(quotaState.isUltra||quotaState.tier==='ultra'||userToken.startsWith('ULTRA-')))return openSettingsModal('🔒 کتابخانه تصاویر فقط برای کاربران Ultra فعال است.');
+      const modal=document.getElementById('imageLibraryModal'),list=document.getElementById('imageLibraryList');
+      modal.classList.remove('hidden');modal.classList.add('flex');list.innerHTML='<p class="text-sm text-gray-400 text-center py-8 col-span-full">در حال بارگذاری تصاویر...</p>';
+      try{
+        const headers={'X-User-Token':userToken},res=await fetch('/api/image-library',{headers}),data=await res.json();
+        if(!res.ok)throw new Error(data.error||'دریافت کتابخانه ناموفق بود.');
+        if(!data.items||!data.items.length){list.innerHTML='<p class="text-sm text-gray-400 text-center py-12 col-span-full">هنوز تصویری در کتابخانه شما ذخیره نشده است. اولین تصویرتان را با آناناس بسازید!</p>';return;}
+        list.innerHTML='';
+        for(const item of data.items){
+          const fileRes=await fetch('/api/image-library?file='+encodeURIComponent(item.id),{headers});
+          if(!fileRes.ok)continue;
+          const blob=await fileRes.blob(),objectUrl=URL.createObjectURL(blob);imageLibraryObjectUrls[item.id]=objectUrl;
+          const card=document.createElement('div');card.className='rounded-xl border border-ananas-border bg-ananas-dark/70 p-3 space-y-2';
+          const img=document.createElement('img');img.src=objectUrl;img.alt=item.name||'تصویر تولیدشده';img.className='w-full aspect-square object-cover rounded-lg bg-black';
+          const title=document.createElement('p');title.className='text-xs text-gray-200 line-clamp-2';title.textContent=item.name||'تصویر تولیدشده';
+          const meta=document.createElement('p');meta.className='text-[10px] text-gray-500';meta.textContent=(item.model==='flux-dev'?'FLUX Dev':'Z-Image')+' · '+new Intl.DateTimeFormat('fa-IR',{dateStyle:'medium'}).format(new Date(item.createdAt))+' · '+Math.round((item.size||0)/1024)+' KB';
+          const actions=document.createElement('div');actions.className='flex items-center gap-2';
+          const download=document.createElement('a');download.href=objectUrl;download.download='AnanasAI-'+item.id+'.'+(item.contentType==='image/jpeg'?'jpg':item.contentType==='image/webp'?'webp':'png');download.className='flex-1 text-center px-3 py-2 rounded-lg bg-fuchsia-500 text-white text-xs';download.textContent='⬇ دانلود';
+          const del=document.createElement('button');del.className='px-3 py-2 rounded-lg border border-red-500/30 text-red-300 text-xs';del.textContent='حذف';del.onclick=()=>deleteImageFromLibrary(item.id);
+          actions.append(download,del);card.append(img,title,meta,actions);list.append(card);
+        }
+        if(!list.children.length)list.innerHTML='<p class="text-sm text-gray-400 text-center py-8 col-span-full">تصویری برای نمایش پیدا نشد.</p>';
+      }catch(e){list.innerHTML='<p class="text-sm text-red-300 text-center py-8 col-span-full">'+escapeHtml(e.message||'خطا در دریافت کتابخانه')+'</p>';}
+    }
+    async function deleteImageFromLibrary(id){
+      if(!confirm('این تصویر برای همیشه از کتابخانه شما حذف شود؟'))return;
+      const res=await fetch('/api/image-library?file='+encodeURIComponent(id),{method:'DELETE',headers:{'X-User-Token':userToken}});
+      const data=await res.json();if(!res.ok)return alert(data.error||'حذف تصویر ناموفق بود.');
+      if(imageLibraryObjectUrls[id]){URL.revokeObjectURL(imageLibraryObjectUrls[id]);delete imageLibraryObjectUrls[id];}
+      await openImageLibrary();
+    }
+    function closeImageLibrary(){
+      const modal=document.getElementById('imageLibraryModal');modal.classList.add('hidden');modal.classList.remove('flex');
+      Object.values(imageLibraryObjectUrls).forEach(URL.revokeObjectURL);Object.keys(imageLibraryObjectUrls).forEach(k=>delete imageLibraryObjectUrls[k]);
+    }
+
     async function openAudioLibrary(){
       const modal=document.getElementById('audioLibraryModal'),list=document.getElementById('audioLibraryList');modal.classList.remove('hidden');modal.classList.add('flex');list.innerHTML='<p class="text-sm text-gray-400 text-center py-8">در حال بارگذاری...</p>';
       try{
@@ -773,9 +819,11 @@
       const quotaProgressBar = document.getElementById('quotaProgressBar');
       const coderLockIcon = document.getElementById('coderLockIcon');
       const upgradeBtn = document.getElementById('upgradeProLinkBtn');
+      const imageLibraryBtn = document.getElementById('imageLibrarySidebarBtn');
 
       const isProActive = Boolean(userToken) && quotaState.isPro !== false;
       const isUltraActive = isProActive && (quotaState.isUltra || quotaState.tier === 'ultra');
+      if (imageLibraryBtn) imageLibraryBtn.classList.toggle('hidden', !isUltraActive && !userToken.startsWith('ULTRA-'));
       const limit = Number(quotaState.limit || (isUltraActive ? 150 : isProActive ? 100 : 5));
       const used = Math.min(limit, Number(quotaState.used || 0));
       const percent = Math.min(100, Math.round((used / limit) * 100));
@@ -1486,7 +1534,7 @@
 
         } else {
           if (msg.imageWizard) return renderImageWizard(idx,msg.imageWizard);
-          if (msg.generatedImageUrl) return `<div class="flex justify-end"><div class="max-w-[90%] rounded-2xl bg-ananas-card border border-fuchsia-500/30 p-4 space-y-3"><b class="text-fuchsia-200">🖼️ تصویر آماده است</b><img src="${escapeHtml(msg.generatedImageUrl)}" class="w-full rounded-xl" alt="تصویر تولیدشده"><a href="${escapeHtml(msg.generatedImageUrl)}" target="_blank" rel="noopener" class="inline-block px-4 py-2 rounded-lg bg-fuchsia-500 text-white text-xs">⬇ دریافت تصویر</a><p class="text-[10px] text-gray-500">لینک خروجی آلفا موقت است؛ تصویر را دانلود کنید.</p></div></div>`;
+          if (msg.generatedImageUrl) return `<div class="flex justify-end"><div class="max-w-[90%] rounded-2xl bg-ananas-card border border-fuchsia-500/30 p-4 space-y-3"><b class="text-fuchsia-200">🖼️ تصویر آماده است</b><img src="${escapeHtml(msg.generatedImageUrl)}" class="w-full rounded-xl" alt="تصویر تولیدشده"><a href="${escapeHtml(msg.generatedImageUrl)}" target="_blank" rel="noopener" class="inline-block px-4 py-2 rounded-lg bg-fuchsia-500 text-white text-xs">⬇ دریافت تصویر</a>${msg.generatedImageLibraryId ? '<button onclick="openImageLibrary()" class="mr-2 px-4 py-2 rounded-lg border border-amber-400/40 text-amber-200 text-xs">🗂 مشاهده در کتابخانه تصاویر</button><p class="text-[10px] text-emerald-300">این تصویر در کتابخانه شخصی شما ذخیره شد.</p>' : '<p class="text-[10px] text-amber-300">ذخیره در کتابخانه انجام نشد؛ تصویر را دانلود کنید.</p>'}</div></div>`;
           if (msg.ttsWizard) return renderTtsWizard(idx, msg.ttsWizard);
           const parsedMd = renderAssistantContent(msg.text || '');
           const playableAudioUrl = (msg.audioId && audioObjectUrls[msg.audioId]) || msg.audioUrl;
@@ -1587,10 +1635,10 @@
         const headers={'Content-Type':'application/json','X-User-Token':userToken};
         const start=await fetch('/api/image',{method:'POST',headers,body:JSON.stringify({prompt:w.prompt,model:w.model,width:1024,height:1024})});
         const job=await start.json();if(!start.ok||!job.success)throw new Error(job.error||'ثبت درخواست تصویر ناموفق بود.');
-        let url=null;
-        for(let i=0;i<300;i++){await new Promise(r=>setTimeout(r,3000));const res=await fetch('/api/image?id='+encodeURIComponent(job.id),{headers:{'X-User-Token':userToken}});const data=await res.json();if(!res.ok)throw new Error(data.error||'خطا در دریافت وضعیت تصویر.');if(data.status==='ready'&&data.output?.url){url=data.output.url;break;}if(data.status==='failed')throw new Error(data.error?.message||'تولید تصویر ناموفق بود.');}
+        let url=null,librarySaved=false;
+        for(let i=0;i<300;i++){await new Promise(r=>setTimeout(r,3000));const res=await fetch('/api/image?id='+encodeURIComponent(job.id),{headers:{'X-User-Token':userToken}});const data=await res.json();if(!res.ok)throw new Error(data.error||'خطا در دریافت وضعیت تصویر.');if(data.status==='ready'&&data.output?.url){url=data.output.url;librarySaved=Boolean(data.librarySaved);break;}if(data.status==='failed')throw new Error(data.error?.message||'تولید تصویر ناموفق بود.');}
         if(!url)throw new Error('زمان انتظار تولید تصویر به پایان رسید.');
-        m.imageWizard=null;m.text='🖼️ تصویر با موفقیت تولید شد.';m.generatedImageUrl=url;
+        m.imageWizard=null;m.text='🖼️ تصویر با موفقیت تولید شد.';m.generatedImageUrl=url;if(librarySaved)m.generatedImageLibraryId=job.id;
       }catch(e){m.imageWizard=null;m.isError=true;m.text='⚠️ '+e.message;}
       finally{isGenerating=false;saveSessions();renderMessages();renderHistoryList();}
     }
