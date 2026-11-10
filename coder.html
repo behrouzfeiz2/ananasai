@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" class="dark">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>عامل کدنویس آناناس | AnanasAI</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍍</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={darkMode:"class",theme:{extend:{fontFamily:{sans:["Vazirmatn","system-ui","sans-serif"]},colors:{ananas:{dark:"#0b0f17",card:"#151c28",border:"#232f46",gold:"#f59e0b"}}}}}</script>
+<style>
+*{font-family:Vazirmatn,sans-serif;box-sizing:border-box}body{background:#0b0f17;color:#f3f4f6;min-height:100vh}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-thumb{background:#344158;border-radius:9px}
+.code{direction:ltr;text-align:left;font-family:ui-monospace,monospace}
+</style>
+</head>
+<body class="min-h-screen">
+<header class="sticky top-0 z-20 border-b border-ananas-border bg-ananas-dark/90 backdrop-blur-xl">
+ <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+  <a href="index.html" class="flex items-center gap-2 text-white font-bold"><span class="text-2xl">🍍</span><span>آناناس <small class="text-gray-400 font-normal">/ عامل کدنویس</small></span></a>
+  <div class="flex items-center gap-2"><span id="tierBadge" class="text-xs rounded-full px-3 py-1 bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">در حال بررسی حساب...</span><a href="index.html" class="text-xs text-gray-300 hover:text-amber-300">بازگشت به چت</a></div>
+ </div>
+</header>
+<main class="max-w-6xl mx-auto px-4 py-8 space-y-6">
+ <section class="text-center max-w-3xl mx-auto space-y-3 py-4">
+  <div class="mx-auto w-16 h-16 rounded-2xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-4xl">💻</div>
+  <h1 class="text-2xl sm:text-3xl font-extrabold">عامل کدنویس <span class="text-amber-400">آناناس</span></h1>
+  <p class="text-sm text-gray-400 leading-7">مخزن GitHub خود را متصل کنید تا آناناس ساختار پروژه را بشناسد، کدها را تحلیل کند و تغییرات را در یک شاخه مستقل همراه با Pull Request ثبت کند.</p>
+ </section>
+ <section id="accountError" class="hidden rounded-2xl border border-red-500/30 bg-red-500/10 p-5 text-sm text-red-200"></section>
+ <section class="rounded-2xl border border-ananas-border bg-ananas-card p-5 sm:p-6 space-y-4">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+   <div><h2 class="font-bold text-lg">۱. اتصال حساب GitHub</h2><p class="text-xs text-gray-400 mt-1">اتصال امن حساب و دسترسی به مخازن شما</p></div>
+   <span id="githubStatus" class="text-xs text-gray-400">هنوز متصل نشده</span>
+  </div>
+  <div id="connectIntro" class="rounded-xl bg-black/20 border border-ananas-border p-4 text-sm text-gray-300 leading-7">
+   برای نمایش پروژه‌ها باید حساب GitHub خود را متصل کنید. در مرحله تأیید GitHub، مجوز دسترسی به مخازن درخواست می‌شود. این مجوز برای خواندن و ثبت تغییرات در شاخه جداگانه استفاده خواهد شد.
+  </div>
+  <div class="flex flex-wrap gap-2">
+   <button id="connectBtn" onclick="connectGitHub()" class="rounded-xl bg-white text-gray-900 font-bold px-5 py-3 text-sm hover:bg-gray-200 transition"> <span class="mr-1">●</span> اتصال حساب GitHub</button>
+   <button id="reloadReposBtn" onclick="loadRepos()" class="hidden rounded-xl border border-ananas-border px-4 py-3 text-sm text-gray-200 hover:border-amber-400">بارگذاری دوباره پروژه‌ها</button>
+  </div>
+  <p class="text-[11px] text-gray-500">توکن GitHub در مرورگر ذخیره نمی‌شود؛ اتصال رمزگذاری‌شده در فضای امن سمت سرور نگهداری می‌شود. هر زمان بخواهید می‌توانید دسترسی آناناس را از تنظیمات GitHub لغو کنید.</p>
+ </section>
+ <section id="projectSection" class="hidden rounded-2xl border border-ananas-border bg-ananas-card p-5 sm:p-6 space-y-4">
+  <div><h2 class="font-bold text-lg">۲. انتخاب پروژه</h2><p class="text-xs text-gray-400 mt-1">مخزن موردنظر و شاخه پایه را انتخاب کنید.</p></div>
+  <div class="grid md:grid-cols-2 gap-3">
+   <label class="text-xs text-gray-400 space-y-2">مخزن GitHub
+    <select id="repoSelect" onchange="selectRepo()" class="w-full rounded-xl bg-ananas-dark border border-ananas-border p-3 text-sm text-white outline-none focus:border-amber-400"><option value="">انتخاب پروژه...</option></select>
+   </label>
+   <label class="text-xs text-gray-400 space-y-2">شاخه پروژه
+    <input id="branchInput" class="code w-full rounded-xl bg-ananas-dark border border-ananas-border p-3 text-sm text-white outline-none focus:border-amber-400" placeholder="main">
+   </label>
+  </div>
+  <div id="repoMeta" class="text-xs text-gray-500"></div>
+  <div class="flex flex-wrap gap-2">
+   <button id="analyzeBtn" onclick="analyzeProject()" disabled class="rounded-xl bg-cyan-500 text-slate-950 font-bold px-5 py-3 text-sm disabled:opacity-40">تحلیل ساختار پروژه</button>
+   <button id="treeBtn" onclick="toggleFiles()" disabled class="rounded-xl border border-ananas-border text-gray-200 px-4 py-3 text-sm disabled:opacity-40">نمایش فایل‌های پروژه</button>
+  </div>
+  <div id="fileList" class="hidden max-h-64 overflow-auto rounded-xl border border-ananas-border bg-ananas-dark p-3 text-xs code space-y-1"></div>
+ </section>
+ <section id="analysisSection" class="hidden rounded-2xl border border-ananas-border bg-ananas-card p-5 sm:p-6 space-y-3">
+  <h2 class="font-bold text-lg">۳. گزارش تحلیل آناناس</h2>
+  <div id="analysisResult" class="text-sm text-gray-300 leading-8"></div>
+ </section>
+ <section id="taskSection" class="hidden rounded-2xl border border-ananas-border bg-ananas-card p-5 sm:p-6 space-y-4">
+  <div><h2 class="font-bold text-lg">۴. درخواست تغییر در پروژه</h2><p class="text-xs text-gray-400 mt-1">تغییر موردنظر را به زبان طبیعی توضیح دهید.</p></div>
+  <textarea id="taskInput" rows="5" class="w-full rounded-xl bg-ananas-dark border border-ananas-border p-4 text-sm leading-7 text-white outline-none focus:border-amber-400" placeholder="مثلاً: طراحی صفحه ورود را واکنش‌گرا کن، اعتبارسنجی فرم را اضافه کن و ظاهر فعلی سایت را حفظ کن..."></textarea>
+  <div class="rounded-xl border border-amber-400/20 bg-amber-400/5 p-3 text-xs text-amber-100 leading-6">برای ایمنی، آناناس تغییرات را در شاخه جداگانه ایجاد می‌کند و Pull Request می‌سازد. شاخه اصلی پروژه مستقیماً تغییر نمی‌کند. فایل‌های محرمانه و GitHub Actions workflowها از ویرایش خودکار مستثنا هستند.</div>
+  <button id="applyBtn" onclick="applyChanges()" disabled class="rounded-xl bg-gradient-to-l from-amber-400 to-yellow-300 text-slate-950 font-extrabold px-6 py-3 text-sm disabled:opacity-40">اجرای درخواست و ساخت Pull Request</button>
+  <div id="workStatus" class="hidden rounded-xl bg-black/20 border border-ananas-border p-4 text-sm text-gray-300 leading-7"></div>
+ </section>
+ <section class="text-center text-[11px] text-gray-600 py-3">AnanasAI Code Agent · Powered by Gemini · GitHub API</section>
+</main>
+<script>
+const userToken=localStorage.getItem("ananas_user_token")||"";
+const deviceUUID=localStorage.getItem("ananas_device_uuid")||"";
+let repositories=[],selectedRepo=null,files=[];
+const $=id=>document.getElementById(id);
+function headers(){return{"Content-Type":"application/json","X-User-Token":userToken,"X-Device-UUID":deviceUUID};}
+async function api(action,method="GET",data=null){
+ const url="/api/github"+(method==="GET"?"?"+new URLSearchParams(action):"");
+ const res=await fetch(url,{method,headers:headers(),...(data?{body:JSON.stringify(data)}:{})});
+ const out=await res.json().catch(()=>({error:"پاسخ سرور قابل خواندن نیست."}));
+ if(!res.ok)throw new Error(out.error||"خطای ارتباط با سرور");
+ return out;
+}
+function showError(message){$("accountError").textContent=message;$("accountError").classList.remove("hidden");}
+function hideError(){$("accountError").classList.add("hidden");}
+async function boot(){
+ if(!userToken){$("tierBadge").textContent="نیازمند اشتراک Pro یا Ultra";showError("برای استفاده از عامل کدنویس، ابتدا از صفحه چت با کد فعال‌سازی Pro یا Ultra وارد شوید.");$("connectBtn").disabled=true;return;}
+ try{
+  const q=await fetch("/api/gemini",{headers:headers()});const qd=await q.json();
+  if(!q.ok||!qd.quota?.isPro){showError("اشتراک Pro یا Ultra معتبر پیدا نشد. از صفحه چت وضعیت اشتراک را بررسی کنید.");$("connectBtn").disabled=true;return;}
+  $("tierBadge").textContent=qd.quota.isUltra||qd.quota.tier==="ultra"?"حساب Ultra":"حساب Pro";
+  const params=new URLSearchParams(location.search);
+  if(params.has("github_error"))showError("اتصال GitHub انجام نشد. لطفاً دوباره تلاش کنید ("+params.get("github_error")+")");
+  if(params.get("github")==="connected"){$("githubStatus").textContent="اتصال با موفقیت انجام شد";history.replaceState({}, "", "coder.html");}
+  const status=await api({action:"status"});
+  if(status.connected){$("githubStatus").textContent="متصل به @"+status.login;$("connectBtn").classList.add("hidden");$("reloadReposBtn").classList.remove("hidden");$("connectIntro").classList.add("hidden");await loadRepos();}
+ }catch(e){showError(e.message);}
+}
+async function connectGitHub(){
+ hideError();$("connectBtn").disabled=true;$("connectBtn").textContent="در حال آماده‌سازی اتصال...";
+ try{const d=await api({action:"connect"});if(!d.url)throw new Error("لینک اتصال از سرور دریافت نشد.");location.href=d.url;}
+ catch(e){showError(e.message);$("connectBtn").disabled=false;$("connectBtn").textContent="اتصال حساب GitHub";}
+}
+async function loadRepos(){
+ hideError();$("reloadReposBtn").disabled=true;
+ try{const d=await api({action:"repos"});repositories=d.repositories||[];const select=$("repoSelect");select.innerHTML='<option value="">انتخاب پروژه...</option>'+repositories.map(r=>'<option value="'+escapeHtml(r.full_name)+'">'+escapeHtml(r.full_name)+(r.private?" · خصوصی":" · عمومی")+'</option>').join("");$("projectSection").classList.remove("hidden");$("githubStatus").textContent="متصل · "+repositories.length+" مخزن";if(!repositories.length)showError("هیچ مخزن قابل دسترسی در حساب GitHub پیدا نشد.");}
+ catch(e){showError(e.message);}
+ finally{$("reloadReposBtn").disabled=false;}
+}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function selectRepo(){
+ const name=$("repoSelect").value;selectedRepo=repositories.find(r=>r.full_name===name)||null;
+ $("branchInput").value=selectedRepo?.default_branch||"";
+ $("repoMeta").textContent=selectedRepo?(selectedRepo.description||"بدون توضیحات"):"";
+ const ready=!!selectedRepo;$("analyzeBtn").disabled=!ready;$("treeBtn").disabled=!ready;$("applyBtn").disabled=!ready;
+ $("analysisSection").classList.add("hidden");$("taskSection").classList.toggle("hidden",!ready);$("fileList").classList.add("hidden");
+}
+async function loadTree(){
+ if(!selectedRepo)throw new Error("ابتدا پروژه را انتخاب کنید.");
+ const params={action:"tree",repo:selectedRepo.full_name,branch:$("branchInput").value.trim()||selectedRepo.default_branch};
+ const d=await api(params);files=d.files||[];return d;
+}
+async function toggleFiles(){
+ const box=$("fileList");if(!box.classList.contains("hidden")){box.classList.add("hidden");return;}
+ box.textContent="در حال دریافت فهرست فایل‌ها...";
+ try{await loadTree();box.innerHTML=files.map(f=>'<div class="py-1 text-gray-300">'+escapeHtml(f.path)+' <span class="text-gray-600">('+Number(f.size||0).toLocaleString("fa-IR")+' bytes)</span></div>').join("");}
+ catch(e){box.textContent=e.message;}box.classList.remove("hidden");
+}
+function renderAnalysis(a){
+ const section=$("analysisSection"),out=$("analysisResult");section.classList.remove("hidden");
+ const arr=(v)=>Array.isArray(v)?v:[];
+ out.innerHTML='<h3 class="font-bold text-white text-base">'+escapeHtml(a.overview||"تحلیل تکمیل شد")+'</h3>'+
+ '<p class="mt-2"><b class="text-amber-300">فناوری‌ها:</b> '+arr(a.stack).map(escapeHtml).join("، ")+'</p>'+
+ '<p><b class="text-amber-300">معماری:</b> '+escapeHtml(a.architecture||"اطلاعاتی ارائه نشد")+'</p>'+
+ '<h4 class="font-bold text-white mt-3">فایل‌های مهم</h4><ul class="list-disc pr-5">'+arr(a.important_files).map(x=>'<li><span class="code text-cyan-300">'+escapeHtml(x.path||"")+'</span> — '+escapeHtml(x.purpose||"")+'</li>').join("")+'</ul>'+
+ '<h4 class="font-bold text-white mt-3">ریسک‌ها</h4><ul class="list-disc pr-5">'+arr(a.risks).map(x=>'<li>'+escapeHtml(typeof x==="string"?x:JSON.stringify(x))+'</li>').join("")+'</ul>'+
+ '<h4 class="font-bold text-white mt-3">پیشنهادها</h4><ul class="list-disc pr-5">'+arr(a.recommendations).map(x=>'<li>'+escapeHtml(typeof x==="string"?x:JSON.stringify(x))+'</li>').join("")+'</ul>';
+}
+async function analyzeProject(){
+ hideError();$("analyzeBtn").disabled=true;$("analyzeBtn").textContent="در حال تحلیل مخزن...";
+ try{const d=await api(null,"POST",{action:"analyze",repo:selectedRepo.full_name,branch:$("branchInput").value.trim()});renderAnalysis(d.analysis||{});$("taskSection").classList.remove("hidden");}
+ catch(e){showError(e.message);}
+ finally{$("analyzeBtn").disabled=false;$("analyzeBtn").textContent="تحلیل ساختار پروژه";}
+}
+async function applyChanges(){
+ const task=$("taskInput").value.trim();if(!task)return showError("شرح تغییرات را بنویسید.");
+ if(!confirm("عامل کدنویس تغییرات را در شاخه جدید ایجاد می‌کند و یک Pull Request می‌سازد. ادامه می‌دهید؟"))return;
+ hideError();$("applyBtn").disabled=true;$("applyBtn").textContent="عامل کدنویس در حال کار است...";
+ const status=$("workStatus");status.classList.remove("hidden");status.textContent="در حال خواندن فایل‌های پروژه و آماده‌سازی تغییرات...";
+ try{
+  const d=await api(null,"POST",{action:"apply",repo:selectedRepo.full_name,branch:$("branchInput").value.trim(),task});
+  status.innerHTML='<div class="font-bold text-emerald-300">عملیات پایان یافت</div><p class="mt-2">'+escapeHtml(d.summary||"")+'</p>'+
+   (d.applied?'<p class="mt-2">فایل‌های تغییر یافته:</p><ul class="list-disc pr-5">'+(d.files||[]).map(x=>'<li class="code">'+escapeHtml(x)+'</li>').join("")+'</ul><a class="inline-flex mt-4 rounded-lg bg-emerald-500 text-black px-4 py-2 font-bold" target="_blank" rel="noopener" href="'+escapeHtml(d.pull_request)+'">مشاهده Pull Request در GitHub</a>':'<p class="mt-2">تغییری اعمال نشد.</p>');
+ }catch(e){status.textContent="خطا: "+e.message;}
+ finally{$("applyBtn").disabled=false;$("applyBtn").textContent="اجرای درخواست و ساخت Pull Request";}
+}
+boot();
+</script>
+</body>
+</html>
