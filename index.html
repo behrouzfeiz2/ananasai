@@ -32,9 +32,9 @@
               500: '#f59e0b',
               600: '#d97706',
               leaf: '#10b981',
-              dark: '#0b0f17',
-              card: '#151c28',
-              border: '#232f46'
+              dark: '#050505',
+              card: '#111111',
+              border: '#303030'
             }
           }
         }
@@ -53,8 +53,8 @@
       height: 100dvh;
       margin: 0;
       padding: 0;
-      background-color: #0b0f17;
-      color: #f3f4f6;
+      background-color: #050505;
+      color: #ffffff;
       overflow: hidden;
     }
 
@@ -85,11 +85,11 @@
     }
 
     ::-webkit-scrollbar-track {
-      background: #0b0f17;
+      background: #050505;
     }
 
     ::-webkit-scrollbar-thumb {
-      background: #232f46;
+      background: #3b3b3b;
       border-radius: 9999px;
     }
 
@@ -300,6 +300,17 @@
       }
     }
 
+    .chat-history-item { position: relative; }
+    .chat-menu-trigger { opacity: 0; pointer-events: none; }
+    .chat-history-item.is-active .chat-menu-trigger,
+    .chat-history-item:hover .chat-menu-trigger,
+    .chat-history-item:focus-within .chat-menu-trigger { opacity: 1; pointer-events: auto; }
+    .chat-context-menu { direction: rtl; }
+    .chat-context-menu button { font-family: inherit; font-size: 12px; }
+    @media (max-width: 1023px) {
+      .chat-menu-trigger { opacity: .72; pointer-events: auto; }
+    }
+
     /* کلاس مخفی کردن سایدبار در دسکتاپ */
     @media (min-width: 1024px) {
       .desktop-sidebar-hidden {
@@ -385,8 +396,8 @@
       <a href="home.html" class="w-full py-2 px-3 rounded-xl bg-ananas-dark border border-ananas-border hover:border-ananas-500/50 text-gray-300 hover:text-white text-xs flex items-center justify-center gap-2 transition">
         <span>🏠 صفحه اصلی (Home)</span>
       </a>
-      <button onclick="openAudioLibrary()" class="w-full py-2 px-3 rounded-xl bg-fuchsia-500/10 border border-fuchsia-500/30 hover:border-fuchsia-400 text-fuchsia-200 text-xs flex items-center justify-center gap-2 transition">🎧 کتابخانه فایل‌های صوتی</button>
-      <button id="imageLibrarySidebarBtn" onclick="openImageLibrary()" class="hidden w-full py-2 px-3 rounded-xl bg-amber-500/10 border border-amber-500/30 hover:border-amber-400 text-amber-200 text-xs flex items-center justify-center gap-2 transition">🖼️ کتابخانه تصاویر من</button>
+      <button onclick="openAudioLibrary()" class="w-full py-2 px-3 rounded-xl bg-[#292929] border border-white hover:bg-[#383838] text-white text-xs flex items-center justify-center gap-2 transition">🎧 کتابخانه فایل‌های صوتی</button>
+      <button id="imageLibrarySidebarBtn" onclick="openImageLibrary()" class="hidden w-full py-2 px-3 rounded-xl bg-[#292929] border border-white hover:bg-[#383838] text-white text-xs flex items-center justify-center gap-2 transition">🖼️ کتابخانه تصاویر من</button>
     </div>
 
     <div class="px-3 py-1 text-xs font-medium text-gray-400 flex items-center justify-between shrink-0">
@@ -413,6 +424,10 @@
           </div>
           <div class="w-full h-1.5 bg-ananas-dark rounded-full overflow-hidden border border-ananas-border/80">
             <div id="quotaProgressBar" class="h-full bg-ananas-500 transition-all duration-300" style="width: 0%"></div>
+          </div>
+          <div id="imageQuotaContainer" class="hidden flex items-center justify-between text-[11px] pt-1.5">
+            <span class="text-gray-400">سهمیه تصویر امروز:</span>
+            <span id="imageQuotaCounterText" class="font-bold text-white">۰ از ۵ تصویر</span>
           </div>
         </div>
 
@@ -461,7 +476,6 @@
         </button>
 
         <div class="flex items-center gap-2">
-          <span class="text-xl">🍍</span>
           <span class="font-bold text-white text-sm sm:text-base">AnanasAI</span>
         </div>
       </div>
@@ -647,6 +661,8 @@
     let currentMode = 'chat';
     let sessions = JSON.parse(localStorage.getItem('ananas_sessions') || '[]');
     let activeSessionId = null;
+    let chatMenuOpenId = null;
+    let imageQuotaState = { used: 0, limit: 5 };
     let attachedFile = null;
     let isGenerating = false;
 
@@ -823,6 +839,26 @@
       fetchQuotaFromServer();
     });
 
+    async function fetchImageQuotaFromServer() {
+      if (!userToken || !(quotaState.isUltra || quotaState.tier === 'ultra' || userToken.startsWith('ULTRA-'))) return;
+      try {
+        const response = await fetch('/api/image', { method: 'GET', headers: { 'X-User-Token': userToken }, cache: 'no-store' });
+        const data = await response.json();
+        if (response.ok && data.quota) {
+          imageQuotaState = { used: Number(data.quota.used) || 0, limit: Number(data.quota.limit) || 5 };
+          updateImageQuotaCounter();
+        }
+      } catch (error) {
+        console.warn('Image quota fetch failed', error);
+      }
+    }
+
+    function updateImageQuotaCounter() {
+      const counter = document.getElementById('imageQuotaCounterText');
+      if (!counter) return;
+      counter.textContent = `${Math.min(imageQuotaState.used, imageQuotaState.limit)} از ${imageQuotaState.limit} تصویر`;
+    }
+
     async function fetchQuotaFromServer() {
       try {
         const headers = { 'X-Device-UUID': deviceUUID };
@@ -842,6 +878,7 @@
         if (data && data.quota) {
           quotaState = data.quota;
           updateAccountStatusBadge();
+          if (quotaState.isUltra || quotaState.tier === 'ultra' || userToken.startsWith('ULTRA-')) await fetchImageQuotaFromServer();
         }
       } catch (e) {}
     }
@@ -852,6 +889,7 @@
       const timeContainer = document.getElementById('proTimeRemainingContainer');
       const timeText = document.getElementById('proTimeRemainingText');
       const quotaCounterText = document.getElementById('quotaCounterText');
+      const imageQuotaContainer = document.getElementById('imageQuotaContainer');
       const quotaProgressBar = document.getElementById('quotaProgressBar');
       const coderLockIcon = document.getElementById('coderLockIcon');
       const upgradeBtn = document.getElementById('upgradeProLinkBtn');
@@ -866,6 +904,8 @@
 
       quotaCounterText.textContent = `${used} از ${limit} پیام`;
       if (isUltraActive && quotaState.audioLimit) quotaCounterText.textContent += ` · صوت: ${quotaState.audioUsed || 0} از ${quotaState.audioLimit}`;
+      if (imageQuotaContainer) imageQuotaContainer.classList.toggle('hidden', !isUltraActive);
+      updateImageQuotaCounter();
       quotaProgressBar.style.width = `${percent}%`;
       quotaProgressBar.className = `h-full transition-all duration-300 ${percent >= 90 ? 'bg-red-500' : (isProActive ? 'bg-amber-400' : 'bg-ananas-500')}`;
 
@@ -1601,7 +1641,7 @@
             <div class="flex items-start gap-3 justify-end">
               <div class="flex-1 max-w-[90%] sm:max-w-[82%] rounded-2xl rounded-tl-xs bg-ananas-card border ${msg.isError ? 'border-red-500/50' : 'border-ananas-border'} px-4 py-3.5 shadow-md">
                 <div class="flex items-center justify-between mb-2 pb-1.5 border-b border-ananas-border/60">
-                  <span class="text-xs font-bold text-ananas-400 flex items-center gap-1">🍍 آناناس (AnanasAI)</span>
+                  <span class="text-xs font-bold text-ananas-400 flex items-center gap-1">آناناس (AnanasAI)</span>
 
                   <div class="assistant-toolbar">
                     <button
@@ -1701,6 +1741,7 @@
         }
         const start=await fetch('/api/image',{method:'POST',headers,body:JSON.stringify({prompt:w.prompt,model:w.model,width:1024,height:1024,...(referenceId?{referenceId}:{})})});
         const job=await start.json();if(!start.ok||!job.success)throw new Error(job.error||'ثبت درخواست تصویر ناموفق بود.');
+        if(job.quota){imageQuotaState={used:Number(job.quota.used)||0,limit:Number(job.quota.limit)||5};updateImageQuotaCounter();}
         let url=null,librarySaved=false;
         for(let i=0;i<300;i++){await new Promise(r=>setTimeout(r,3000));const res=await fetch('/api/image?id='+encodeURIComponent(job.id),{headers:{'X-User-Token':userToken}});const data=await res.json();if(!res.ok)throw new Error(data.error||'خطا در دریافت وضعیت تصویر.');if(data.status==='ready'&&data.output?.url){url=data.output.url;librarySaved=Boolean(data.librarySaved);break;}if(data.status==='failed')throw new Error(data.error?.message||'تولید تصویر ناموفق بود.');}
         if(!url)throw new Error('زمان انتظار تولید تصویر به پایان رسید.');
@@ -1751,7 +1792,7 @@
 
       bubble.innerHTML = `
         <div class="rounded-2xl bg-ananas-card border border-ananas-border px-4 py-3 text-xs text-gray-300 flex items-center gap-2.5">
-          <span class="text-lg animate-bounce">🍍</span>
+          <span class="w-2 h-2 rounded-full bg-ananas-400 animate-pulse"></span>
           <span>${loadingText}</span>
         </div>
       `;
@@ -1768,6 +1809,7 @@
     function startNewChat() {
       stopTextToSpeech();
       activeSessionId = null;
+      chatMenuOpenId = null;
       renderMessages();
       renderHistoryList();
 
@@ -1779,6 +1821,7 @@
     function loadSession(id) {
       stopTextToSpeech();
       activeSessionId = id;
+      chatMenuOpenId = id;
       renderMessages();
       renderHistoryList();
 
@@ -1791,6 +1834,7 @@
       if (!confirm('آیا از حذف این گفتگو مطمئن هستید؟')) return;
 
       sessions = sessions.filter(s => s.id !== id);
+      if (chatMenuOpenId === id) chatMenuOpenId = null;
 
       if (activeSessionId === id) {
         stopTextToSpeech();
@@ -1804,12 +1848,17 @@
 
     function togglePinSession(id) {
       const session = sessions.find(s => s.id === id);
+      if (!session) return;
+      session.isPinned = !session.isPinned;
+      chatMenuOpenId = null;
+      saveSessions();
+      renderHistoryList();
+    }
 
-      if (session) {
-        session.isPinned = !session.isPinned;
-        saveSessions();
-        renderHistoryList();
-      }
+    function toggleChatMenu(event, id) {
+      if (event) event.stopPropagation();
+      chatMenuOpenId = chatMenuOpenId === id ? null : id;
+      renderHistoryList();
     }
 
     function clearAllHistory() {
@@ -1847,8 +1896,7 @@
 
     function renderHistoryList() {
       const list = document.getElementById('chatHistoryList');
-
-      if (sessions.length === 0) {
+      if (!sessions.length) {
         list.innerHTML = '<p class="text-xs text-gray-500 text-center py-6">هنوز گفتگویی ثبت نشده است</p>';
         return;
       }
@@ -1859,24 +1907,29 @@
         return 0;
       });
 
-      list.innerHTML = sortedSessions.map(s => `
-        <div class="group relative flex items-center justify-between w-full px-2 py-2 rounded-xl text-xs transition border ${s.id === activeSessionId ? 'bg-ananas-500/15 text-ananas-400 border-ananas-500/30 font-bold' : 'text-gray-300 hover:bg-ananas-dark/60 border-transparent'}">
-          <button onclick="loadSession('${s.id}')" class="flex-1 overflow-hidden flex items-center gap-2 text-right">
-            <span class="shrink-0 text-sm">${s.isPinned ? '📌' : '🍍'}</span>
-            <span class="truncate flex-1" dir="auto">${escapeHtml(s.title)}</span>
-          </button>
-
-          <div class="flex items-center gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity px-1 shrink-0">
-            <button onclick="togglePinSession('${s.id}')" class="w-7 h-7 inline-flex items-center justify-center rounded-full text-gray-500 hover:text-amber-300 hover:bg-white/5 transition opacity-70 hover:opacity-100" title="${s.isPinned ? 'برداشتن سنجاق' : 'سنجاق کردن'}" aria-label="${s.isPinned ? 'برداشتن سنجاق' : 'سنجاق کردن'}">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="${s.isPinned ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 5 5-4 1-4 4-1 5-2-2-5 5-1-1 5-5-2-2 5-1 4-4z"/></svg>
+      list.innerHTML = sortedSessions.map(s => {
+        const id = escapeHtml(s.id);
+        const active = s.id === activeSessionId;
+        const menuOpen = chatMenuOpenId === s.id;
+        return `
+          <div class="chat-history-item group relative flex items-center gap-1 w-full px-2 py-1.5 rounded-xl text-xs transition border ${active ? 'is-active bg-[#303030] text-white border-[#505050] font-bold' : 'text-gray-300 hover:bg-[#202020] border-transparent'}">
+            <button type="button" onclick="loadSession('${id}')" class="flex-1 min-w-0 overflow-hidden flex items-center gap-2 text-right py-1">
+              <span class="shrink-0 text-sm">${s.isPinned ? '📌' : ''}</span>
+              <span class="truncate flex-1" dir="auto">${escapeHtml(s.title || 'گفتگوی بدون عنوان')}</span>
             </button>
-
-            <button onclick="deleteSession('${s.id}')" class="text-gray-400 hover:text-red-400 transition text-sm" title="حذف گفتگو">
-              🗑️
+            <button type="button" onclick="toggleChatMenu(event, '${id}')" class="chat-menu-trigger shrink-0 w-8 h-8 rounded-lg inline-flex items-center justify-center text-white hover:bg-[#454545] transition" title="مدیریت گفتگو" aria-label="مدیریت گفتگو" aria-expanded="${menuOpen}">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
             </button>
+            ${menuOpen ? `
+              <div class="chat-context-menu absolute left-1 top-[calc(100%-2px)] z-50 w-44 rounded-xl border border-[#555] bg-[#202020] p-1.5 shadow-2xl">
+                <button type="button" onclick="togglePinSession('${id}')" class="w-full text-right px-3 py-2.5 rounded-lg text-white hover:bg-[#383838]">${s.isPinned ? 'برداشتن پین گفتگو' : 'پین کردن گفتگو'}</button>
+                <button type="button" onclick="deleteSession('${id}')" class="w-full text-right px-3 py-2.5 rounded-lg text-red-300 hover:bg-[#383838]">پاک کردن گفتگو</button>
+                <button type="button" onclick="shareSession('${id}')" class="w-full text-right px-3 py-2.5 rounded-lg text-white hover:bg-[#383838]">اشتراک‌گذاری</button>
+                <button type="button" onclick="downloadSessionBackup('${id}')" class="w-full text-right px-3 py-2.5 rounded-lg text-white hover:bg-[#383838]">دانلود چت</button>
+              </div>` : ''}
           </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     /* کپی متن با پشتیبانی از مرورگرهای قدیمی‌تر */
@@ -2053,6 +2106,70 @@
       window.speechSynthesis.speak(utterance);
     }
 
+    function createPortableSession(session) {
+      return {
+        id: session.id,
+        title: session.title || 'گفتگوی آناناس',
+        createdAt: session.createdAt || null,
+        updatedAt: session.updatedAt || null,
+        isPinned: Boolean(session.isPinned),
+        messages: (session.messages || []).map(message => ({
+          role: message.role === 'user' ? 'user' : 'model',
+          text: String(message.text || ''),
+          ...(message.isError ? { isError: true } : {}),
+          ...(message.fileName ? { fileName: String(message.fileName) } : {})
+        }))
+      };
+    }
+
+    function downloadSessionBackup(id) {
+      const session = sessions.find(item => item.id === id);
+      if (!session) return alert('گفتگو پیدا نشد.');
+      const payload = {
+        version: '2.0',
+        type: 'ananas-chat',
+        app: 'AnanasAI',
+        exportDate: new Date().toISOString(),
+        session: createPortableSession(session)
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = 'AnanasAI_Chat_' + new Date().toISOString().slice(0, 10) + '.json';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+      chatMenuOpenId = null;
+      renderHistoryList();
+    }
+
+    async function shareSession(id) {
+      const session = sessions.find(item => item.id === id);
+      if (!session) return alert('گفتگو پیدا نشد.');
+      const payload = {
+        version: '2.0',
+        type: 'ananas-chat',
+        app: 'AnanasAI',
+        exportDate: new Date().toISOString(),
+        session: createPortableSession(session)
+      };
+      const file = new File([JSON.stringify(payload, null, 2)], 'AnanasAI_Chat.json', { type: 'application/json' });
+      chatMenuOpenId = null;
+      renderHistoryList();
+      try {
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ title: session.title || 'گفتگوی آناناس', text: 'گفتگوی صادرشده از AnanasAI', files: [file] });
+          return;
+        }
+      } catch (error) {
+        if (error && error.name === 'AbortError') return;
+      }
+      downloadSessionBackup(id);
+      alert('اشتراک‌گذاری مستقیم فایل در این دستگاه پشتیبانی نمی‌شود؛ فایل گفتگو دانلود شد تا آن را برای شخص موردنظر ارسال کنید.');
+    }
+
     /* توابع پشتیبان‌گیری و بازیابی */
     function exportChatsBackup() {
       if (!sessions || sessions.length === 0) {
@@ -2091,45 +2208,58 @@
     function importChatsBackup(event) {
       const file = event.target.files[0];
       if (!file) return;
-
       const reader = new FileReader();
 
       reader.onload = function(e) {
         try {
-          const content = e.target.result;
-          const parsedData = JSON.parse(content);
+          const parsedData = JSON.parse(e.target.result);
+          stopTextToSpeech();
+
+          if (parsedData.type === 'ananas-chat' && parsedData.session) {
+            const imported = parsedData.session;
+            if (!Array.isArray(imported.messages)) throw new Error('ساختار گفتگو معتبر نیست.');
+            const newId = 'chat_' + (window.crypto && crypto.randomUUID ? crypto.randomUUID() : Date.now() + '_' + Math.random().toString(36).slice(2));
+            const safeSession = {
+              id: newId,
+              title: String(imported.title || 'گفتگوی واردشده').slice(0, 180),
+              createdAt: imported.createdAt || new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              isPinned: false,
+              messages: imported.messages.map(message => ({
+                role: message.role === 'user' ? 'user' : 'model',
+                text: String(message.text || ''),
+                ...(message.isError ? { isError: true } : {}),
+                ...(message.fileName ? { fileName: String(message.fileName).slice(0, 255) } : {})
+              }))
+            };
+            if (!safeSession.messages.length) throw new Error('این فایل گفتگویی برای وارد کردن ندارد.');
+            sessions.push(safeSession);
+            activeSessionId = newId;
+            saveSessions();
+            renderHistoryList();
+            renderMessages();
+            alert('گفتگو با موفقیت به تاریخچه شما اضافه شد.');
+            return;
+          }
 
           if (!parsedData.sessions || !Array.isArray(parsedData.sessions)) {
             alert('فرمت فایل پشتیبان نامعتبر است.');
             return;
           }
-
-          if (sessions.length > 0) {
-            if (!confirm('با بازیابی این فایل، چت‌های فعلی شما با چت‌های فایل پشتیبان جایگزین می‌شوند. ادامه می‌دهید؟')) {
-              event.target.value = '';
-              return;
-            }
-          }
-
-          stopTextToSpeech();
-
+          if (sessions.length > 0 && !confirm('با بازیابی این فایل، چت‌های فعلی شما با چت‌های فایل پشتیبان جایگزین می‌شوند. ادامه می‌دهید؟')) return;
           sessions = parsedData.sessions;
           activeSessionId = sessions.length > 0 ? sessions[0].id : null;
-
+          chatMenuOpenId = null;
           saveSessions();
           renderHistoryList();
           renderMessages();
-
           alert('پشتیبان گفتگوها با موفقیت بازیابی شد!');
-
         } catch (err) {
-          alert('خطا در خواندن فایل پشتیبان. فایل انتخاب شده سالم نیست.');
-
+          alert('خطا در خواندن فایل گفتگو یا پشتیبان. فایل انتخاب‌شده معتبر نیست.');
         } finally {
           event.target.value = '';
         }
       };
-
       reader.readAsText(file);
     }
 
