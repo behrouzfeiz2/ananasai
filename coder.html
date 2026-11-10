@@ -79,10 +79,13 @@ let repositories=[],selectedRepo=null,files=[],pendingProposalId=null;
 const $=id=>document.getElementById(id);
 function headers(){return{"Content-Type":"application/json","X-User-Token":userToken,"X-Device-UUID":deviceUUID};}
 async function api(action,method="GET",data=null){
- const url="/api/github"+(method==="GET"?"?"+new URLSearchParams(action):"");
- const res=await fetch(url,{method,headers:headers(),...(data?{body:JSON.stringify(data)}:{})});
+ const url="/api/github"+(method==="GET"?"?"+new URLSearchParams(action||{}):"");
+ let res;
+ try { res=await fetch(url,{method,headers:headers(),...(data?{body:JSON.stringify(data)}:{}),cache:"no-store",credentials:"same-origin"}); }
+ catch(error) { throw new Error("ارتباط با سرور برقرار نشد. اتصال اینترنت را بررسی و دوباره تلاش کنید."); }
  const out=await res.json().catch(()=>({error:"پاسخ سرور قابل خواندن نیست."}));
- if(!res.ok)throw new Error(out.error||"خطای ارتباط با سرور");
+ if(!res.ok)throw new Error(out.error||"خطای ارتباط با سرور ("+res.status+")");
+ if(!out||typeof out!=="object")throw new Error("ساختار پاسخ سرور معتبر نیست.");
  return out;
 }
 function showError(message){$("accountError").textContent=message;$("accountError").classList.remove("hidden");}
@@ -97,6 +100,8 @@ async function boot(){
   if(params.has("github_error"))showError("اتصال GitHub انجام نشد. لطفاً دوباره تلاش کنید ("+params.get("github_error")+")");
   if(params.get("github")==="connected"){$("githubStatus").textContent="اتصال با موفقیت انجام شد";history.replaceState({}, "", "coder.html");}
   const status=await api({action:"status"});
+  const clientTier=qd.quota.isUltra||qd.quota.tier==="ultra"?"ultra":"pro";
+  if(status.tier && status.tier!==clientTier){showError("سطح اشتراک در سرویس‌ها یکسان نیست. لطفاً یک‌بار از حساب خارج و دوباره وارد شوید.");$("connectBtn").disabled=true;return;}
   if(status.connected){$("githubStatus").textContent="متصل به @"+status.login;$("connectBtn").classList.add("hidden");$("reloadReposBtn").classList.remove("hidden");$("connectIntro").classList.add("hidden");await loadRepos();}
  }catch(e){showError(e.message);}
 }
@@ -180,6 +185,8 @@ async function confirmChanges(){
  if(!pendingProposalId)return showError("پیش‌نمایش معتبری برای تأیید وجود ندارد.");
  if(!confirm("تأیید نهایی: اصلاحات نمایش‌داده‌شده روی یک شاخه جدید ثبت و به‌صورت Draft Pull Request ارسال شوند؟ شاخه اصلی تغییر نمی‌کند."))return;
  const proposalId=pendingProposalId;
+ const confirmButton=[...$("workStatus").querySelectorAll("button")].find(button=>button.textContent.includes("تأیید تغییرات"));
+ if(confirmButton){confirmButton.disabled=true;confirmButton.textContent="در حال ثبت...";}
  $("applyBtn").disabled=true;
  const status=$("workStatus");status.textContent="در حال بررسی مجدد نسخه پایه و ساخت شاخه مستقل و Draft Pull Request...";
  try{
@@ -190,7 +197,7 @@ async function confirmChanges(){
    '<a class="inline-flex mt-4 rounded-lg bg-emerald-400 text-black px-4 py-2 font-bold" target="_blank" rel="noopener" href="'+escapeHtml(d.pull_request)+'">بررسی Draft Pull Request در GitHub</a>'+
    '<p class="mt-3 text-xs text-amber-200">این PR هنوز Draft است و هیچ Merge خودکاری انجام نشده است.</p>';
  }catch(e){status.textContent="خطا: "+e.message;}
- finally{$("applyBtn").disabled=false;}
+ finally{$("applyBtn").disabled=false;if(confirmButton && confirmButton.isConnected){confirmButton.disabled=false;confirmButton.textContent="تأیید تغییرات و ساخت Draft PR";}}
 }
 boot();
 </script>
