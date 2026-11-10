@@ -966,7 +966,6 @@
       const chatBtn = document.getElementById('modeChatBtn');
       const coderBtn = document.getElementById('modeCoderBtn');
       const input = document.getElementById('promptInput');
-      const hint = document.getElementById('modeHintText');
       const suggestions = document.getElementById('chatSuggestions');
 
       if (suggestions) {
@@ -977,17 +976,12 @@
         coderBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-cyan-500 text-ananas-dark';
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
         input.placeholder = 'کد یا سوال برنامه‌نویسی خود را بنویسید یا فایل کد را ضمیمه کنید...';
-        hint.textContent = '💻 بخش «کد نویس» فعال است (امکان ضمیمه فایل کد فعال است).';
 
         showCoderInfoIfNeeded();
       } else {
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-ananas-500 text-ananas-dark';
         coderBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
         input.placeholder = 'پیام خود را برای آناناس بنویسید (یا صحبت کنید)...';
-
-        hint.textContent = userToken
-          ? '💬 حالت گفتگو فعال است (برای سوالات برنامه‌نویسی، روی «کد نویس» کلیک کنید)'
-          : '💬 حالت گفتگو فعال است (بخش «کد نویس» و پیوست فایل ویژه کاربران پرو است)';
 
         const infoCard = document.getElementById('coderInfoCard');
         if (infoCard) infoCard.remove();
