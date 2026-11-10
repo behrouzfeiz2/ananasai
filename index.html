@@ -1173,13 +1173,17 @@
         return;
       }
 
-      // تشخیص فرمان تولید تصویر؛ نیم‌فاصله‌های فارسی پیش از تطبیق یکسان‌سازی می‌شوند.
-      const imageCommandText = userText.replace(/[\u200c\u200f]/g, ' ');
-      const imageMatch = !hadAttachment ? imageCommandText.match(/^(?:لطفاً\s*)?(?:(?:یک\s*)?(?:تصویر|عکس)\s*(?:(?:بساز|تولید\s*کن|ایجاد\s*کن)\s*[:：-]?\s*([\s\S]*)|می\s*(?:خواهم|خوام)\s*(?:درست\s*کنم|بسازم)\s*[؟?]?)|(?:برای\s+(.+?)\s+)?(?:یک\s*)?(?:تصویر|عکس)\s*می\s*(?:خواهم|خوام)\s*[؟?]?)$/i) : null;
-      if (imageMatch) {
-        const imagePrompt = (imageMatch[1] || imageMatch[2] || '').trim();
+      // تشخیص درخواست تولید تصویر با هر ساختار جمله؛ نیم‌فاصله‌های فارسی یکسان‌سازی می‌شوند.
+      const imageCommandText = userText.replace(/[\u200c\u200f]/g, ' ').replace(/\s+/g, ' ').trim();
+      const hasImageSubject = /(?:عکس|تصویر|لوگو|پوستر|بنر|تصویرسازی|آواتار|کاور|والپیپر)/i.test(imageCommandText);
+      const hasImageCreationIntent = /(?:بساز(?:م|ید)?|درست\s*کن(?:م|ید)?|طراحی\s*کن(?:م|ید)?|تولید\s*کن(?:م|ید)?|ایجاد\s*کن(?:م|ید)?|می\s*(?:خواهم|خوام)|می\s*خواستم)/i.test(imageCommandText);
+      const imageRequestIsGeneric = /^(?:لطفا\s*)?(?:(?:من\s*)?(?:یک\s*)?(?:عکس|تصویر)\s*(?:(?:می\s*(?:خواهم|خوام))(?:\s*(?:درست\s*کنم|بسازم))?|(?:درست\s*کنم|بسازم|بساز|تولید\s*کن|ایجاد\s*کن))|(?:می\s*(?:خواهم|خوام)\s*)?(?:یک\s*)?(?:عکس|تصویر)\s*(?:بساز|درست\s*کن|تولید\s*کن|ایجاد\s*کن))\s*[؟?.!]*$/i.test(imageCommandText);
+      const isImageGenerationRequest = !hadAttachment && hasImageSubject && hasImageCreationIntent;
+      if (isImageGenerationRequest) {
+        // متن کامل کاربر حفظ می‌شود تا نام برند، نوع طراحی و جزئیات درخواست از بین نرود.
+        const imagePrompt = imageRequestIsGeneric ? '' : userText.trim();
         if (!userToken || !(quotaState.isUltra || quotaState.tier === 'ultra' || userToken.startsWith('ULTRA-'))) currentSession.messages.push({role:'model',isError:true,text:'⚠️ تولید تصویر فقط برای کاربران Ultra فعال است.'});
-        else if (!imagePrompt) currentSession.messages.push({role:'model',text:'حتماً! چه تصویری می‌خواهید بسازم؟ لطفاً سوژه و جزئیات تصویر را بنویسید.'});
+        else if (!imagePrompt) currentSession.messages.push({role:'model',text:'حتماً! چه تصویری می‌خواهید بسازم؟ لطفاً سوژه، نام برند و جزئیات موردنظر را بنویسید.'});
         else currentSession.messages.push({role:'model',text:'مدل تولید تصویر را انتخاب کنید.',imageWizard:{prompt:imagePrompt,model:null,step:'model'}});
         saveSessions(); renderMessages(); renderHistoryList(); return;
       }
