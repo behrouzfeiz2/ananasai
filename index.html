@@ -732,7 +732,14 @@
 
       const file = e.target.files[0];
       if (!file) return;
+      // محدودیت حجم فایل: حداکثر ۵ مگابایت
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
+if (file.size > MAX_FILE_SIZE) {
+  alert('حجم فایل نباید بیشتر از ۵ مگابایت باشد.');
+  e.target.value = '';
+  return;
+}
       const reader = new FileReader();
       const isImage = file.type.startsWith('image/');
 
@@ -888,6 +895,7 @@
 
       const inputEl = document.getElementById('promptInput');
       const userText = inputEl.value.trim();
+      const hadAttachment = Boolean(attachedFile);
 
       if (!userText && !attachedFile) return;
 
@@ -934,7 +942,7 @@
       const lowerText = userText.toLowerCase();
 
       // بررسی نرخ بازار فقط با تطابق دقیق کلمات و در غیر از حالت کدنویسی
-      const isMarketQuery = currentMode === 'chat' && !attachedFile && (
+     const isMarketQuery = currentMode === 'chat' && !hadAttachment && (
         lowerText === 'دلار' ||
         lowerText === 'قیمت دلار' ||
         lowerText === 'قیمت دلار چنده؟' ||
@@ -998,16 +1006,28 @@
           .map(m => {
             const parts = [];
 
-            if (m.text) parts.push({ text: m.text });
+            if (m.text) {
+  parts.push({ text: m.text });
+}
 
-            if (m.fileData && m.fileMime) {
-              parts.push({
-                inlineData: {
-                  mimeType: m.fileMime,
-                  data: m.fileData
-                }
-              });
-            }
+// ارسال فایل پیوست به مدل
+if (m.fileData && m.fileMime) {
+
+  // اگر کاربر فقط تصویر فرستاده و توضیحی ننوشته،
+  // یک دستور پیش‌فرض برای تحلیل تصویر ارسال شود.
+  if (!m.text && m.fileMime.startsWith('image/')) {
+    parts.push({
+      text: 'لطفاً تصویر پیوست‌شده را با دقت بررسی کن و محتوای آن را توضیح بده.'
+    });
+  }
+
+  parts.push({
+    inlineData: {
+      mimeType: m.fileMime,
+      data: m.fileData
+    }
+  });
+}
 
             return {
               role: m.role === 'user' ? 'user' : 'model',
