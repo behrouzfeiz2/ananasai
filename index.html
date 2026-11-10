@@ -766,6 +766,25 @@
     }
     async function removeAudioFromLibrary(id){if(!confirm('این فایل از حافظه همین مرورگر حذف شود؟'))return;await deleteAudioRecord(id);await openAudioLibrary();renderMessages();}
     function closeAudioLibrary(){const m=document.getElementById('audioLibraryModal');m.classList.add('hidden');m.classList.remove('flex');}
+    const generatedImageObjectUrls = {};
+    async function hydrateMessageImages(){
+      const ids=[...new Set(sessions.flatMap(x=>x.messages||[]).map(m=>m.generatedImageLibraryId).filter(Boolean))];
+      if(!ids.length || !userToken || !(quotaState.isUltra || quotaState.tier==='ultra' || userToken.startsWith('ULTRA-')))return;
+      try{
+        const headers={'X-User-Token':userToken};
+        const response=await fetch('/api/image-library',{headers});
+        if(!response.ok)return;
+        const data=await response.json();
+        const available=new Set((data.items||[]).map(item=>item.id));
+        for(const id of ids){
+          if(!available.has(id)||generatedImageObjectUrls[id])continue;
+          const file=await fetch('/api/image-library?file='+encodeURIComponent(id),{headers});
+          if(!file.ok)continue;
+          generatedImageObjectUrls[id]=URL.createObjectURL(await file.blob());
+        }
+      }catch(e){console.warn('Image history hydration failed',e);}
+      renderMessages();
+    }
     async function hydrateMessageAudio(){
       for(const m of sessions.flatMap(x=>x.messages||[]).filter(x=>x.audioId)){
         try{const r=await getAudioRecord(m.audioId);if(r&&!audioObjectUrls[m.audioId])audioObjectUrls[m.audioId]=URL.createObjectURL(r.blob);}catch(e){}
@@ -777,6 +796,7 @@
       updateAccountStatusBadge();
       renderHistoryList();
       hydrateMessageAudio();
+      hydrateMessageImages();
 
       if (sessions.length > 0 && sessions[0].messages && sessions[0].messages.length > 0) {
         loadSession(sessions[0].id);
@@ -1519,23 +1539,9 @@
 
       container.innerHTML = currentSession.messages.map((msg, idx) => {
         if (msg.role === 'user') {
-          let attachmentHtml = '';
-
-          if (msg.filePreview) {
-            attachmentHtml = `<img src="${msg.filePreview}" class="max-h-52 rounded-xl mb-2 border border-black/15" alt="تصویر پیوست‌شده" />`;
-          } else if (msg.fileName) {
-            attachmentHtml = `
-              <div class="flex items-center gap-2 mb-2 p-2 rounded-lg bg-black/20 border border-white/10 text-xs">
-                <span>📄</span>
-                <span class="truncate font-mono">${escapeHtml(msg.fileName)}</span>
-              </div>
-            `;
-          }
-
           return `
             <div class="flex justify-start">
               <div class="max-w-[85%] sm:max-w-[75%] rounded-2xl rounded-tr-xs bg-gradient-to-l from-ananas-500 to-ananas-600 text-ananas-dark px-4 py-3 shadow-md">
-                ${attachmentHtml}
                 <div class="text-sm font-medium whitespace-pre-wrap leading-relaxed">${escapeHtml(msg.text)}</div>
               </div>
             </div>
@@ -1543,7 +1549,10 @@
 
         } else {
           if (msg.imageWizard) return renderImageWizard(idx,msg.imageWizard);
-          if (msg.generatedImageUrl) return `<div class="flex justify-end"><div class="max-w-[90%] rounded-2xl bg-ananas-card border border-fuchsia-500/30 p-4 space-y-3"><b class="text-fuchsia-200">🖼️ تصویر آماده است</b><img src="${escapeHtml(msg.generatedImageUrl)}" class="w-full rounded-xl" alt="تصویر تولیدشده"><a href="${escapeHtml(msg.generatedImageUrl)}" target="_blank" rel="noopener" class="inline-block px-4 py-2 rounded-lg bg-fuchsia-500 text-white text-xs">⬇ دریافت تصویر</a>${msg.generatedImageLibraryId ? '<button onclick="openImageLibrary()" class="mr-2 px-4 py-2 rounded-lg border border-amber-400/40 text-amber-200 text-xs">🗂 مشاهده در کتابخانه تصاویر</button><p class="text-[10px] text-emerald-300">این تصویر در کتابخانه شخصی شما ذخیره شد.</p>' : '<p class="text-[10px] text-amber-300">ذخیره در کتابخانه انجام نشد؛ تصویر را دانلود کنید.</p>'}</div></div>`;
+          if (msg.generatedImageLibraryId && generatedImageObjectUrls[msg.generatedImageLibraryId]) {
+            const imageUrl = generatedImageObjectUrls[msg.generatedImageLibraryId];
+            return `<div class="flex justify-end"><div class="max-w-[90%] rounded-2xl bg-ananas-card border border-fuchsia-500/30 p-4 space-y-3"><b class="text-fuchsia-200">🖼️ تصویر ذخیره‌شده</b><img src="${escapeHtml(imageUrl)}" class="w-full rounded-xl" alt="تصویر تولیدشده"><a href="${escapeHtml(imageUrl)}" download="AnanasAI-${escapeHtml(msg.generatedImageLibraryId)}.png" class="inline-block px-4 py-2 rounded-lg bg-fuchsia-500 text-white text-xs">⬇ دریافت تصویر</a><button onclick="openImageLibrary()" class="mr-2 px-4 py-2 rounded-lg border border-amber-400/40 text-amber-200 text-xs">🗂 مشاهده در کتابخانه تصاویر</button><p class="text-[10px] text-emerald-300">این تصویر در کتابخانه شخصی شما ذخیره شده است.</p></div></div>`;
+          }
           if (msg.ttsWizard) return renderTtsWizard(idx, msg.ttsWizard);
           const parsedMd = renderAssistantContent(msg.text || '');
           const playableAudioUrl = (msg.audioId && audioObjectUrls[msg.audioId]) || msg.audioUrl;
@@ -1656,7 +1665,7 @@
         let url=null,librarySaved=false;
         for(let i=0;i<300;i++){await new Promise(r=>setTimeout(r,3000));const res=await fetch('/api/image?id='+encodeURIComponent(job.id),{headers:{'X-User-Token':userToken}});const data=await res.json();if(!res.ok)throw new Error(data.error||'خطا در دریافت وضعیت تصویر.');if(data.status==='ready'&&data.output?.url){url=data.output.url;librarySaved=Boolean(data.librarySaved);break;}if(data.status==='failed')throw new Error(data.error?.message||'تولید تصویر ناموفق بود.');}
         if(!url)throw new Error('زمان انتظار تولید تصویر به پایان رسید.');
-        m.imageWizard=null;m.text='🖼️ تصویر با موفقیت تولید شد.';m.generatedImageUrl=url;if(librarySaved)m.generatedImageLibraryId=job.id;
+        m.imageWizard=null;m.text='🖼️ تصویر با موفقیت تولید شد.';if(librarySaved){m.generatedImageLibraryId=job.id;delete m.generatedImageUrl;await hydrateMessageImages();}else{m.generatedImageLibraryId=null;delete m.generatedImageUrl;m.text='⚠️ تصویر تولید شد، اما در کتابخانه ذخیره نشد و برای نمایش در تاریخچه نگهداری نمی‌شود.';}
       }catch(e){m.imageWizard=null;m.isError=true;m.text='⚠️ '+e.message;}
       finally{isGenerating=false;saveSessions();renderMessages();renderHistoryList();}
     }
@@ -1784,8 +1793,9 @@
             role: m.role,
             text: m.text,
             audioUrl: m.audioUrl,
-            isError: m.isError,
-            fileName: m.fileName
+            audioId: m.audioId,
+            generatedImageLibraryId: m.generatedImageLibraryId || null,
+            isError: m.isError
           }))
         }));
 
