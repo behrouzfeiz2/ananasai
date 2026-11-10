@@ -1076,34 +1076,25 @@
         ? (userText.match(ttsCommand) || userText.match(ttsReverseCommand))
         : null;
       if (ttsMatch) {
-        isGenerating = true;
-        appendLoadingBubble(false, false);
-        try {
-          if (!userToken || !(quotaState.isUltra || quotaState.tier === 'ultra' || userToken.startsWith('ULTRA-'))) throw new Error('فرمان تبدیل متن به صدای حرفه‌ای فقط برای کاربران Ultra فعال است.');
-          const speechText = (ttsMatch[1] || '').trim();
-          if (!speechText) throw new Error('بعد از دستور، متن موردنظر را بنویسید. نمونه: این متن را بخوان: سلام، حال شما چطور است؟');
-          if (speechText.length > 2500) throw new Error('حداکثر طول متن برای هر بار تبدیل ۲۵۰۰ نویسه است.');
-          const headers = { 'Content-Type': 'application/json', 'X-User-Token': userToken };
-          const startResponse = await fetch('/api/tts', { method: 'POST', headers, body: JSON.stringify({ text: speechText }) });
-          const started = await startResponse.json();
-          if (!startResponse.ok || !started.success) throw new Error(started.error || 'شروع تبدیل صوت ناموفق بود.');
-          if (started.quota) { quotaState.audioUsed = started.quota.used; quotaState.audioLimit = started.quota.limit; updateAccountStatusBadge(); }
-          let audioUrl = null;
-          for (let attempt = 0; attempt < 30; attempt++) {
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            const pollResponse = await fetch('/api/tts?id=' + encodeURIComponent(started.id), { headers: { 'X-User-Token': userToken } });
-            const poll = await pollResponse.json();
-            if (!pollResponse.ok) throw new Error(poll.error || 'دریافت وضعیت صوت ناموفق بود.');
-            if (poll.output) { const output = poll.output; audioUrl = typeof output === 'string' ? output : (output.url || output.audio_url || output[0]?.url || null); if (audioUrl) break; }
-            if (poll.status === 'failed' || poll.status === 'error') throw new Error(poll.error?.message || 'تولید فایل صوتی ناموفق بود.');
-          }
-          if (!audioUrl) throw new Error('تولید صوت بیش از زمان انتظار طول کشید.');
-          currentSession.messages.push({ role: 'model', text: '🔊 تبدیل متن به صدا با موفقیت انجام شد.', audioUrl });
-        } catch (err) {
-          currentSession.messages.push({ role: 'model', isError: true, text: '⚠️ ' + err.message });
-        } finally {
-          removeLoadingBubble(); isGenerating = false; saveSessions(); renderMessages(); renderHistoryList();
+        if (!userToken || !(quotaState.isUltra || quotaState.tier === 'ultra' || userToken.startsWith('ULTRA-'))) {
+          currentSession.messages.push({ role: 'model', isError: true, text: '⚠️ فرمان تبدیل متن به صدای حرفه‌ای فقط برای کاربران Ultra فعال است.' });
+          saveSessions(); renderMessages(); renderHistoryList(); return;
         }
+        const speechText = (ttsMatch[1] || '').trim();
+        if (!speechText) {
+          currentSession.messages.push({ role: 'model', isError: true, text: '⚠️ بعد از دستور، متن موردنظر را بنویسید. نمونه: این متن را به صدا تبدیل کن: سلام، حال شما چطور است؟' });
+          saveSessions(); renderMessages(); renderHistoryList(); return;
+        }
+        if (speechText.length > 2500) {
+          currentSession.messages.push({ role: 'model', isError: true, text: '⚠️ حداکثر طول متن برای هر بار تبدیل ۲۵۰۰ نویسه است.' });
+          saveSessions(); renderMessages(); renderHistoryList(); return;
+        }
+        currentSession.messages.push({
+          role: 'model',
+          text: 'برای ساخت فایل صوتی، ابتدا گوینده و سپس لحن دلخواه را انتخاب کنید.',
+          ttsWizard: { text: speechText, speaker: null, tone: null, step: 'speaker' }
+        });
+        saveSessions(); renderMessages(); renderHistoryList();
         return;
       }
 
@@ -1404,6 +1395,7 @@
           `;
 
         } else {
+          if (msg.ttsWizard) return renderTtsWizard(idx, msg.ttsWizard);
           const parsedMd = renderAssistantContent(msg.text || '');
           const audioPlayer = msg.audioUrl ? `<div class="mt-3 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/10 p-3"><div class="text-xs text-fuchsia-200 mb-2">🎧 فایل صوتی آماده پخش است</div><audio controls preload="none" class="w-full" src="${escapeHtml(msg.audioUrl)}"></audio></div>` : '';
 
@@ -1452,6 +1444,60 @@
       }).join('');
 
       scrollToBottom();
+    }
+
+    const TTS_SPEAKERS = [
+      ['shahab','شهاب','مرد · قدرتمند و رسا'],['ava','آوا','زن · لطیف و دلنشین'],['navid','نوید','مرد · جوان و پرانرژی'],['arman','آرمان','مرد · گرم و صمیمی'],
+      ['mahsa','مهسا','زن · باوقار و رسمی'],['dana','دانا','مرد · خبری و آموزنده'],['saman','سامان','مرد · شاداب و پویا'],['arash','آرش','مرد · مطمئن و تأثیرگذار'],
+      ['shabnam','شبنم','زن · آرام و متین'],['sahar','سحر','زن · دوستانه و گیرا'],['maryam','مریم','زن · حرفه‌ای و واضح'],['bahram','بهرام','مرد · حماسی و نافذ'],
+      ['nikan','نیکان','مرد · مهربان و شیرین'],['farnaz','فرناز','زن · پخته و قابل اعتماد'],['sara','سارا','زن · جذاب و مدرن'],['mani','مانی','مرد · خلاق و متفاوت'],
+      ['artin','آرتین','مرد · بااصالت و شیک'],['delnavaz','دلنواز','زن · هنری و احساسی'],['rozhan','روژان','زن · شفاف و گویا'],['omid','امید','مرد · انگیزه‌بخش و مثبت'],
+      ['bardia','بردیا','مرد · ورزشی و پرهیجان'],['taraneh','ترانه','زن · موزیکال و خوش‌آهنگ'],['niko','نیکو','زن · روایتگر و قصه‌گو'],['hasti','هستی','زن · طبیعی و خودمانی'],
+      ['kamyar','کامیار','مرد · مصمم و جدی'],['kianoosh','کیانوش','مرد · درخشان و گیرا'],['pouya','پویا','مرد · بازیگوش و سرزنده'],['mahtab','مهتاب','زن · نجواگر و آرامش‌بخش'],
+      ['sam','سام','مرد · جسور و بی‌باک'],['lida','لیدا','زن · کلاسیک و باوقار']
+    ];
+    const TTS_TONES = [
+      ['natural','طبیعی و صمیمی','با لحنی طبیعی، گرم و صمیمی'],['formal','رسمی و خبری','با لحنی رسمی، خنثی و خبری، مانند مجری بخش خبری'],
+      ['audiobook','کتاب صوتی','با لحنی آرام، ملایم و دلنشین، مانند گوینده کتاب صوتی'],['story','داستانی و احساسی','با لحنی قصه‌گو، گیرا و احساسی'],
+      ['energetic','انگیزشی و پرانرژی','با لحنی انگیزشی، پرانرژی و الهام‌بخش'],['mysterious','مرموز و نجواگونه','با لحنی مرموز، شیطنت‌آمیز و نجواگونه'],
+      ['commanding','قاطع و قدرتمند','با لحنی قاطع، محکم و فرماندهانه']
+    ];
+    function renderTtsWizard(idx, w) {
+      const sp = TTS_SPEAKERS.find(x => x[0] === w.speaker);
+      const header = '<div class="font-bold text-sm text-fuchsia-200 mb-2">🎙️ تنظیمات صدای حرفه‌ای</div>';
+      if (w.step === 'speaker') {
+        const cards = TTS_SPEAKERS.map(x => '<button type="button" onclick="selectTtsSpeaker('+idx+',\''+x[0]+'\')" class="text-right p-2.5 rounded-xl border border-ananas-border bg-ananas-dark/70 hover:border-fuchsia-400 hover:bg-fuchsia-500/10 transition"><span class="block text-sm font-bold text-white">'+x[1]+'</span><span class="block text-[10px] text-gray-400 mt-0.5">'+x[2]+'</span></button>').join('');
+        return '<div class="flex justify-end"><div class="w-full max-w-[90%] sm:max-w-[82%] rounded-2xl bg-ananas-card border border-fuchsia-500/30 px-4 py-3.5 shadow-md">'+header+'<p class="text-sm text-gray-200 mb-3">چه صدایی متن شما را بخواند؟ یکی از ۳۰ گوینده را انتخاب کنید:</p><div class="grid grid-cols-2 sm:grid-cols-3 gap-2">'+cards+'</div></div></div>';
+      }
+      if (w.step === 'tone') {
+        const choices = TTS_TONES.map(x => '<button type="button" onclick="selectTtsTone('+idx+',\''+x[0]+'\')" class="text-right p-3 rounded-xl border border-ananas-border bg-ananas-dark/70 hover:border-fuchsia-400 hover:bg-fuchsia-500/10 transition"><span class="block text-sm font-bold text-white">'+x[1]+'</span><span class="block text-[10px] text-gray-400 mt-1">'+x[2]+'</span></button>').join('');
+        return '<div class="flex justify-end"><div class="w-full max-w-[90%] sm:max-w-[82%] rounded-2xl bg-ananas-card border border-fuchsia-500/30 px-4 py-3.5 shadow-md">'+header+'<p class="text-sm text-gray-200 mb-3">گوینده انتخاب شد: <b class="text-fuchsia-300">'+(sp?sp[1]:'')+'</b>. چه لحنی داشته باشد؟</p><div class="grid grid-cols-1 sm:grid-cols-2 gap-2">'+choices+'</div><div class="mt-3 p-3 rounded-xl border border-ananas-border bg-ananas-dark/60"><label for="ttsCustomTone'+idx+'" class="block text-xs text-gray-300 mb-2">یا لحن دلخواه خودتان را بنویسید:</label><textarea id="ttsCustomTone'+idx+'" rows="2" maxlength="300" placeholder="مثلاً با لحنی آرام و مطمئن، مثل گوینده مستند طبیعت..." class="w-full rounded-lg bg-ananas-card border border-ananas-border p-2 text-sm text-white outline-none focus:border-fuchsia-400"></textarea><button type="button" onclick="selectCustomTtsTone('+idx+')" class="mt-2 px-4 py-2 rounded-lg bg-fuchsia-500 hover:bg-fuchsia-400 text-white text-xs font-bold">ثبت لحن دلخواه</button></div><button type="button" onclick="backToTtsSpeakers('+idx+')" class="mt-3 text-xs text-gray-400 hover:text-white">← تغییر گوینده</button></div></div>';
+      }
+      if (w.step === 'confirm') {
+        return '<div class="flex justify-end"><div class="w-full max-w-[90%] sm:max-w-[82%] rounded-2xl bg-ananas-card border border-fuchsia-500/30 px-4 py-3.5 shadow-md">'+header+'<p class="text-sm text-gray-200 mb-3">تنظیمات انتخاب‌شده:</p><div class="space-y-2 text-sm"><div class="rounded-lg bg-ananas-dark p-3">🎙️ گوینده: <b class="text-fuchsia-300">'+(sp?sp[1]:'')+'</b></div><div class="rounded-lg bg-ananas-dark p-3">🎚️ لحن: <span class="text-gray-200">'+escapeHtml(w.tone||'')+'</span></div></div><p class="text-[11px] text-gray-400 mt-3">با تأیید، یک درخواست از سهمیه روزانه ۵ تبدیل صوت Ultra مصرف می‌شود.</p><div class="flex flex-wrap gap-2 mt-3"><button type="button" onclick="generateTtsFromWizard('+idx+')" class="px-4 py-2.5 rounded-xl bg-fuchsia-500 hover:bg-fuchsia-400 text-white text-xs font-bold">✓ تأیید و ساخت فایل صوتی</button><button type="button" onclick="backToTtsTones('+idx+')" class="px-4 py-2.5 rounded-xl border border-ananas-border text-gray-300 text-xs">تغییر لحن</button></div></div></div>';
+      }
+      return '<div class="flex justify-end"><div class="rounded-xl bg-ananas-card border border-fuchsia-500/30 p-4 text-sm text-fuchsia-200">در حال ساخت فایل صوتی...</div></div>';
+    }
+    function getTtsWizardMessage(idx) { const s=sessions.find(x=>x.id===activeSessionId); const m=s&&s.messages[idx]; return m&&m.ttsWizard?m:null; }
+    function selectTtsSpeaker(idx,id) { const m=getTtsWizardMessage(idx); if(!m||!TTS_SPEAKERS.some(x=>x[0]===id))return; m.ttsWizard.speaker=id; m.ttsWizard.step='tone'; saveSessions(); renderMessages(); }
+    function selectTtsTone(idx,id) { const m=getTtsWizardMessage(idx),x=TTS_TONES.find(y=>y[0]===id); if(!m||!x)return; m.ttsWizard.tone=x[2]; m.ttsWizard.step='confirm'; saveSessions(); renderMessages(); }
+    function selectCustomTtsTone(idx) { const m=getTtsWizardMessage(idx),el=document.getElementById('ttsCustomTone'+idx),tone=el?el.value.trim():''; if(!m||!tone)return alert('لطفاً لحن دلخواه را بنویسید.'); if(tone.length>300)return alert('توضیح لحن حداکثر ۳۰۰ نویسه باشد.'); m.ttsWizard.tone=tone; m.ttsWizard.step='confirm'; saveSessions(); renderMessages(); }
+    function backToTtsSpeakers(idx) { const m=getTtsWizardMessage(idx); if(!m)return; m.ttsWizard.step='speaker'; saveSessions(); renderMessages(); }
+    function backToTtsTones(idx) { const m=getTtsWizardMessage(idx); if(!m)return; m.ttsWizard.step='tone'; saveSessions(); renderMessages(); }
+    async function generateTtsFromWizard(idx) {
+      const msg=getTtsWizardMessage(idx); if(!msg||isGenerating)return;
+      if(!userToken||!(quotaState.isUltra||quotaState.tier==='ultra'||userToken.startsWith('ULTRA-'))){msg.ttsWizard=null;msg.isError=true;msg.text='⚠️ این قابلیت فقط برای کاربران Ultra فعال است.';saveSessions();renderMessages();return;}
+      const w=msg.ttsWizard; if(!w.text||!w.speaker||!w.tone)return; isGenerating=true; w.step='generating'; saveSessions(); renderMessages();
+      try {
+        const headers={'Content-Type':'application/json','X-User-Token':userToken};
+        const start=await fetch('/api/tts',{method:'POST',headers,body:JSON.stringify({text:w.text,speaker:w.speaker,tone:w.tone})});
+        const started=await start.json(); if(!start.ok||!started.success)throw new Error(started.error||'شروع تبدیل صوت ناموفق بود.');
+        if(started.quota){quotaState.audioUsed=started.quota.used;quotaState.audioLimit=started.quota.limit;updateAccountStatusBadge();}
+        let audioUrl=null;
+        for(let attempt=0;attempt<30;attempt++){await new Promise(resolve=>setTimeout(resolve,2000));const response=await fetch('/api/tts?id='+encodeURIComponent(started.id),{headers:{'X-User-Token':userToken}});const poll=await response.json();if(!response.ok)throw new Error(poll.error||'دریافت وضعیت صوت ناموفق بود.');if(poll.output){const o=poll.output;audioUrl=typeof o==='string'?o:(o.url||o.audio_url||o[0]?.url||null);if(audioUrl)break;}if(poll.status==='failed'||poll.status==='error')throw new Error(poll.error?.message||'تولید فایل صوتی ناموفق بود.');}
+        if(!audioUrl)throw new Error('تولید صوت بیش از زمان انتظار طول کشید.'); msg.ttsWizard=null;msg.text='🔊 تبدیل متن به صدا با موفقیت انجام شد.';msg.audioUrl=audioUrl;
+      } catch(err) { msg.ttsWizard=null;msg.isError=true;msg.text='⚠️ '+err.message; }
+      finally { isGenerating=false;saveSessions();renderMessages();renderHistoryList(); }
     }
 
     function appendLoadingBubble(isCoder, isMarket = false) {
