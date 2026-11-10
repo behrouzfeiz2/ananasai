@@ -8,18 +8,33 @@ function findKV(env) {
   return null;
 }
 
-// تشخیص خودکار رمز ادمین از Environment Variables کلودفلر
-function checkAdminAuth(request, env) {
-  const pass = request.headers.get('X-Admin-Password');
-  if (!pass) return false;
-  const envPass = env.ADMIN_PASSWORD || env.ADMIN_PASS || env.PASSWORD;
-  if (envPass) return pass === envPass;
-  for (const key of Object.keys(env)) {
-    if (typeof env[key] === 'string' && key.toUpperCase().includes('PASS')) {
-      return pass === env[key];
-    }
+// نشست ادمین با کوکی HttpOnly و اعتبار ۴۸ ساعته
+function getCookie(request, name) {
+  const cookies = request.headers.get('Cookie') || '';
+  const item = cookies.split(';').map(x => x.trim()).find(x => x.startsWith(name + '='));
+  return item ? decodeURIComponent(item.slice(name.length + 1)) : '';
+}
+async function hashSession(value) {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return [...new Uint8Array(digest)].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+async function checkAdminAuth(request, env, kv) {
+  const session = getCookie(request, 'ananas_admin_session');
+  if (session) {
+    const key = 'admin_session_' + await hashSession(session);
+    if (await kv.get(key)) return { ok: true, sessionKey: key };
   }
-  return false;
+  const pass = request.headers.get('X-Admin-Password');
+  if (!pass) return { ok: false };
+  const envPass = env.ADMIN_PASSWORD || env.ADMIN_PASS || env.PASSWORD;
+  if (envPass) return { ok: pass === envPass };
+  for (const key of Object.keys(env)) {
+    if (typeof env[key] === 'string' && key.toUpperCase().includes('PASS')) return { ok: pass === env[key] };
+  }
+  return { ok: false };
+}
+function sessionCookie(value, maxAge = 172800) {
+  return 'ananas_admin_session=' + encodeURIComponent(value) + '; Path=/; Max-Age=' + maxAge + '; HttpOnly; Secure; SameSite=Strict';
 }
 
 // تابع تایید اعتبار کپچای گوگل
@@ -67,7 +82,8 @@ export async function onRequest(context) {
     });
   }
 
-  const isAuthValid = checkAdminAuth(request, env);
+  const auth = await checkAdminAuth(request, env, kv);
+  const isAuthValid = auth.ok;
 
   if (!isAuthValid) {
     // ثبت تلاش ناموفق
@@ -125,6 +141,14 @@ export async function onRequest(context) {
   if (request.method === 'POST') {
     const body = await request.json();
 
+    if (body.action === 'logout') {
+      if (auth.sessionKey) await kv.delete(auth.sessionKey);
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', 'Set-Cookie': sessionCookie('', 0) }
+      });
+    }
+
     // --- لایه امنیتی ۲: بررسی لاگین اولیه و ریکپچا ---
     if (body.action === 'login') {
       if (env.RECAPTCHA_SECRET_KEY) {
@@ -136,7 +160,13 @@ export async function onRequest(context) {
           return new Response(JSON.stringify({ error: 'تشخیص ربات! کپچا نامعتبر است یا منقضی شده.' }), { status: 403 });
         }
       }
-      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      const session = [...crypto.getRandomValues(new Uint8Array(32))].map(x => x.toString(16).padStart(2, '0')).join('');
+      const sessionKey = 'admin_session_' + await hashSession(session);
+      await kv.put(sessionKey, JSON.stringify({ created: Date.now() }), { expirationTtl: 172800 });
+      return new Response(JSON.stringify({ ok: true, expiresIn: 172800 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', 'Set-Cookie': sessionCookie(session) }
+      });
     }
 
     // ساخت کد پرو جدید

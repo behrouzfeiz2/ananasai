@@ -49,9 +49,10 @@
           <p class="text-[11px] text-gray-400">بررسی فیش‌های ثبت‌شده از صفحه خرید و صدور کد ۳۰ روزه</p>
         </div>
       </div>
-      <button onclick="loadAdminData()" class="px-3.5 py-2 rounded-xl bg-[#0b0f17] border border-[#232f46] hover:border-amber-500/50 text-xs text-amber-400 font-bold flex items-center gap-1.5 transition cursor-pointer">
-        <span>🔄 بروزرسانی اطلاعات</span>
-      </button>
+      <div class="flex items-center gap-2">
+        <button onclick="loadAdminData()" class="px-3.5 py-2 rounded-xl bg-[#0b0f17] border border-[#232f46] hover:border-amber-500/50 text-xs text-amber-400 font-bold flex items-center gap-1.5 transition cursor-pointer"><span>🔄 بروزرسانی اطلاعات</span></button>
+        <button onclick="adminLogout()" class="px-3.5 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30 hover:bg-rose-500/20 text-xs text-rose-300 font-bold transition cursor-pointer">خروج امن</button>
+      </div>
     </div>
 
     <!-- بخش ۱: لیست درخواست‌های پرداخت -->
@@ -155,13 +156,45 @@
       }
     }
 
-    async function loadAdminData() {
-      const res = await fetch('/api/admin', { headers: { 'X-Admin-Password': pass } });
-      if (!res.ok) return;
-      const data = await res.json();
-      renderPayments(data.payments || []);
-      renderTokens(data.tokens || []);
+    async function adminLogout() {
+      try {
+        await fetch('/api/admin', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'logout'}) });
+      } finally {
+        pass = '';
+        document.getElementById('panelBox').classList.add('hidden');
+        document.getElementById('loginBox').classList.remove('hidden');
+        alert('از پنل مدیریت خارج شدید.');
+      }
     }
+
+    async function loadAdminData() {
+      try {
+        const res = await fetch('/api/admin', { headers: { 'X-Admin-Password': pass } });
+        if (res.status === 401 || res.status === 429) {
+          document.getElementById('panelBox').classList.add('hidden');
+          document.getElementById('loginBox').classList.remove('hidden');
+          return;
+        }
+        if (!res.ok) return;
+        const data = await res.json();
+        renderPayments(data.payments || []);
+        renderTokens(data.tokens || []);
+      } catch (e) { console.error(e); }
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const res = await fetch('/api/admin', { headers: { 'X-Admin-Password': pass } });
+        if (res.ok) {
+          document.getElementById('loginBox').classList.add('hidden');
+          document.getElementById('panelBox').classList.remove('hidden');
+          generateRandomCode();
+          const data = await res.json();
+          renderPayments(data.payments || []);
+          renderTokens(data.tokens || []);
+        }
+      } catch (e) { console.warn('Admin session check failed', e); }
+    });
 
     function renderPayments(payments) {
       const payEl = document.getElementById('paymentList');
