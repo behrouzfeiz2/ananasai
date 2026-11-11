@@ -92,6 +92,25 @@ function getDateInfo() {
   };
 }
 
+function normalizePhoneQuery(value) {
+ return normalizeText(value).replace(/گالاکسی|گلکسی/gi,"galaxy").replace(/سامسونگ/gi,"samsung").replace(/شیائومی/gi,"xiaomi").replace(/ردمی/gi,"redmi").replace(/پوکو/gi,"poco").replace(/آیفون|ایفون/gi,"iphone").replace(/[۰-۹]/g,d=>"۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[\u200c\u200f\u200e]/g," ").replace(/[^\p{L}\p{N}\s.+-]/gu," ").replace(/\s+/g," ").trim();
+}
+function extractPhoneBudgetToman(text) {
+ const n=String(text||"").replace(/[۰-۹]/g,d=>String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/[٠-٩]/g,d=>String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
+ let m=n.match(/([\d,]+(?:\.\d+)?)\s*(?:میلیون|ملیون)\s*(?:تومان|تومن)?/i);
+ if(m)return Math.round(Number(m[1].replace(/,/g,""))*1000000);
+ m=n.match(/([\d,]+(?:\.\d+)?)\s*هزار\s*(?:تومان|تومن)/i);
+ if(m)return Math.round(Number(m[1].replace(/,/g,""))*1000);
+ m=n.match(/(?:تا|حدود|بودجه(?:م)?|حداکثر|نهایتاً?)\s*([\d,]+(?:\.\d+)?)\s*(?:تومان|تومن)?/i)||n.match(/([\d,]+(?:\.\d+)?)\s*(?:تومان|تومن)/i);
+ if(!m)return null; let amount=Number(m[1].replace(/,/g,"")); if(!Number.isFinite(amount)||amount<=0)return null; if(amount<100000)amount*=1000000; return Math.round(amount);
+}
+function detectPhoneBuyingIntent(text) {
+ const q=normalizePhoneQuery(text), budget=extractPhoneBudgetToman(text);
+ const foldable=/تاشو|تا شو|foldable|folding|flip phone|z fold|z flip/i.test(q);
+ const phone=/گوشی|موبایل|تلفن همراه|smartphone|mobile|iphone|samsung|galaxy|xiaomi|redmi|poco|آیفون|سامسونگ|شیائومی|ردمی|پوکو/i.test(q);
+ const recommend=/چی بخرم|چه گوشی|کدام گوشی|کدوم گوشی|پیشنهاد.*گوشی|گوشی.*پیشنهاد|بخرم|خرید.*گوشی|برای خرید/i.test(q);
+ return {budgetToman:budget,foldable,recommendation:Boolean((budget&&phone)||(foldable&&recommend)||(phone&&recommend))};
+}
 function normalizeText(text) {
   return String(text || "")
     .toLowerCase()
@@ -616,22 +635,25 @@ ${newsText}
 // ======================================================
 
 const PHONE_PRICE_MODELS = [
-  { id: "galaxy-a57", aliases: ["samsung galaxy a57", "galaxy a57", "گلکسی a57", "سامسونگ گلکسی a57", "سامسونگ a57"] },
-  { id: "redmi-note-14-4g", aliases: ["xiaomi redmi note 14 4g", "redmi note 14 4g", "redmi note 14", "ردمی نوت ۱۴", "ردمی نوت 14", "شیائومی ردمی نوت ۱۴"] },
-  { id: "iphone-16", aliases: ["apple iphone 16", "iphone 16", "آیفون ۱۶", "آیفون 16", "اپل آیفون ۱۶"] }
+ {id:"galaxy-a57",aliases:["samsung galaxy a57","galaxy a57","گلکسی a57","گالاکسی a57","سامسونگ گلکسی a57","سامسونگ گالاکسی a57","سامسونگ a57"]},
+ {id:"redmi-note-14-4g",aliases:["xiaomi redmi note 14 4g","redmi note 14 4g","redmi note 14","ردمی نوت ۱۴","ردمی نوت 14","شیائومی ردمی نوت ۱۴"]},
+ {id:"iphone-16",aliases:["apple iphone 16","iphone 16","آیفون ۱۶","آیفون 16","اپل آیفون ۱۶"]}
 ];
-
 function detectPhonePriceModel(text) {
-  const normalized = normalizeText(text).replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/\s+/g, " ");
-  for (const model of PHONE_PRICE_MODELS) {
-    for (const alias of model.aliases) {
-      const a = normalizeText(alias).replace(/\s+/g, " ");
-      if (normalized.includes(a)) return model;
-    }
-  }
-  return null;
+ const n=normalizePhoneQuery(text);
+ for(const model of PHONE_PRICE_MODELS)for(const alias of model.aliases)if(n.includes(normalizePhoneQuery(alias)))return model;
+ return null;
 }
-
+function extractPhoneModelQuery(text) {
+ const raw=String(text||"").trim();
+ const patterns=[
+ /(?:samsung|galaxy|گلکسی|گالاکسی|سامسونگ)\s+[a-z]?\s*\d{1,3}(?:\s*(?:ultra|plus|fe|edge|fold|flip|5g))?/i,
+ /(?:xiaomi|redmi|poco|شیائومی|ردمی|پوکو)\s+[a-z0-9\p{L}][a-z0-9\p{L} .+-]{1,35}/iu,
+ /(?:iphone|آیفون|ایفون)\s+(?:duo|دو|\d{1,2}(?:\s*(?:pro|max|plus|mini|e))?)/i
+ ];
+ for(const p of patterns){const m=raw.match(p);if(m?.[0])return m[0].trim().slice(0,80);}
+ return null;
+}
 async function getPhonePriceData(request, model) {
   const endpoint = new URL("/api/phone-prices", new URL(request.url).origin);
   endpoint.searchParams.set("model", model.id);
@@ -699,6 +721,22 @@ ${offers || "هیچ پیشنهاد فروشنده‌ای در صفحه قابل 
 `;
 }
 
+async function getPhoneSpecsData(request, modelQuery) {
+ if(!modelQuery)return null;
+ const endpoint=new URL("/api/phone-specs",new URL(request.url).origin);
+ endpoint.searchParams.set("q",modelQuery);
+ try{
+  const response=await fetchWithTimeout(endpoint.toString(),{headers:{"Accept":"application/json"}},CONFIG.DATA_TIMEOUT);
+  const result=await response.json();
+  if(!response.ok||result?.success!==true||!result.phone)throw new Error(result?.error||"No phone spec match");
+  return {success:true,phone:result.phone};
+ }catch(error){console.error("ANANAS_PHONE_SPECS_ERROR",modelQuery,error.message);return {success:false,query:modelQuery,error:error.message};}
+}
+function formatPhoneSpecsData(data) {
+ if(!data?.success||!data.phone)return "مشخصات فنی این مدل از منبع مشخصات بازیابی نشد؛ هیچ مشخصه‌ای را حدس نزن.";
+ const p=data.phone, rows=(p.specs||[]).map(x=>"- "+x.label+": "+x.value).join("\n");
+ return "مشخصات سخت‌افزاری بازیابی‌شده:\nمدل: "+(p.name||"نامشخص")+"\nبرند: "+(p.brand||"نامشخص")+"\n"+rows+"\nمنبع: "+(p.source||"GSMArena")+"\nلینک: "+(p.source_url||"نامشخص")+"\nزمان بررسی: "+(p.checked_at||"نامشخص")+"\nفقط مشخصات بالا را قطعی اعلام کن؛ نسخه‌های رم و حافظه را تفکیک کن؛ موارد ناموجود را حدس نزن. قیمت بازار ایران را از این داده نتیجه نگیر.";
+}
 async function getShopData(request, query) {
   if (!CONFIG.ENABLE_SHOP_SEARCH) return null;
 
