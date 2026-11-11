@@ -1459,13 +1459,21 @@
     }
 
 
+function isGenericGoldQuestion(t){
+ const q=String(t||'').toLowerCase().replace(/[ي]/g,'ی').replace(/[ك]/g,'ک');
+ const asksPrice=/قیمت|نرخ|چنده|چقدر|روند|نمودار|تغییر|هفته|ماه|سال|امروز|الان/.test(q);
+ const asksGold=/طلا|طلای|گرم طلا|gold/.test(q);
+ const hasPurity=/(?:۱۸|18|عیار\s*هجده|هجده\s*عیار|۲۴|24|عیار\s*بیست.?و.?چهار|بیست.?و.?چهار\s*عیار)/.test(q);
+ return asksGold && asksPrice && !hasPurity;
+}
 function getMarketChartAsset(t){
  const q=String(t||'').toLowerCase().replace(/[ي]/g,'ی').replace(/[ك]/g,'ک');
  const asksPrice=/قیمت|نرخ|چنده|چقدر|روند|نمودار|تغییر|هفته|ماه|سال|امروز|الان/.test(q);
  if(!asksPrice && !/^\s*(?:دلار|طلا|پوند|یورو|یوان|درهم|لیر)\s*[؟?!.]*\s*$/.test(q))return null;
  if(/دلار کانادا|دلار استرالیا|دلار نیوزیلند/.test(q))return null;
- if(/طلای?\s*(?:۲۴|24)|۲۴\s*عیار|24\s*عیار/.test(q))return 'gold24';
- if(/طلا|طلای|گرم\s*(?:۱۸|18)|gold/.test(q))return 'gold';
+ if(/طلای?\s*(?:۱۸|18)|۱۸\s*عیار|18\s*عیار|عیار\s*هجده|هجده\s*عیار/.test(q))return 'gold18';
+ if(/طلای?\s*(?:۲۴|24)|۲۴\s*عیار|24\s*عیار|عیار\s*بیست.?و.?چهار/.test(q))return 'gold24';
+ if(/طلا|طلای|گرم\s*(?:۱۸|18)|gold/.test(q))return 'gold24';
  if(/پوند|\bgbp\b|pound/.test(q))return 'pound';
  if(/یورو|\beur\b|euro/.test(q))return 'euro';
  if(/یوان|\bcny\b|yuan/.test(q))return 'yuan';
@@ -1480,6 +1488,25 @@ async function fetchMarketChartData(asset='dollar'){
  const d=await r.json();
  if(!d.success||!d.points?.length)throw Error('empty');
  return {...d,selectedRange:30};
+}
+function renderGoldChoice(i){
+ return '<div class="flex justify-end"><div class="max-w-[90%] rounded-2xl bg-ananas-card border border-amber-400/30 p-4 space-y-3" dir="rtl"><div class="font-semibold text-white">کدام نوع طلا را می‌خواهید؟</div><div class="text-xs text-gray-400">عیار موردنظر را انتخاب کنید تا قیمت و نمودار همان نوع نمایش داده شود.</div><div class="flex gap-2 flex-wrap"><button type="button" onclick="selectGoldPurity('+i+',\'gold18\')" class="rounded-xl px-4 py-2 bg-amber-400 text-black text-sm font-semibold">طلای ۱۸ عیار</button><button type="button" onclick="selectGoldPurity('+i+',\'gold24\')" class="rounded-xl px-4 py-2 border border-amber-400/50 text-amber-200 text-sm font-semibold">طلای ۲۴ عیار</button></div></div></div>';
+}
+async function selectGoldPurity(i,asset){
+ const s=sessions.find(x=>x.id===activeSessionId),m=s&&s.messages[i];
+ if(!m||!m.goldChoice||!['gold18','gold24'].includes(asset)||isGenerating)return;
+ isGenerating=true;appendLoadingBubble(false,true);
+ try{
+  const marketChart=await fetchMarketChartData(asset);
+  const price=Math.round(Number(marketChart.currentPrice)||0).toLocaleString('fa-IR');
+  m.text='📈 **'+marketChart.title+'**\\n\\n**'+price+' تومان**\\n\\nنرخ بر اساس آخرین داده دریافتی نمایش داده شده است. نمودار زیر روند تغییرات روزانه را نشان می‌دهد.';
+  m.marketChart=marketChart;m.goldChoice=false;
+ }catch(err){
+  m.text='⚠️ در حال حاضر دریافت قیمت و تاریخچه این نوع طلا امکان‌پذیر نیست. لطفاً کمی بعد دوباره تلاش کنید.';
+  m.goldChoice=false;
+ }finally{
+  removeLoadingBubble();isGenerating=false;saveSessions();renderMessages();
+ }
 }
 function changeDollarChartRange(i,n){
  const s=sessions.find(x=>x.id===activeSessionId),m=s&&s.messages[i],c=m&&(m.marketChart||m.dollarChart);
@@ -1618,6 +1645,19 @@ function renderDollarChart(c,i){
         else if (!imagePrompt) currentSession.messages.push({role:'model',text:'حتماً! چه تصویری می‌خواهید بسازم؟ لطفاً سوژه، نام برند و جزئیات موردنظر را بنویسید.'});
         else { const outputSpec=inferImageOutputSpec(imagePrompt); currentSession.messages.push({role:'model',text:'مدل تولید تصویر را انتخاب کنید.',imageWizard:{prompt:imagePrompt,model:null,step:'model',...outputSpec}}); }
         saveSessions(); renderMessages(); renderHistoryList(); return;
+      }
+
+      if (currentMode === 'chat' && !hadAttachment && isGenericGoldQuestion(userText)) {
+        currentSession.messages.push({
+          role: 'model',
+          text: 'برای نمایش قیمت و نمودار، کدام نوع طلا مدنظرتان است؟',
+          goldChoice: true
+        });
+        inputEl.value = '';
+        removeAttachment();
+        saveSessions();
+        renderMessages();
+        return;
       }
 
       const marketChartAsset = currentMode === 'chat' && !hadAttachment ? getMarketChartAsset(userText) : null;
@@ -1904,6 +1944,7 @@ function renderDollarChart(c,i){
 
         } else {
           if (msg.imageWizard) return renderImageWizard(idx,msg.imageWizard);
+          if (msg.goldChoice) return renderGoldChoice(idx);
           if (msg.generatedImageLibraryId) {
             const imageUrl = generatedImageObjectUrls[msg.generatedImageLibraryId] || '';
             return `<div class="flex justify-end"><div class="max-w-[90%] rounded-2xl bg-ananas-card border border-fuchsia-500/30 p-4 space-y-3"><b class="text-fuchsia-200">🖼️ تصویر ذخیره‌شده</b>${imageUrl?`<img src="${escapeHtml(imageUrl)}" class="w-full rounded-xl" alt="تصویر تولیدشده"><a href="${escapeHtml(imageUrl)}" download="AnanasAI-${escapeHtml(msg.generatedImageLibraryId)}.png" class="inline-block px-4 py-2 rounded-lg bg-fuchsia-500 text-white text-xs">⬇ دریافت تصویر</a>`:'<div class="text-xs text-gray-400 py-6 text-center">در حال بازیابی تصویر از حافظه دستگاه...</div>'}<button onclick="openImageLibrary()" class="mr-2 px-4 py-2 rounded-lg border border-amber-400/40 text-amber-200 text-xs">🗂 مشاهده در کتابخانه تصاویر</button><p class="text-[10px] text-emerald-300">این تصویر در کتابخانه شخصی شما ذخیره شده است.</p><p class="text-[10px] text-amber-300">این مورد ممکن است در ذخیره محلی ذخیره نشود؛ لطفاً آن را هرچه سریع‌تر دانلود کنید.</p></div></div>`;
