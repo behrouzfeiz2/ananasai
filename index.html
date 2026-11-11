@@ -1961,43 +1961,78 @@
       }).join('');
     }
 
-    /* کپی متن با پشتیبانی از مرورگرهای قدیمی‌تر */
+    /* کپی متن با پشتیبانی از Clipboard API و WebView موبایل */
     async function copyTextToClipboard(text, button) {
+      const value = String(text ?? '');
       const originalHTML = button ? button.innerHTML : null;
+      if (!value) {
+        alert('متنی برای کپی کردن وجود ندارد.');
+        return;
+      }
+
+      const legacyCopy = () => {
+        const textarea = document.createElement('textarea');
+        textarea.value = value;
+        textarea.setAttribute('readonly', '');
+        textarea.setAttribute('aria-hidden', 'true');
+        textarea.style.position = 'fixed';
+        textarea.style.top = '0';
+        textarea.style.left = '0';
+        textarea.style.width = '1px';
+        textarea.style.height = '1px';
+        textarea.style.padding = '0';
+        textarea.style.border = '0';
+        textarea.style.outline = '0';
+        textarea.style.boxShadow = 'none';
+        textarea.style.background = 'transparent';
+        textarea.style.opacity = '0.01';
+        textarea.style.fontSize = '16px';
+        textarea.style.userSelect = 'text';
+        textarea.style.webkitUserSelect = 'text';
+        document.body.appendChild(textarea);
+
+        let successful = false;
+        try {
+          textarea.focus({ preventScroll: true });
+          textarea.select();
+          textarea.setSelectionRange(0, textarea.value.length);
+          successful = document.execCommand('copy');
+        } finally {
+          textarea.remove();
+        }
+        return successful;
+      };
 
       try {
-        if (navigator.clipboard && window.isSecureContext) {
-          await navigator.clipboard.writeText(text);
-        } else {
-          const textarea = document.createElement('textarea');
-          textarea.value = text;
-          textarea.style.position = 'fixed';
-          textarea.style.opacity = '0';
-          textarea.style.pointerEvents = 'none';
-          document.body.appendChild(textarea);
-          textarea.focus();
-          textarea.select();
+        let copied = false;
 
-          const successful = document.execCommand('copy');
-          textarea.remove();
-
-          if (!successful) {
-            throw new Error('کپی انجام نشد');
+        // Clipboard API may exist but still reject inside mobile apps/WebViews.
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+          try {
+            await navigator.clipboard.writeText(value);
+            copied = true;
+          } catch (clipboardError) {
+            console.warn('[AnanasAI] Clipboard API failed; trying legacy copy:', clipboardError);
           }
         }
+
+        if (!copied) copied = legacyCopy();
+        if (!copied) throw new Error('Clipboard copy failed');
 
         if (button) {
           button.innerHTML = '✓ کپی شد';
           button.classList.add('text-emerald-400');
+          button.setAttribute('aria-label', 'متن کپی شد');
 
           setTimeout(() => {
             button.innerHTML = originalHTML;
             button.classList.remove('text-emerald-400');
+            button.removeAttribute('aria-label');
           }, 1600);
         }
-
       } catch (error) {
-        alert('امکان کپی خودکار وجود ندارد. متن را انتخاب و کپی کنید.');
+        console.error('[AnanasAI] Copy failed:', error);
+        alert('کپی خودکار در این مرورگر یا اپلیکیشن در دسترس نیست. لطفاً متن را انتخاب و به‌صورت دستی کپی کنید.');
       }
     }
 
