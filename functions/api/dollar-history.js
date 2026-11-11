@@ -117,7 +117,7 @@ export async function onRequestGet({ request }) {
 
   if (!currentPrice && history.length) currentPrice = history[history.length-1].price;
   if (!currentPrice || currentPrice <= 0) {
-    throw new Error("TGJU returned no usable price or history rows" + (historyError ? ": " + historyError : ""));
+    return new Response(JSON.stringify({ success: false, error: "دریافت قیمت زنده و تاریخچه این دارایی از منبع بازار ناموفق بود.", detail: historyError }), { status: 503, headers: { ...corsHeaders, "Cache-Control": "no-store" } });
   }
   const historyAvailable = history.length > 1;
   const points = history.length ? history : [{ date: new Date().toISOString().slice(0,10), jalaliDate: updatedAt, price: currentPrice }];
