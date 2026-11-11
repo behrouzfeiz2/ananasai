@@ -153,7 +153,7 @@ function extractProduct(html, model) {
   const startingPrice = startingMatch ? parseMoney(startingMatch[1]) : null;
   const offers = extractOffers(text, html);
   const lowestOffer = offers.length ? offers[0].price : null;
-  const lowestPrice = lowestOffer || startingPrice;
+  const lowestPrice = startingPrice && lowestOffer ? Math.min(startingPrice, lowestOffer) : (lowestOffer || startingPrice);
 
   let status = "available";
   let message = "قیمت و پیشنهاد فروشندگان از صفحه محصول دیجیاتو استخراج شد.";
