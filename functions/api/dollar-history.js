@@ -15,7 +15,9 @@ const ASSETS = {
   euro: { symbol: "price_eur", title: "یورو" },
   yuan: { symbol: "price_cny", title: "یوان چین" },
   dirham: { symbol: "price_aed", title: "درهم امارات" },
-  lira: { symbol: "price_try", title: "لیر ترکیه" }
+  lira: { symbol: "price_try", title: "لیر ترکیه" },
+  ruble: { symbol: "price_rub", title: "روبل روسیه" },
+  swissFranc: { symbol: "price_chf", title: "فرانک سوئیس" }
 };
 
 function cleanText(value) {
@@ -87,9 +89,7 @@ export async function onRequestGet({ request }) {
     const unique = new Map();
     for (const point of points) unique.set(point.date, point);
     const history = Array.from(unique.values()).sort((a,b) => a.date.localeCompare(b.date)).slice(-370);
-    if (!history.length) throw new Error("TGJU returned no usable history rows");
-
-    let currentPrice = history[history.length-1].price;
+    let currentPrice = history.length ? history[history.length-1].price : null;
     let updatedAt = new Date().toLocaleString("fa-IR", { timeZone: "Asia/Tehran", dateStyle: "short", timeStyle: "short" });
     try {
       const liveResponse = await fetchWithTimeout("https://call1.tgju.org/ajax.json", 9000);
@@ -101,7 +101,10 @@ export async function onRequestGet({ request }) {
     } catch (error) {
       // Keep the latest historical close if the live board is temporarily unavailable.
     }
-    return new Response(JSON.stringify({ success: true, asset: assetKey, symbol, title, currency: "تومان", currentPrice, updatedAt, points: history }), { status: 200, headers: corsHeaders });
+    if (!currentPrice || currentPrice <= 0) throw new Error("TGJU returned no usable price or history rows");
+    const historyAvailable = history.length > 1;
+    const points = history.length ? history : [{ date: new Date().toISOString().slice(0,10), jalaliDate: updatedAt, price: currentPrice }];
+    return new Response(JSON.stringify({ success: true, asset: assetKey, symbol, title, currency: "تومان", currentPrice, updatedAt, points, historyAvailable }), { status: 200, headers: corsHeaders });
   } catch (error) {
     console.error("MARKET_HISTORY_ERROR", error.message);
     return new Response(JSON.stringify({ success: false, error: "دریافت تاریخچه قیمت بازار موقتاً امکان‌پذیر نیست." }), { status: 503, headers: { ...corsHeaders, "Cache-Control": "no-store" } });
