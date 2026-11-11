@@ -12,7 +12,7 @@ async function auth(req,env){
 }
 async function tokenHash(token){const bytes=new TextEncoder().encode(token),digest=await crypto.subtle.digest("SHA-256",bytes);return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,"0")).join("");}
 async function release(env,key){try{const q=JSON.parse(await env.ANANAS_KV.get(key)||"{}");q.used=Math.max(0,(Number(q.used)||0)-1);await env.ANANAS_KV.put(key,JSON.stringify(q),{expirationTtl:172800});}catch{}}
-async function saveToLibrary(env,token,id,url,prompt,model){
+async function saveToLibrary(env,token,id,url,prompt,model,width,height){
   const hash=await tokenHash(token),prefix="imgdata_"+hash+"_"+id;
   const existing=await env.ANANAS_KV.get("imgmeta_"+hash+"_"+id);
   if(existing)return true;
@@ -23,7 +23,7 @@ async function saveToLibrary(env,token,id,url,prompt,model){
   const bytes=await response.arrayBuffer();
   if(bytes.byteLength>24*1024*1024)throw new Error("حجم تصویر برای ذخیره در کتابخانه بیش از حد مجاز است.");
   await env.ANANAS_KV.put(prefix,bytes,{expirationTtl:31536000});
-  const meta={id, name:String(prompt||"تصویر تولیدشده").slice(0,180),model,createdAt:new Date().toISOString(),contentType:type,size:bytes.byteLength};
+  const meta={id, name:String(prompt||"تصویر تولیدشده").slice(0,180),model,width:Number(width)||null,height:Number(height)||null,createdAt:new Date().toISOString(),contentType:type,size:bytes.byteLength};
   await env.ANANAS_KV.put("imgmeta_"+hash+"_"+id,JSON.stringify(meta),{expirationTtl:31536000});
   return true;
 }
@@ -31,8 +31,10 @@ export async function onRequestPost({request,env}){
   const u=await auth(request,env);if(u.error)return out({error:u.error},u.status);
   try{
     const b=await request.json(),prompt=String(b.prompt||"").trim(),model=String(b.model||"");
+    const width=Number(b.width)||1024,height=Number(b.height)||1024;
     if(!prompt||prompt.length>4000)return out({error:"متن تصویر الزامی است (حداکثر ۴۰۰۰ نویسه)."},400);
     if(!["flux-dev","z-image","qwen-image-edit"].includes(model))return out({error:"مدل نامعتبر است."},400);
+    if(!Number.isInteger(width)||!Number.isInteger(height)||width<256||height<256||width>2048||height>2048)return out({error:"ابعاد تصویر باید عدد صحیحی بین ۲۵۶ تا ۲۰۴۸ پیکسل باشند."},400);
     let referenceUrl=null;
     if(model==="qwen-image-edit"){
       const referenceId=String(b.referenceId||"");
@@ -43,10 +45,11 @@ export async function onRequestPost({request,env}){
     }
     const q=JSON.parse(await env.ANANAS_KV.get(u.key)||"{}"),used=Number(q.used)||0;
     if(used>=5)return out({error:"سهمیه روزانه ۵ تصویر شما تمام شده است.",quota:{used,limit:5}},429);
-    const r=await fetch(API+"/generations",{method:"POST",headers:{Authorization:"Bearer "+env.ALPHA_KEY,"Content-Type":"application/json"},body:JSON.stringify({model,prompt,width:1024,height:1024,...(referenceUrl?{image:referenceUrl}:{})})});
+    const generationBody={model,prompt,...(model==="qwen-image-edit"?{}:{width,height}),...(referenceUrl?{image:referenceUrl}:{})};
+    const r=await fetch(API+"/generations",{method:"POST",headers:{Authorization:"Bearer "+env.ALPHA_KEY,"Content-Type":"application/json"},body:JSON.stringify(generationBody)});
     const j=await r.json();if(!r.ok||j.error||!j.id)return out({error:j.error?.message||"ثبت درخواست ناموفق بود."},r.status||502);
     await env.ANANAS_KV.put(u.key,JSON.stringify({used:used+1}),{expirationTtl:172800});
-    await env.ANANAS_KV.put("imagejob_"+j.id,JSON.stringify({token:u.token,key:u.key,released:false,prompt,model}),{expirationTtl:86400});
+    await env.ANANAS_KV.put("imagejob_"+j.id,JSON.stringify({token:u.token,key:u.key,released:false,prompt,model,width,height}),{expirationTtl:86400});
     return out({success:true,id:j.id,status:j.status,quota:{used:used+1,limit:5}});
   }catch{return out({error:"ارتباط با سرویس تصویر برقرار نشد."},502);}
 }
@@ -67,7 +70,7 @@ export async function onRequestGet({request,env}){
     if(d.status==="failed"&&!job.released){await release(env,job.key);job.released=true;await env.ANANAS_KV.put("imagejob_"+id,JSON.stringify(job),{expirationTtl:86400});}
     let librarySaved=false;
     if(d.status==="ready"&&d.output?.url){
-      try{librarySaved=await saveToLibrary(env,u.token,id,d.output.url,job.prompt,job.model);if(!job.librarySaved){job.librarySaved=true;await env.ANANAS_KV.put("imagejob_"+id,JSON.stringify(job),{expirationTtl:86400});}}
+      try{librarySaved=await saveToLibrary(env,u.token,id,d.output.url,job.prompt,job.model,job.width,job.height);if(!job.librarySaved){job.librarySaved=true;await env.ANANAS_KV.put("imagejob_"+id,JSON.stringify(job),{expirationTtl:86400});}}
       catch(e){return out({success:true,status:"ready",output:d.output,librarySaved:false,libraryError:e.message});}
     }
     return out({success:true,status:d.status,output:d.output||null,error:d.error||null,librarySaved});
