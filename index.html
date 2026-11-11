@@ -1534,9 +1534,9 @@
       });
 
       const button = createCopyControl('کپی متن');
-      button.onclick = function() {
-        copyContentBlock(this);
-      };
+      // renderAssistantContent returns serialized HTML; use an inline handler so
+      // the click action survives template.innerHTML serialization.
+      button.setAttribute('onclick', 'copyContentBlock(this)');
 
       wrapper.insertBefore(button, wrapper.firstChild);
     }
@@ -1556,9 +1556,8 @@
         wrapper.appendChild(pre);
 
         const button = createCopyControl('کپی کد');
-        button.onclick = function() {
-          copyCodeBlock(this);
-        };
+        // Preserve the handler when the template fragment is serialized to HTML.
+        button.setAttribute('onclick', 'copyCodeBlock(this)');
 
         wrapper.insertBefore(button, pre);
       });
