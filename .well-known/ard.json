@@ -1,0 +1,34 @@
+{
+  "entries": [
+    {
+      "@context": "https://agenticresourcediscovery.org/context/v1",
+      "identifier": "urn:air:ananasai.ir:assistant:ananasai",
+      "displayName": "هوش مصنوعی آناناس (AnanasAI)",
+      "type": "text/html",
+      "url": "https://ananasai.ir/home",
+      "description": "دستیار هوش مصنوعی فارسی‌زبان برای گفتگو و پاسخ‌گویی، کمک به برنامه‌نویسی، تولید و ویرایش محتوا، ترجمه و کار با اسناد.",
+      "representativeQueries": [
+        "یک دستیار هوش مصنوعی فارسی برای پاسخ به پرسش‌ها و گفتگو پیدا کن",
+        "برای برنامه‌نویسی و رفع اشکال کد از چه دستیار هوش مصنوعی فارسی استفاده کنم؟",
+        "یک ابزار هوش مصنوعی برای تولید محتوا، بازنویسی و ترجمه متن معرفی کن",
+        "برای کار با اسناد و تحلیل فایل‌ها چه امکانات هوش مصنوعی فارسی وجود دارد؟"
+      ],
+      "capabilities": [
+        "PersianConversation",
+        "QuestionAnswering",
+        "CodeAssistance",
+        "ContentGeneration",
+        "Translation",
+        "DocumentAssistance"
+      ],
+      "tags": [
+        "AnanasAI",
+        "هوش مصنوعی فارسی",
+        "دستیار هوشمند",
+        "برنامه‌نویسی",
+        "تولید محتوا",
+        "ترجمه"
+      ]
+    }
+  ]
+}
