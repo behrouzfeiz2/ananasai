@@ -1458,6 +1458,19 @@
       return{width:1024,height:1024,label:'مربع استاندارد ۱:۱'};
     }
 
+
+function isDollarChartRequest(t){const q=String(t||'').toLowerCase();return /دلار|\busd\b/i.test(q)&&!/دلار کانادا|دلار استرالیا|دلار نیوزیلند/i.test(q)&&/قیمت|نرخ|چنده|چقدر|روند|نمودار|تغییر|هفته|ماه|سال/i.test(q);}
+async function fetchDollarChartData(){const r=await fetch('/api/dollar-history',{cache:'no-store'});if(!r.ok)throw Error('history');const d=await r.json();if(!d.success||!d.points?.length)throw Error('empty');return {...d,selectedRange:30};}
+function changeDollarChartRange(i,n){const s=sessions.find(x=>x.id===activeSessionId),m=s&&s.messages[i];if(!m?.dollarChart)return;m.dollarChart.selectedRange=n;saveSessions();renderMessages();}
+function renderDollarChart(c,i){
+ if(!c?.points?.length)return '';
+ const n=Number(c.selectedRange)||30,p=c.points.slice(-n),v=p.map(x=>+x.price),lo=Math.min(...v),hi=Math.max(...v),span=Math.max(1,hi-lo),fmt=x=>Math.round(x).toLocaleString('fa-IR');
+ const xy=v.map((x,j)=>[12+j*576/Math.max(1,v.length-1),150-(x-lo)/span*130]),path=xy.map((x,j)=>(j?'L':'M')+x[0].toFixed(1)+' '+x[1].toFixed(1)).join(' '),last=v[v.length-1],first=v[0],up=last>=first,col=up?'#34d399':'#f87171';
+ const ranges=[[7,'۱ هفته'],[30,'۱ ماه'],[90,'۳ ماه'],[365,'۱ سال']];
+ const buttons=ranges.map(x=>'<button onclick="changeDollarChartRange('+i+','+x[0]+')" class="rounded-lg px-2 py-1 text-xs '+(n===x[0]?'bg-amber-400 text-black':'bg-white/10 text-gray-300')+'">'+x[1]+'</button>').join('');
+ const date=x=>x.jalaliDate||x.date||'';
+ return '<section class="mt-4 rounded-xl border border-emerald-500/20 bg-[#10251f] p-3 space-y-3" dir="rtl"><div class="flex justify-between"><div><b class="text-white">نمودار دلار آزاد</b><div class="text-xs text-gray-400">تغییرات روزانه · تومان</div></div><div class="text-left font-bold text-white">'+fmt(c.currentPrice||last)+'<div class="text-xs" style="color:'+col+'">'+(up?'▲':'▼')+' '+fmt(Math.abs(last-first))+' ('+Math.abs((last-first)/Math.max(1,first)*100).toFixed(2)+'٪)</div></div></div><div class="flex gap-1.5 flex-wrap">'+buttons+'</div><svg viewBox="0 0 600 180" class="w-full"><path d="'+path+'" fill="none" stroke="'+col+'" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><text x="12" y="174" fill="#9ca3af" font-size="10">'+escapeHtml(date(p[0]))+'</text><text x="588" y="174" fill="#9ca3af" font-size="10" text-anchor="end">'+escapeHtml(date(p[p.length-1]))+'</text></svg><div class="flex justify-between text-xs text-gray-400"><span>کمینه '+fmt(lo)+'</span><span>بیشینه '+fmt(hi)+'</span></div><div class="text-[10px] text-gray-500">آخرین دریافت: '+escapeHtml(c.updatedAt||'نامشخص')+'</div></section>';
+}
     async function handleSubmit(e) {
       if (e) e.preventDefault();
       if (isGenerating) return;
@@ -1614,9 +1627,11 @@
             replyText = "⚠️ در حال حاضر ارتباط با مرکز نرخ‌دهی با مشکل مواجه شده است.";
           }
 
+          const dollarChart = isDollarChartRequest(userText) ? await fetchDollarChartData().catch(() => null) : null;
           currentSession.messages.push({
             role: 'model',
-            text: replyText
+            text: replyText,
+            ...(dollarChart ? { dollarChart } : {})
           });
 
         } catch (err) {
@@ -1677,12 +1692,14 @@
         const result = await callGeminiAPI(chatModel, payload);
 
         const replyText = result?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('\n') || 'پاسخی دریافت نشد.';
+        const dollarChart = currentMode === 'chat' && !hadAttachment && isDollarChartRequest(userText) ? await fetchDollarChartData().catch(() => null) : null;
 
         removeLoadingBubble();
 
         currentSession.messages.push({
           role: 'model',
-          text: replyText
+          text: replyText,
+          ...(dollarChart ? { dollarChart } : {})
         });
 
       } catch (err) {
@@ -1941,6 +1958,7 @@
                 </div>
 
                 <div class="prose-ananas text-sm text-gray-200">${parsedMd}</div>
+                ${msg.dollarChart ? renderDollarChart(msg.dollarChart, idx) : ''}
                 ${audioPlayer}
                 </div>
             </div>
