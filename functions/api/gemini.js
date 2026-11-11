@@ -639,6 +639,12 @@ const PHONE_PRICE_MODELS = [
  {id:"redmi-note-14-4g",aliases:["xiaomi redmi note 14 4g","redmi note 14 4g","redmi note 14","ردمی نوت ۱۴","ردمی نوت 14","شیائومی ردمی نوت ۱۴"]},
  {id:"iphone-16",aliases:["apple iphone 16","iphone 16","آیفون ۱۶","آیفون 16","اپل آیفون ۱۶"]}
 ];
+// Detect explicit phone-price questions before starting external lookups.
+function isPhonePriceQuestion(text) {
+  const query = normalizePhoneQuery(text);
+  return /(?:قیمت|نرخ|هزینه|چنده|چقدر|چند\\s*(?:تومان|تومن)|price|cost|how\\s+much)/i.test(query);
+}
+
 function detectPhonePriceModel(text) {
  if (!isPhonePriceQuestion(text)) return null;
  const n=normalizePhoneQuery(text);
@@ -1598,7 +1604,9 @@ if (!attachmentValidation.valid) {
     if (!attachmentExists && phonePriceModel && isPhonePriceQuestion(lastMessage)) {
       phonePriceData = await getPhonePriceData(request, phonePriceModel);
     }
-    if (!attachmentExists && phoneModelQuery && /مشخصات|سخت.?افزار|پردازنده|چیپست|رم|حافظه|دوربین|باتری|نمایشگر|صفحه.?نمایش|قیمت|گوشی|موبایل|مقایسه/i.test(lastMessage)) {
+    // A price-only question needs the price service, not a second hardware-specs lookup.
+    // Fetch specs only when the user explicitly asks about technical details or comparison.
+    if (!attachmentExists && phoneModelQuery && /مشخصات|سخت.?افزار|پردازنده|چیپست|رم|حافظه|دوربین|باتری|نمایشگر|صفحه.?نمایش|مقایسه/i.test(lastMessage)) {
       phoneSpecsData = await getPhoneSpecsData(request, phoneModelQuery);
     }
 
