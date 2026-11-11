@@ -2261,7 +2261,11 @@ function renderDollarChart(c,i){
             localImageId: m.localImageId || null,
             fileName: m.fileName || null,
             fileMime: m.fileMime || null,
-            isError: m.isError
+            isError: m.isError,
+            // Persist chart payloads so market charts survive reloads and reopening old conversations.
+            ...(m.marketChart ? { marketChart: m.marketChart } : {}),
+            ...(m.dollarChart ? { dollarChart: m.dollarChart } : {}),
+            ...(m.goldChoice ? { goldChoice: true } : {})
           }))
         }));
 
