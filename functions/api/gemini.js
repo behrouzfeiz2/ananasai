@@ -93,7 +93,7 @@ function getDateInfo() {
 }
 
 function normalizePhoneQuery(value) {
- return normalizeText(value).replace(/گالاکسی|گلکسی/gi,"galaxy").replace(/سامسونگ/gi,"samsung").replace(/شیائومی/gi,"xiaomi").replace(/ردمی/gi,"redmi").replace(/پوکو/gi,"poco").replace(/آیفون|ایفون/gi,"iphone").replace(/\bاس\b/gi,"s").replace(/\bزد\b/gi,"z").replace(/\bای\b/gi,"a").replace(/[۰-۹]/g,d=>"۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[\u200c\u200f\u200e]/g," ").replace(/[^\p{L}\p{N}\s.+-]/gu," ").replace(/\s+/g," ").trim();
+ return normalizeText(value).replace(/گالاکسی|گلکسی/gi,"galaxy").replace(/سامسونگ/gi,"samsung").replace(/شیائومی/gi,"xiaomi").replace(/ردمی/gi,"redmi").replace(/پوکو/gi,"poco").replace(/آیفون|ایفون/gi,"iphone").replace(/(^|\s)اس(?=\s|$)/gi,"$1s").replace(/(^|\s)زد(?=\s|$)/gi,"$1z").replace(/(^|\s)ای(?=\s|$)/gi,"$1a").replace(/[۰-۹]/g,d=>"۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[\u200c\u200f\u200e]/g," ").replace(/[^\p{L}\p{N}\s.+-]/gu," ").replace(/\s+/g," ").trim();
 }
 function extractPhoneBudgetToman(text) {
  const n=String(text||"").replace(/[۰-۹]/g,d=>String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/[٠-٩]/g,d=>String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
