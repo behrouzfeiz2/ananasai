@@ -1620,8 +1620,8 @@ function renderDollarChart(c,i){
         try {
           const marketChart = await fetchMarketChartData(marketChartAsset);
           const price = Math.round(Number(marketChart.currentPrice) || 0).toLocaleString('fa-IR');
-          const replyText = '📈 **' + marketChart.title + '**\\n\\n' +
-            '**' + price + ' تومان**\\n\\n' +
+          const replyText = '📈 **' + marketChart.title + '**\n\n' +
+            '**' + price + ' تومان**\n\n' +
             'نرخ بر اساس آخرین داده دریافتی نمایش داده شده است. نمودار زیر روند تغییرات روزانه را نشان می‌دهد.';
           currentSession.messages.push({ role: 'model', text: replyText, marketChart });
         } catch (err) {
@@ -1676,7 +1676,8 @@ function renderDollarChart(c,i){
         const result = await callGeminiAPI(chatModel, payload);
 
         const replyText = result?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('\n') || 'پاسخی دریافت نشد.';
-        const marketChartAsset = currentMode === 'chat' && !hadAttachment ? getMarketChartAsset(userText) : null;\n        const marketChart = marketChartAsset ? await fetchMarketChartData(marketChartAsset).catch(() => null) : null;
+        const marketChartAsset = currentMode === 'chat' && !hadAttachment ? getMarketChartAsset(userText) : null;
+        const marketChart = marketChartAsset ? await fetchMarketChartData(marketChartAsset).catch(() => null) : null;
 
         removeLoadingBubble();
 
