@@ -373,25 +373,28 @@
       }
     }
 
+    /* فهرست فشرده تاریخچه گفتگوها در پنل کناری */
     .chat-history-item {
       position: relative;
       min-height: 44px;
+      height: 44px;
       box-sizing: border-box;
-      padding-top: 2px !important;
-      padding-bottom: 2px !important;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
     }
     .chat-history-item > button:first-child {
-      min-height: 40px;
+      min-height: 44px;
+      height: 44px;
       padding-top: 0 !important;
       padding-bottom: 0 !important;
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
     }
     .chat-history-item .chat-menu-trigger {
-      width: 40px;
-      height: 40px;
-      min-width: 40px;
-      min-height: 40px;
+      width: 44px;
+      height: 44px;
+      min-width: 44px;
+      min-height: 44px;
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
     }
@@ -590,7 +593,7 @@
       <button onclick="clearAllHistory()" class="text-[11px] text-red-400 hover:underline">حذف همه</button>
     </div>
 
-    <div id="chatHistoryList" class="flex-1 overflow-y-auto px-2 space-y-1 py-2"></div>
+    <div id="chatHistoryList" class="flex-1 overflow-y-auto px-2 space-y-0 py-1"></div>
 
     <div class="p-3 border-t border-ananas-border space-y-2 bg-ananas-dark/40 shrink-0">
       <div id="accountStatusCard" class="relative rounded-xl bg-ananas-card border border-ananas-border text-xs overflow-hidden">
@@ -2284,7 +2287,7 @@ function renderDollarChart(c,i){
         const active = s.id === activeSessionId;
         const menuOpen = chatMenuOpenId === s.id;
         return `
-          <div class="chat-history-item group relative flex items-center gap-1 w-full px-2 py-0.5 rounded-xl text-xs transition border ${active ? 'is-active bg-[#303030] text-white border-[#505050] font-bold' : 'text-gray-300 hover:bg-[#202020] border-transparent'}">
+          <div class="chat-history-item group relative flex items-center gap-1 w-full px-2 py-0 rounded-lg text-xs transition border ${active ? 'is-active bg-[#303030] text-white border-[#505050] font-bold' : 'text-gray-300 hover:bg-[#202020] border-transparent'}">
             <button type="button" onclick="loadSession('${id}')" class="flex-1 min-w-0 overflow-hidden flex items-center gap-2 text-right py-1">
               <span class="shrink-0 text-sm">${s.isPinned ? '📌' : ''}</span>
               <span class="truncate flex-1" dir="auto">${escapeHtml(s.title || 'گفتگوی بدون عنوان')}</span>
