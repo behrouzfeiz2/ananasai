@@ -653,7 +653,7 @@ function extractPhoneModelQuery(text) {
  const tokens=normalized.split(" ").filter(Boolean);
  const start=tokens.findIndex(x=>["samsung","galaxy","xiaomi","redmi","poco","iphone"].includes(x));
  if(start<0)return null;
- const stop=new Set(["مشخصات","سخت","افزار","پردازنده","چیپست","رم","حافظه","دوربین","باتری","نمایشگر","صفحه","قیمت","گوشی","موبایل","چنده","چیه","چیست","داره","بخرم","مقایسه","چی","تاشو","اسمش","اسم","را","رو","میخوام","میخواهم","لطفا","بگو","چقدر","چه"]);
+ const stop=new Set(["مشخصات","سخت","افزار","پردازنده","چیپست","رم","حافظه","دوربین","باتری","نمایشگر","صفحه","قیمت","قیمتش","گوشی","موبایل","چنده","چیه","چیست","داره","بخرم","مقایسه","چی","تاشو","اسمش","اسم","را","رو","میخوام","میخواهم","لطفا","بگو","چقدر","چه"]);
  const selected=[];
  for(let i=start;i<tokens.length&&selected.length<6;i++){
   if(stop.has(tokens[i]))break;
