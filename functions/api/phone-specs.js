@@ -153,26 +153,61 @@ function getBrand(name, url) {
   if (/xiaomi|redmi|poco/.test(s)) return "Xiaomi";
   return "نامشخص";
 }
+function scoreSearchCandidate(candidate, query) {
+  const q = normalize(query);
+  const c = normalize(candidate.name);
+  const queryTokens = q.split(" ").filter(x => x.length > 1);
+  const candidateTokens = c.split(" ").filter(x => x.length > 1);
+  const matched = queryTokens.filter(token => candidateTokens.includes(token)).length;
+  const missing = queryTokens.length - matched;
+  const extras = Math.max(0, candidateTokens.length - matched);
+  const exact = c === q ? 1000 : c.startsWith(q + " ") ? 250 : c.includes(q) ? 150 : 0;
+  return exact + matched * 20 - missing * 80 - extras * 7;
+}
 async function lookup(query, request) {
   const cache = caches.default;
-  const cacheUrl = new URL("/__ananas_phone_specs_v1/" + encodeURIComponent(normalize(query)), request.url);
+  const cacheUrl = new URL("/__ananas_phone_specs_v2/" + encodeURIComponent(normalize(query)), request.url);
   const cacheKey = new Request(cacheUrl.toString());
   try {
     const cached = await cache.match(cacheKey);
     if (cached) return { ...(await cached.json()), cached: true };
   } catch {}
-  const searchUrl = SOURCE + "/res.php3?sSearch=" + encodeURIComponent(query);
-  const searchHtml = await fetchText(searchUrl);
-  const matches = findSearchMatches(searchHtml, query);
-  if (!matches.length || matches[0].score < Math.max(1, normalize(query).split(" ").filter(x => x.length > 1).length * 0.45)) {
-    throw new Error("مدل دقیقی با این عبارت در فهرست GSMArena پیدا نشد.");
+
+  // GSMArena's current quick-search route is results.php3. Keep the older
+  // route as a secondary attempt for compatibility with alternate edge regions.
+  const searchUrls = [
+    SOURCE + "/results.php3?sQuickSearch=yes&sName=" + encodeURIComponent(query),
+    SOURCE + "/res.php3?sSearch=" + encodeURIComponent(query)
+  ];
+  let matches = [];
+  const errors = [];
+  for (const searchUrl of searchUrls) {
+    try {
+      const searchHtml = await fetchText(searchUrl);
+      const found = findSearchMatches(searchHtml, query)
+        .map(item => ({ ...item, score: scoreSearchCandidate(item, query) }))
+        .sort((a, b) => b.score - a.score);
+      if (found.length) {
+        matches = found;
+        break;
+      }
+      errors.push("No model links at " + new URL(searchUrl).pathname);
+    } catch (error) {
+      errors.push(error.message || String(error));
+    }
   }
+
+  const minimumScore = Math.max(15, normalize(query).split(" ").filter(x => x.length > 1).length * 10);
+  if (!matches.length || matches[0].score < minimumScore) {
+    throw new Error(errors.length ? "جست‌وجوی مدل در منابع مشخصات ناموفق بود: " + errors.join("؛ ") : "مدل دقیقی در فهرست گوشی‌ها پیدا نشد.");
+  }
+
   const chosen = matches[0];
   const pageHtml = await fetchText(chosen.url);
   const h1 = pageHtml.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
   const name = h1 ? textFromHtml(h1[1]) : chosen.name;
   const specs = extractSpecs(pageHtml);
-  if (specs.length < 3) throw new Error("جدول مشخصات فنی این صفحه قابل استخراج نیست.");
+  if (specs.length < 3) throw new Error("صفحه مدل پیدا شد، اما جدول مشخصات فنی آن قابل استخراج نبود.");
   const result = {
     name,
     brand: getBrand(name, chosen.url),

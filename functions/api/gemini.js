@@ -93,7 +93,7 @@ function getDateInfo() {
 }
 
 function normalizePhoneQuery(value) {
- return normalizeText(value).replace(/گالاکسی|گلکسی/gi,"galaxy").replace(/سامسونگ/gi,"samsung").replace(/شیائومی/gi,"xiaomi").replace(/ردمی/gi,"redmi").replace(/پوکو/gi,"poco").replace(/آیفون|ایفون/gi,"iphone").replace(/[۰-۹]/g,d=>"۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[\u200c\u200f\u200e]/g," ").replace(/[^\p{L}\p{N}\s.+-]/gu," ").replace(/\s+/g," ").trim();
+ return normalizeText(value).replace(/گالاکسی|گلکسی/gi,"galaxy").replace(/سامسونگ/gi,"samsung").replace(/شیائومی/gi,"xiaomi").replace(/ردمی/gi,"redmi").replace(/پوکو/gi,"poco").replace(/آیفون|ایفون/gi,"iphone").replace(/(^|\s)اس(?=\s|$)/gi,"$1s").replace(/(^|\s)زد(?=\s|$)/gi,"$1z").replace(/(^|\s)ای(?=\s|$)/gi,"$1a").replace(/[۰-۹]/g,d=>"۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/(^|\s)([sza])\s+(\d{1,3})(?=\s|$)/gi,"$1$2$3").replace(/[\u200c\u200f\u200e]/g," ").replace(/[^\p{L}\p{N}\s.+-]/gu," ").replace(/\s+/g," ").trim();
 }
 function extractPhoneBudgetToman(text) {
  const n=String(text||"").replace(/[۰-۹]/g,d=>String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/[٠-٩]/g,d=>String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
@@ -671,7 +671,7 @@ function extractPhoneModelQuery(text) {
  const tokens=normalized.split(" ").filter(Boolean);
  const start=tokens.findIndex(x=>["samsung","galaxy","xiaomi","redmi","poco","iphone"].includes(x));
  if(start<0)return null;
- const stop=new Set(["مشخصات","سخت","افزار","پردازنده","چیپست","رم","حافظه","دوربین","باتری","نمایشگر","صفحه","قیمت","قیمتش","گوشی","موبایل","چنده","چیه","چیست","داره","بخرم","مقایسه","چی","تاشو","اسمش","اسم","را","رو","میخوام","میخواهم","لطفا","بگو","چقدر","چه"]);
+ const stop=new Set(["مشخصات","سخت","افزار","پردازنده","چیپست","رم","حافظه","دوربین","باتری","نمایشگر","صفحه","قیمت","قیمتش","گوشی","موبایل","چنده","چیه","چیست","داره","بخرم","مقایسه","چی","تاشو","اسمش","اسم","را","رو","میخوام","میخواهم","لطفا","بگو","چقدر","چه","نرمال","معمولی","استاندارد","عادی","normal","standard","regular","base","vanilla"]);
  const selected=[];
  for(let i=start;i<tokens.length&&selected.length<6;i++){
   if(stop.has(tokens[i]))break;
