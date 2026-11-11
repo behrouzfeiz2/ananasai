@@ -386,16 +386,19 @@
     </div>
 
     <div class="p-3 space-y-2 shrink-0">
-      <button onclick="startNewChat()" class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-l from-ananas-500 to-ananas-600 hover:from-ananas-400 hover:to-ananas-500 text-ananas-dark font-bold text-sm shadow-lg shadow-ananas-500/15 flex items-center justify-center gap-2 transition">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 4v16m8-8H4"/>
-        </svg>
-        <span>گفتگوی تازه با آناناس</span>
-      </button>
-
-      <a href="home.html" class="w-full py-2 px-3 rounded-xl bg-ananas-dark border border-ananas-border hover:border-ananas-500/50 text-gray-300 hover:text-white text-xs flex items-center justify-center gap-2 transition">
-        <span>🏠 صفحه اصلی (Home)</span>
-      </a>
+      <div class="flex items-center gap-2">
+        <button onclick="startNewChat()" class="flex-1 min-w-0 py-2.5 px-3 rounded-xl bg-gradient-to-l from-ananas-500 to-ananas-600 hover:from-ananas-400 hover:to-ananas-500 text-ananas-dark font-bold text-sm shadow-lg shadow-ananas-500/15 flex items-center justify-center gap-2 transition">
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 4v16m8-8H4"/>
+          </svg>
+          <span>گفتگوی تازه</span>
+        </button>
+        <a href="https://ananasai.ir/home" aria-label="صفحه اصلی" title="صفحه اصلی" class="w-11 h-11 shrink-0 rounded-xl bg-ananas-dark border border-ananas-border hover:border-gray-500 text-white hover:bg-[#292929] flex items-center justify-center transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V10Z"/>
+          </svg>
+        </a>
+      </div>
       <button onclick="openAudioLibrary()" class="w-full py-2 px-3 rounded-xl bg-[#292929] border border-white hover:bg-[#383838] text-white text-xs flex items-center justify-center gap-2 transition">🎧 کتابخانه فایل‌های صوتی</button>
       <button id="imageLibrarySidebarBtn" onclick="openImageLibrary()" class="hidden w-full py-2 px-3 rounded-xl bg-[#292929] border border-white hover:bg-[#383838] text-white text-xs flex items-center justify-center gap-2 transition">🖼️ کتابخانه تصاویر من</button>
     </div>
