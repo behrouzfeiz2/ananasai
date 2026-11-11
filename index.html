@@ -1332,6 +1332,24 @@
         saveSessions(); renderMessages(); renderHistoryList(); return;
       }
 
+      // ادامه ویرایش تصویر تولیدشده در همین گفتگو؛ تصویر آخر از کتابخانه شخصی بازیابی می‌شود.
+      const previousGeneratedImage = !hadAttachment
+        ? [...currentSession.messages].slice(0, -1).reverse().find(m => m.role === 'model' && m.generatedImageLibraryId)
+        : null;
+      const followUpEditIntent = /(?:تغییر(?:\s*(?:بده|بدید|کن|کنید|دادن|کردن))?|عوض\s*(?:کن|کنید|بده|بدید)|ویرایش|ادیت|اصلاح|کوچک(?:\s*(?:کن|کنید))?|بزرگ(?:\s*(?:کن|کنید))?|سایز|اندازه|ابعاد|رزولوشن|کیفیت|پس\s*زمینه|پسزمینه|رنگ|نور|روشن(?:\s*(?:کن|کنید))?|تیره(?:\s*(?:کن|کنید))?|برش|کراپ|کادر|نسبت\s*(?:تصویر|ابعاد)?|مربع|عمودی|افقی|حذف|اضافه|جابجا|جابه\s*جا|شفاف|png|jpe?g|webp)/i.test(imageCommandText);
+      if (previousGeneratedImage && followUpEditIntent) {
+        if (!userToken || !(quotaState.isUltra || quotaState.tier === 'ultra' || userToken.startsWith('ULTRA-'))) {
+          currentSession.messages.push({role:'model',isError:true,text:'⚠️ ویرایش تصویر فقط برای کاربران Ultra فعال است.'});
+        } else {
+          currentSession.messages.push({
+            role:'model',
+            text:'درخواست ویرایش به تصویر قبلی متصل شد. مدل Qwen Image Edit همان تصویر را به‌عنوان مرجع ویرایش می‌کند.',
+            imageWizard:{prompt:userText.trim(),model:'qwen-image-edit',step:'confirm',hasReference:true,sourceLibraryId:previousGeneratedImage.generatedImageLibraryId}
+          });
+        }
+        saveSessions(); renderMessages(); renderHistoryList(); return;
+      }
+
       const isImageGenerationRequest = !hadAttachment && hasImageSubject && hasImageCreationIntent;
       if (isImageGenerationRequest) {
         // متن کامل کاربر حفظ می‌شود تا نام برند، نوع طراحی و جزئیات درخواست از بین نرود.
@@ -1747,7 +1765,7 @@
     }
     function renderImageWizard(idx,w){
       if(w.step==='model')return `<div class="flex justify-end"><div class="max-w-[90%] rounded-xl bg-ananas-card border border-fuchsia-500/30 p-4 space-y-3"><b class="text-fuchsia-200">🖼️ انتخاب مدل تصویر</b><p class="text-xs text-gray-300">${escapeHtml(w.prompt)}</p><button onclick="selectImageModel(${idx},'flux-dev')" class="w-full text-right p-3 rounded-lg border border-ananas-border"><b>FLUX Dev</b><small class="block text-gray-400">جزئیات و پایبندی بیشتر به متن</small></button><button onclick="selectImageModel(${idx},'z-image')" class="w-full text-right p-3 rounded-lg border border-ananas-border"><b>Z-Image</b><small class="block text-gray-400">سریع‌تر و اقتصادی‌تر</small></button></div></div>`;
-      if(w.step==='confirm')return `<div class="flex justify-end"><div class="max-w-[90%] rounded-xl bg-ananas-card border border-fuchsia-500/30 p-4 space-y-3"><b class="text-fuchsia-200">${w.hasReference?'تأیید ویرایش تصویر ضمیمه‌شده':'تأیید ساخت تصویر'}</b><p class="text-xs">${escapeHtml(w.prompt)}</p><p class="text-xs">مدل: <b>${w.model==='qwen-image-edit'?'Qwen Image Edit':w.model==='flux-dev'?'FLUX Dev':'Z-Image'}</b></p>${w.hasReference?'<p class="text-[11px] text-emerald-300">تصویر اصلی به‌عنوان مرجع حفظ می‌شود. درخواست ویرایش جزو سهمیه روزانه ۵ تصویر است.</p>':''}<button onclick="generateImageFromWizard(${idx})" class="px-4 py-2 rounded-lg bg-fuchsia-500 text-white text-xs">تأیید و شروع ${w.hasReference?'ویرایش':'ساخت تصویر'}</button> ${w.hasReference?'':'<button onclick="backToImageModels('+idx+')" class="px-3 py-2 rounded-lg border border-ananas-border text-xs">تغییر مدل</button>'}</div></div>`;
+      if(w.step==='confirm')return `<div class="flex justify-end"><div class="max-w-[90%] rounded-xl bg-ananas-card border border-fuchsia-500/30 p-4 space-y-3"><b class="text-fuchsia-200">${w.hasReference?(w.sourceLibraryId?'تأیید ویرایش تصویر قبلی':'تأیید ویرایش تصویر ضمیمه‌شده')':'تأیید ساخت تصویر'}</b><p class="text-xs">${escapeHtml(w.prompt)}</p><p class="text-xs">مدل: <b>${w.model==='qwen-image-edit'?'Qwen Image Edit':w.model==='flux-dev'?'FLUX Dev':'Z-Image'}</b></p>${w.hasReference?'<p class="text-[11px] text-emerald-300">تصویر اصلی به‌عنوان مرجع حفظ می‌شود. درخواست ویرایش جزو سهمیه روزانه ۵ تصویر است.</p>':''}<button onclick="generateImageFromWizard(${idx})" class="px-4 py-2 rounded-lg bg-fuchsia-500 text-white text-xs">تأیید و شروع ${w.hasReference?'ویرایش':'ساخت تصویر'}</button> ${w.hasReference?'':'<button onclick="backToImageModels('+idx+')" class="px-3 py-2 rounded-lg border border-ananas-border text-xs">تغییر مدل</button>'}</div></div>`;
       return '<div class="flex justify-end"><div class="rounded-xl bg-ananas-card p-4 text-sm text-fuchsia-200">در حال تولید تصویر...</div></div>';
     }
     function getImageWizard(idx){const s=sessions.find(x=>x.id===activeSessionId),m=s&&s.messages[idx];return m&&m.imageWizard?m:null;}
@@ -1761,10 +1779,21 @@
         const headers={'Content-Type':'application/json','X-User-Token':userToken};
         let referenceId=null;
         if(w.hasReference){
-          const session=sessions.find(x=>x.id===activeSessionId);
-          const sourceMessage=session&&session.messages.slice(0,idx).reverse().find(x=>x.role==='user'&&x.fileData&&x.fileMime&&x.fileMime.startsWith('image/'));
-          if(!sourceMessage)throw new Error('تصویر ضمیمه‌شده در تاریخچه این گفتگو پیدا نشد؛ لطفاً تصویر را دوباره ارسال کنید.');
-          const upload=await fetch('/api/image-reference',{method:'POST',headers,body:JSON.stringify({mimeType:sourceMessage.fileMime,data:sourceMessage.fileData})});
+          let referenceMime=null,referenceData=null;
+          if(w.sourceLibraryId){
+            const fileResponse=await fetch('/api/image-library?file='+encodeURIComponent(w.sourceLibraryId),{headers:{'X-User-Token':userToken},cache:'no-store'});
+            if(!fileResponse.ok)throw new Error('تصویر قبلی در کتابخانه پیدا نشد؛ لطفاً آن را دوباره ضمیمه کنید.');
+            const blob=await fileResponse.blob();
+            referenceMime=blob.type||'image/png';
+            const dataUrl=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||''));reader.onerror=()=>reject(new Error('خواندن تصویر مرجع ناموفق بود.'));reader.readAsDataURL(blob);});
+            referenceData=String(dataUrl).split(',')[1]||'';
+          }else{
+            const session=sessions.find(x=>x.id===activeSessionId);
+            const sourceMessage=session&&session.messages.slice(0,idx).reverse().find(x=>x.role==='user'&&x.fileData&&x.fileMime&&x.fileMime.startsWith('image/'));
+            if(!sourceMessage)throw new Error('تصویر ضمیمه‌شده در تاریخچه این گفتگو پیدا نشد؛ لطفاً تصویر را دوباره ارسال کنید.');
+            referenceMime=sourceMessage.fileMime;referenceData=sourceMessage.fileData;
+          }
+          const upload=await fetch('/api/image-reference',{method:'POST',headers,body:JSON.stringify({mimeType:referenceMime,data:referenceData})});
           const uploaded=await upload.json();if(!upload.ok||!uploaded.success)throw new Error(uploaded.error||'بارگذاری تصویر مرجع ناموفق بود.');
           referenceId=uploaded.referenceId;
         }
@@ -1774,7 +1803,7 @@
         let url=null,librarySaved=false;
         for(let i=0;i<300;i++){await new Promise(r=>setTimeout(r,3000));const res=await fetch('/api/image?id='+encodeURIComponent(job.id),{headers:{'X-User-Token':userToken}});const data=await res.json();if(!res.ok)throw new Error(data.error||'خطا در دریافت وضعیت تصویر.');if(data.status==='ready'&&data.output?.url){url=data.output.url;librarySaved=Boolean(data.librarySaved);break;}if(data.status==='failed')throw new Error(data.error?.message||'تولید تصویر ناموفق بود.');}
         if(!url)throw new Error('زمان انتظار تولید تصویر به پایان رسید.');
-        m.imageWizard=null;m.text='🖼️ تصویر با موفقیت تولید شد.';if(librarySaved){m.generatedImageLibraryId=job.id;delete m.generatedImageUrl;await hydrateMessageImages();}else{m.generatedImageLibraryId=null;delete m.generatedImageUrl;m.text='⚠️ تصویر تولید شد، اما در کتابخانه ذخیره نشد و برای نمایش در تاریخچه نگهداری نمی‌شود.';}
+        m.imageWizard=null;m.text='🖼️ تصویر با موفقیت تولید شد.';m.generatedImageModel=w.model;if(librarySaved){m.generatedImageLibraryId=job.id;delete m.generatedImageUrl;await hydrateMessageImages();}else{m.generatedImageLibraryId=null;delete m.generatedImageUrl;m.text='⚠️ تصویر تولید شد، اما در کتابخانه ذخیره نشد و برای نمایش در تاریخچه نگهداری نمی‌شود.';}
       }catch(e){m.imageWizard=null;m.isError=true;m.text='⚠️ '+e.message;}
       finally{isGenerating=false;saveSessions();renderMessages();renderHistoryList();}
     }
