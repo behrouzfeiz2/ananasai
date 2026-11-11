@@ -130,7 +130,12 @@ async function github(token, path, options = {}) {
   }});
   const raw = await response.text(); let data = {};
   try { data = raw ? JSON.parse(raw) : {}; } catch { data = { message: raw.slice(0, 300) }; }
-  if (!response.ok) { const error = new Error(data.message || "GitHub request failed"); error.status = response.status; throw error; }
+  if (!response.ok) {
+    const message = response.status === 401
+      ? "GitHub اعتبار اتصال را نپذیرفت؛ ممکن است دسترسی لغو شده باشد. لطفاً اتصال GitHub را مجدداً برقرار کنید."
+      : (data.message || "GitHub request failed");
+    const error = new Error(message); error.status = response.status; throw error;
+  }
   return data;
 }
 async function getTree(token, repository, requestedBranch) {
