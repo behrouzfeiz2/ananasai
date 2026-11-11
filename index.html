@@ -1596,6 +1596,34 @@
       return template.innerHTML;
     }
 
+    function renderUserMessageText(text, idx) {
+      if (!text) return '';
+      const paragraphs = String(text).trim().split(/\\n\\s*\\n/);
+      const escapedFull = escapeHtml(text);
+      if (paragraphs.length <= 3) {
+        return `<div class="text-sm font-medium whitespace-pre-wrap leading-relaxed">${escapedFull}</div>`;
+      }
+      const preview = escapeHtml(paragraphs.slice(0, 3).join('\\n\\n'));
+      return `
+        <div class="user-message-text text-sm font-medium leading-relaxed">
+          <div id="userMessagePreview${idx}" class="whitespace-pre-wrap">${preview}</div>
+          <div id="userMessageFull${idx}" class="whitespace-pre-wrap hidden">${escapedFull}</div>
+          <button type="button" onclick="toggleUserMessage(${idx})" id="userMessageToggle${idx}" aria-expanded="false" class="mt-2 text-xs font-bold underline underline-offset-4 opacity-80 hover:opacity-100">نمایش ادامه پیام</button>
+        </div>`;
+    }
+
+    function toggleUserMessage(idx) {
+      const preview = document.getElementById('userMessagePreview' + idx);
+      const full = document.getElementById('userMessageFull' + idx);
+      const button = document.getElementById('userMessageToggle' + idx);
+      if (!preview || !full || !button) return;
+      const expanded = full.classList.contains('hidden');
+      preview.classList.toggle('hidden', expanded);
+      full.classList.toggle('hidden', !expanded);
+      button.textContent = expanded ? 'نمایش کمتر' : 'نمایش ادامه پیام';
+      button.setAttribute('aria-expanded', String(expanded));
+    }
+
     function renderMessages() {
       const welcome = document.getElementById('welcomeScreen');
       const container = document.getElementById('chatMessages');
@@ -1622,7 +1650,7 @@
           return `
             <div class="flex justify-start">
               <div class="max-w-[85%] sm:max-w-[75%] rounded-2xl rounded-tr-xs bg-gradient-to-l from-ananas-500 to-ananas-600 text-ananas-dark px-4 py-3 shadow-md">
-                ${msg.text?`<div class="text-sm font-medium whitespace-pre-wrap leading-relaxed">${escapeHtml(msg.text)}</div>`:''}
+                ${msg.text?renderUserMessageText(msg.text, idx):''}
                 ${attachment}
               </div>
             </div>
