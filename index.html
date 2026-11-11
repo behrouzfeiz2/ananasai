@@ -361,22 +361,29 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        padding: 7px;
-        border: 0;
-        border-radius: 10px;
-        background: transparent;
-        color: #e5e7eb;
-        box-shadow: none;
+        width: 40px;
+        height: 40px;
+        padding: 8px;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 12px;
+        background: #f59e0b;
+        color: #111111;
+        box-shadow: 0 4px 14px rgba(245,158,11,0.18);
+        transition: background 0.2s ease, transform 0.2s ease;
       }
 
       #headerSidebarBtn:hover,
       #headerSidebarBtn:focus-visible {
-        background: rgba(255,255,255,0.08);
+        background: #fbbf24;
+      }
+
+      #headerSidebarBtn:active {
+        transform: scale(0.96);
       }
 
       #headerModeGroup {
         direction: rtl;
-        gap: 9px;
+        gap: 7px;
         padding: 0;
         border: 0;
         border-radius: 0;
@@ -385,18 +392,28 @@
       }
 
       #headerModeGroup button {
-        padding: 7px 2px;
-        border: 0;
-        border-radius: 0;
-        background: transparent !important;
-        box-shadow: none;
-        color: #a1a1aa !important;
+        min-height: 38px;
+        padding: 7px 10px;
+        border: 1px solid rgba(255,255,255,0.09);
+        border-radius: 11px;
+        background: #1b1b1b !important;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.2);
+        color: #b4b4bc !important;
         font-size: 12px;
+        transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+      }
+
+      #headerModeGroup button:hover {
+        background: #292929 !important;
+        color: #ffffff !important;
       }
 
       #headerModeGroup button.bg-ananas-500,
       #headerModeGroup button.bg-cyan-500 {
-        color: #fbbf24 !important;
+        background: #f59e0b !important;
+        border-color: rgba(251,191,36,0.55);
+        color: #111111 !important;
+        box-shadow: 0 4px 14px rgba(245,158,11,0.16);
       }
 
       #messagesContainer {
@@ -2535,6 +2552,50 @@
         }
       }
     }
+
+    /* باز کردن سایدبار با کشیدن انگشت از راست به چپ روی فضای خالی چت */
+    (function enableMobileSidebarSwipe() {
+      let startX = 0;
+      let startY = 0;
+      let eligible = false;
+
+      document.addEventListener('touchstart', (event) => {
+        if (window.matchMedia('(max-width: 640px)').matches === false) return;
+        const target = event.target;
+        const main = document.querySelector('main');
+        const messages = document.getElementById('messagesContainer');
+        eligible = target === main || target === messages;
+        if (!eligible || !event.touches || event.touches.length !== 1) return;
+
+        const touch = event.touches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
+        if (startX < window.innerWidth * 0.55) eligible = false;
+      }, { passive: true });
+
+      document.addEventListener('touchend', (event) => {
+        if (!eligible || !event.changedTouches || event.changedTouches.length !== 1) {
+          eligible = false;
+          return;
+        }
+
+        const touch = event.changedTouches[0];
+        const deltaX = touch.clientX - startX;
+        const deltaY = touch.clientY - startY;
+        eligible = false;
+
+        if (deltaX <= -65 && Math.abs(deltaY) < 55) {
+          const sidebar = document.getElementById('sidebar');
+          if (sidebar && sidebar.classList.contains('translate-x-full')) {
+            toggleSidebar(true);
+          }
+        }
+      }, { passive: true });
+
+      document.addEventListener('touchcancel', () => {
+        eligible = false;
+      }, { passive: true });
+    })();
 
     function openSettingsModal(customNotice) {
       document.getElementById('userTokenInput').value = userToken;
