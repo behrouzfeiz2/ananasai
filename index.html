@@ -1233,11 +1233,11 @@
       recognition.onstart = () => {
         isRecording = true;
         micBtn.classList.remove('text-gray-400');
-        micBtn.classList.add('text-red-300', 'bg-red-500/20', 'ring-2', 'ring-red-400/60', 'animate-pulse', 'px-3');
+        micBtn.classList.add('text-red-300', 'bg-red-500/20', 'ring-2', 'ring-red-400/60', 'animate-pulse');
         micBtn.setAttribute('aria-label', 'در حال گوش دادن؛ برای توقف کلیک کنید');
         micBtn.title = 'در حال گوش دادن؛ برای توقف کلیک کنید';
-        micBtn.innerHTML = '<span class="inline-flex items-center gap-2 whitespace-nowrap"><span class="relative flex h-2.5 w-2.5"><span class="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75 animate-ping"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-400"></span></span><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M5 10a7 7 0 0 0 14 0M12 17v5m-4 0h8"></path></svg><span class="text-xs font-bold">در حال گوش دادن</span></span>';
-        inputEl.placeholder = 'در حال گوش دادن... صحبت کنید...';
+        micBtn.innerHTML = '<span class="relative flex h-2.5 w-2.5"><span class="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75 animate-ping"></span><span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-400"></span></span><svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"></rect><path d="M5 10a7 7 0 0 0 14 0M12 17v5m-4 0h8"></path></svg>';
+        inputEl.placeholder = '';
       };
 
       recognition.onresult = (event) => {
@@ -1272,7 +1272,7 @@
       const inputEl = document.getElementById('promptInput');
 
       if (micBtn) {
-        micBtn.classList.remove('text-red-300', 'bg-red-500/20', 'ring-2', 'ring-red-400/60', 'animate-pulse', 'px-3');
+        micBtn.classList.remove('text-red-300', 'bg-red-500/20', 'ring-2', 'ring-red-400/60', 'animate-pulse');
         micBtn.classList.add('text-gray-400');
         micBtn.setAttribute('aria-label', 'شروع تایپ صوتی');
         micBtn.title = 'تایپ صوتی';
