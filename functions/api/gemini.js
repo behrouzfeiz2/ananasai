@@ -645,7 +645,7 @@ function detectPhonePriceModel(text) {
  return null;
 }
 function extractPhoneModelQuery(text) {
- const raw=String(text||"").trim();
+ const raw=normalizePhoneQuery(text);
  const patterns=[
  /(?:samsung|galaxy|گلکسی|گالاکسی|سامسونگ)\s+[a-z]?\s*\d{1,3}(?:\s*(?:ultra|plus|fe|edge|fold|flip|5g))?/i,
  /(?:xiaomi|redmi|poco|شیائومی|ردمی|پوکو)\s+[a-z0-9\p{L}][a-z0-9\p{L} .+-]{1,35}/iu,
@@ -1013,6 +1013,11 @@ ${date.gregorian}
 - اگر نتایج جست‌وجوی محصول از فیدهای RSS دریافت شده‌اند، آن‌ها را با ذکر منبع، تاریخ و لینک معرفی کن.
 - محتوای مقاله و بررسی را با محصول قابل خرید یا قیمت زنده اشتباه نگیر.
 - هرگز ادعا نکن که در گوگل جست‌وجو کرده‌ای.
+- در پرسش خرید گوشی، «تا ۴۰ تومن» یا «۴۰ تومان» در بافت بودجه یعنی حدود ۴۰ میلیون تومان؛ عدد بودجه را به تومان شفاف اعلام کن.
+- «گلکسی» و «گالاکسی» هر دو Samsung Galaxy هستند؛ اعداد فارسی و لاتین مدل را یکسان تشخیص بده.
+- برای پیشنهاد خرید گوشی، چند گزینه زیر سقف بودجه را با مزایا، ضعف‌ها و تناسب با نوع استفاده مقایسه کن. قیمت را فقط از داده قیمت معتبر نقل کن؛ اگر قیمت روز موجود نیست، قیمت نساز.
+- گوشی تاشو را به دو نوع کتابی Fold و صدفی Flip تفکیک کن و بر اساس کاربرد پیشنهاد بده.
+- نام آیفون تاشوی عرضه‌شده اپل iPhone Duo است؛ آن را با شایعات قدیمی iPhone Fold اشتباه نگیر. منبع رسمی: https://www.apple.com/iphone-duo/
 - هرگز منبع، لینک، خبر یا قیمت ساختگی تولید نکن.
 - اگر داده‌ای در اختیار نداری، صریحاً بگو.
 - از پاسخ‌های طولانی و غیرضروری خودداری کن.
@@ -1587,10 +1592,16 @@ if (!attachmentValidation.valid) {
     let newsData = null;
     let shopData = null;
     let phonePriceData = null;
+    let phoneSpecsData = null;
     const phonePriceModel = !attachmentExists ? detectPhonePriceModel(lastMessage) : null;
+    const phoneModelQuery = !attachmentExists ? extractPhoneModelQuery(lastMessage) : null;
+    const phoneBuyingIntent = !attachmentExists ? detectPhoneBuyingIntent(lastMessage) : { budgetToman: null, foldable: false, recommendation: false };
 
     if (!attachmentExists && phonePriceModel) {
       phonePriceData = await getPhonePriceData(request, phonePriceModel);
+    }
+    if (!attachmentExists && phoneModelQuery && /مشخصات|سخت.?افزار|پردازنده|چیپست|رم|حافظه|دوربین|باتری|نمایشگر|صفحه.?نمایش|قیمت|گوشی|موبایل|مقایسه/i.test(lastMessage)) {
+      phoneSpecsData = await getPhoneSpecsData(request, phoneModelQuery);
     }
 
     if (!attachmentExists && questionType.market) {
@@ -1637,6 +1648,20 @@ if (!attachmentValidation.valid) {
 
     if (phonePriceModel) {
       externalContext += formatPhonePriceData(phonePriceData);
+    }
+
+    if (phoneSpecsData) {
+      externalContext += formatPhoneSpecsData(phoneSpecsData);
+    }
+
+    if (phoneBuyingIntent.recommendation) {
+      externalContext += `
+قصد خرید گوشی تشخیص داده شد.
+سقف بودجه به تومان: ${phoneBuyingIntent.budgetToman ? phoneBuyingIntent.budgetToman.toLocaleString("en-US") : "مشخص نشده"}
+گوشی تاشو: ${phoneBuyingIntent.foldable ? "بله" : "خیر"}
+بودجه را سقف هزینه بدان. فقط گزینه‌هایی را پیشنهاد بده که از سقف بیشتر نیستند. اگر قیمت معتبر در دسترس نیست، قیمت نساز و محدودیت داده قیمت را توضیح بده. Fold کتابی و Flip صدفی را از هم تفکیک کن.
+منظور از آیفون تاشو محصول عرضه‌شده Apple یعنی iPhone Duo است؛ اطلاعات رسمی در https://www.apple.com/iphone-duo/ قرار دارد.
+`;
     }
 
     if (questionType.shop && !phonePriceModel) {
@@ -1797,6 +1822,11 @@ if (!attachmentValidation.valid) {
       phonePriceRequested: Boolean(phonePriceModel),
       phonePriceServiceAvailable: Boolean(phonePriceData?.success),
       phonePriceModel: phonePriceModel?.id || null,
+      phoneSpecsRequested: Boolean(phoneModelQuery),
+      phoneSpecsAvailable: Boolean(phoneSpecsData?.success),
+      phoneSpecsModel: phoneSpecsData?.phone?.name || phoneModelQuery || null,
+      phoneBudgetToman: phoneBuyingIntent.budgetToman || null,
+      phoneBuyingIntent: Boolean(phoneBuyingIntent.recommendation),
 
       shopRequested: Boolean(questionType.shop && !phonePriceModel),
       shopServiceAvailable: Boolean(shopData?.success),
@@ -1831,6 +1861,9 @@ if (!attachmentValidation.valid) {
 
     if (phonePriceData?.success) {
       responseJson.phonePriceData = phonePriceData;
+    }
+    if (phoneSpecsData?.success) {
+      responseJson.phoneSpecsData = phoneSpecsData;
     }
 
     if (shopData?.success) {
