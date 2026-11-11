@@ -204,7 +204,7 @@ async function lookup(query, request) {
 
   const chosen = matches[0];
   const pageHtml = await fetchText(chosen.url);
-  const h1 = pageHtml.match(/<h1\\b[^>]*>([\\s\\S]*?)<\\/h1>/i);
+  const h1 = pageHtml.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
   const name = h1 ? textFromHtml(h1[1]) : chosen.name;
   const specs = extractSpecs(pageHtml);
   if (specs.length < 3) throw new Error("صفحه مدل پیدا شد، اما جدول مشخصات فنی آن قابل استخراج نبود.");
