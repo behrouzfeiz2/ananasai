@@ -59,6 +59,80 @@ function normalizeText(value) {
     .replace(/\s+/g, " ").trim();
 }
 
+
+function normalizePhoneModel(value) {
+  return normalizeText(value)
+    .replace(/گالاکسی|گلکسی/g, "galaxy").replace(/سامسونگ/g, "samsung")
+    .replace(/شیائومی/g, "xiaomi").replace(/ردمی/g, "redmi").replace(/پوکو/g, "poco")
+    .replace(/آیفون|ایفون/g, "iphone").replace(/اولترا/g, "ultra")
+    .replace(/پرو/g, "pro").replace(/مکس/g, "max").replace(/پلاس/g, "plus")
+    .replace(/فولد/g, "fold").replace(/فلیپ/g, "flip").replace(/نوت/g, "note")
+    .replace(/ایر/g, "air").replace(/اس/g, "s").replace(/ای/g, "a")
+    .replace(/\s+/g, " ").trim();
+}
+function slugTitle(value) {
+  return value.split(" ").filter(Boolean).map((part, index) =>
+    index === 0 && part === "iphone" ? "iphone" :
+    /^\d+[a-z]*$/i.test(part) ? part.toUpperCase() :
+    part.charAt(0).toUpperCase() + part.slice(1)
+  ).join("-");
+}
+function buildPhoneModel(query) {
+  const normalized = normalizePhoneModel(query);
+  const tokens = normalized.split(" ").filter(Boolean);
+  const brandIndex = tokens.findIndex(x => ["samsung","galaxy","xiaomi","redmi","poco","iphone"].includes(x));
+  if (brandIndex < 0) return null;
+  const stop = new Set(["price","specs","specification","phone","mobile","قیمت","گوشی","موبایل","چنده","چقدر","چیست","مشخصات","سخت","افزار","پردازنده","رم","حافظه","دوربین","باتری","بخرم","مقایسه"]);
+  let selected = tokens.slice(brandIndex, brandIndex + 6);
+  selected = selected.filter((x, i) => !(i > 1 && stop.has(x)));
+  if (selected.length < 2) return null;
+  let name = selected.join(" ");
+  if (selected[0] === "galaxy") name = "samsung " + name;
+  if (selected[0] === "redmi" || selected[0] === "poco") name = "xiaomi " + name;
+  if (!/^(samsung|galaxy|xiaomi|redmi|poco|iphone)\b/.test(name)) return null;
+  const id = name.replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").toLowerCase();
+  const variants = [selected];
+  if (selected[0] === "samsung" && selected[1] === "galaxy") variants.push(selected.slice(1));
+  if (selected[0] === "samsung" && selected[1] !== "galaxy") variants.push(["galaxy", ...selected.slice(1)]);
+  if (selected[0] === "galaxy") variants.push(["samsung", ...selected]);
+  if (selected[0] === "xiaomi" && selected.length > 1) variants.push(selected.slice(1));
+  if ((selected[0] === "redmi" || selected[0] === "poco") && selected.length > 1) variants.push(["xiaomi", ...selected]);
+  const paths = [];
+  for (const variant of variants) {
+    const slug = slugTitle(variant.join(" "));
+    paths.push("/products/mobile/" + slug, "/products/mobile/" + slug.toLowerCase());
+  }
+  return { id, name: name.replace(/\b\w/g, c => c.toUpperCase()), query, paths: [...new Set(paths)] };
+}
+async function fetchCandidateProductPage(model) {
+  let lastError = null;
+  for (const path of model.paths) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const response = await fetch(SOURCE_ORIGIN + path, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; AnanasAI-PriceLookup/1.0)",
+          "Accept": "text/html,application/xhtml+xml",
+          "Accept-Language": "fa-IR,fa;q=0.9,en;q=0.7"
+        }, redirect: "follow", signal: controller.signal
+      });
+      if (!response.ok) { lastError = new Error("HTTP " + response.status); continue; }
+      const html = await response.text();
+      const titleMatch = html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
+      if (!titleMatch) { lastError = new Error("Product page not found"); continue; }
+      const title = htmlToText(titleMatch[1]);
+      const expected = normalizePhoneModel(model.name).split(" ").filter(x => x.length > 1);
+      const actual = normalizePhoneModel(title);
+      const matches = expected.filter(token => actual.includes(token)).length;
+      if (matches < Math.min(2, expected.length)) { lastError = new Error("Product title did not match requested model"); continue; }
+      return { html, path: new URL(response.url).pathname || path, title };
+    } catch (error) { lastError = error; }
+    finally { clearTimeout(timer); }
+  }
+  throw lastError || new Error("مدل موردنظر پیدا نشد.");
+}
+
 function decodeHtml(value) {
   return String(value || "")
     .replace(/&nbsp;|&#160;/gi, " ").replace(/&amp;/gi, "&")
@@ -156,15 +230,15 @@ function extractProduct(html, model) {
   const lowestPrice = startingPrice && lowestOffer ? Math.min(startingPrice, lowestOffer) : (lowestOffer || startingPrice);
 
   let status = "available";
-  let message = "قیمت و پیشنهاد فروشندگان از صفحه محصول دیجیاتو استخراج شد.";
+  let message = "قیمت و پیشنهاد فروشندگان برای این مدل در دسترس است.";
   if (!offers.length && !startingPrice) {
     status = "no_listed_price";
-    message = "در صفحه دیجیاتو برای این محصول فروشنده یا قیمت فعالی ثبت نشده است.";
+    message = "در حال حاضر قیمت یا فروشنده فعالی برای این محصول ثبت نشده است.";
   } else if (!offers.length) {
     status = "starting_price_only";
-    message = "قیمت شروع در صفحه محصول درج شده، اما پیشنهاد فروشنده‌ای برای استخراج در دسترس نبود.";
+    message = "قیمت پایه موجود است، اما پیشنهاد فروشنده‌ای در دسترس نیست.";
   } else if (!offers.some(offer => offer.purchase_url)) {
-    message = "قیمت فروشندگان استخراج شد؛ لینک خرید مستقیم در خروجی صفحه قابل تشخیص نبود.";
+    message = "قیمت فروشندگان موجود است، اما لینک خرید مستقیم در دسترس نیست.";
   }
 
   return {
@@ -185,48 +259,26 @@ function extractProduct(html, model) {
 }
 
 function resolveModel(query) {
-  const q = normalizeText(query);
-  return TEST_MODELS.find(model =>
-    model.id === q || normalizeText(model.name) === q ||
-    model.aliases.some(alias => normalizeText(alias) === q)
-  ) || null;
+  const q = normalizePhoneModel(query);
+  const known = TEST_MODELS.find(model => model.id === q ||
+    normalizePhoneModel(model.name) === q ||
+    model.aliases.some(alias => normalizePhoneModel(alias) === q));
+  if (known) {
+    const dynamic = buildPhoneModel(query);
+    return { ...known, paths: [...new Set([known.path, ...(dynamic?.paths || [])])] };
+  }
+  return buildPhoneModel(query);
 }
 
 async function fetchProduct(model, request, refresh) {
   const cache = caches.default;
-  const cacheKey = new Request(new URL("/__ananas_digiato_price_v1/" + model.id, request.url).toString());
-
+  const cacheKey = new Request(new URL("/__ananas_digiato_price_v2/" + model.id, request.url).toString());
   if (!refresh) {
-    try {
-      const cached = await cache.match(cacheKey);
-      if (cached) return { ...(await cached.json()), cached: true };
-    } catch {}
+    try { const cached = await cache.match(cacheKey); if (cached) return { ...(await cached.json()), cached: true }; } catch {}
   }
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  let response;
-  try {
-    response = await fetch(SOURCE_ORIGIN + model.path, {
-      method: "GET",
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; AnanasAI-PriceLookup/1.0; +https://ananasai.ir/)",
-        "Accept": "text/html,application/xhtml+xml",
-        "Accept-Language": "fa-IR,fa;q=0.9,en;q=0.7",
-        "Referer": SOURCE_ORIGIN + "/products/search"
-      },
-      redirect: "follow",
-      signal: controller.signal
-    });
-  } finally {
-    clearTimeout(timer);
-  }
-
-  if (!response.ok) throw new Error("Digiato returned HTTP " + response.status);
-  const html = await response.text();
-  if (!/<h1\b/i.test(html)) throw new Error("ساختار صفحه محصول دیجیاتو قابل شناسایی نیست.");
-
-  const product = extractProduct(html, model);
+  const page = await fetchCandidateProductPage(model);
+  const resolvedModel = { ...model, path: page.path, name: page.title };
+  const product = extractProduct(page.html, resolvedModel);
   try {
     await cache.put(cacheKey, new Response(JSON.stringify(product), {
       headers: { "Content-Type": "application/json", "Cache-Control": "public, max-age=" + CACHE_TTL_SECONDS }
@@ -239,47 +291,16 @@ export async function onRequestGet(context) {
   const url = new URL(context.request.url);
   const query = (url.searchParams.get("model") || url.searchParams.get("q") || "").trim();
   const refresh = ["1", "true", "yes"].includes((url.searchParams.get("refresh") || "").toLowerCase());
-
   if (!query || query.toLowerCase() === "models") {
-    return json({
-      success: true,
-      source: "Digiato",
-      models: TEST_MODELS.map(({ id, name, path }) => ({ id, name, source_url: SOURCE_ORIGIN + path })),
-      usage: "/api/phone-prices?model=galaxy-a57"
-    });
+    return json({ success: true, dynamic_lookup: true, supported_brands: ["Samsung", "Apple iPhone", "Xiaomi", "Redmi", "POCO"], usage: "/api/phone-prices?model=Samsung%20Galaxy%20S25%20Ultra" });
   }
-
-  if (query.toLowerCase() === "all") {
-    const results = await Promise.all(TEST_MODELS.map(async model => {
-      try { return await fetchProduct(model, context.request, refresh); }
-      catch (error) {
-        return { id: model.id, name: model.name, status: "source_error", error: String(error.message || error) };
-      }
-    }));
-    return json({ success: true, source: "Digiato", checked_at: new Date().toISOString(), products: results });
-  }
-
   const model = resolveModel(query);
-  if (!model) {
-    return json({
-      success: false,
-      error: "این مدل در فهرست آزمایشی فعلی نیست.",
-      available_models: TEST_MODELS.map(({ id, name }) => ({ id, name }))
-    }, 404);
-  }
-
+  if (!model) return json({ success: false, error: "نام برند یا مدل گوشی قابل تشخیص نیست." }, 400);
   try {
     const product = await fetchProduct(model, context.request, refresh);
     return json({ success: true, product });
   } catch (error) {
-    return json({
-      success: false,
-      source: "Digiato",
-      model: model.name,
-      error: "دریافت قیمت از دیجیاتو در حال حاضر ممکن نشد.",
-      details: String(error?.message || error),
-      source_url: SOURCE_ORIGIN + model.path
-    }, 502);
+    return json({ success: false, model: model.name, error: "در حال حاضر قیمت این مدل قابل دریافت نیست.", details: String(error?.message || error) }, 502);
   }
 }
 
