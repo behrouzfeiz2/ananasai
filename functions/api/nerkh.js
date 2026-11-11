@@ -55,7 +55,11 @@ export async function onRequestGet(context) {
       { title: "دلار آزاد", price: getPrice("price_dollar_rl"), unit: "ریال" },
       { title: "یورو", price: getPrice("price_eur"), unit: "ریال" },
       { title: "پوند", price: getPrice("price_gbp"), unit: "ریال" },
-      { title: "طلا (۱۸ عیار)", price: getPrice("geram18"), unit: "ریال" },
+      { title: "طلای ۱۸ عیار", price: getPrice("geram18"), unit: "ریال" },
+      { title: "طلای ۲۴ عیار", price: getPrice("geram24"), unit: "ریال" },
+      { title: "یوان چین", price: getPrice("price_cny"), unit: "ریال" },
+      { title: "درهم امارات", price: getPrice("price_aed"), unit: "ریال" },
+      { title: "لیر ترکیه", price: getPrice("price_try"), unit: "ریال" },
       { title: "سکه امامی", price: getPrice("sekee"), unit: "ریال" },
       { title: "نفت برنت", price: getPrice("oil_brent"), unit: "دلار" }
     ];
