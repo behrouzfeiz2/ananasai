@@ -661,6 +661,10 @@ function detectPhonePriceModel(text) {
  if (!query) return null;
  return { id: query.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""), name: query, query };
 }
+function isPhoneSpecsQuestion(text) {
+ const q = normalizePhoneQuery(text);
+ return /مشخصات|سخت\s*افزار|سختافزار|پردازنده|چیپست|تراشه|رم|حافظه|دوربین|باتری|نمایشگر|صفحه\s*نمایش|مقایسه|technical\s+specs|specifications|hardware|processor|chipset|camera|battery|display/i.test(q);
+}
 function extractPhoneModelQuery(text) {
  const normalized=normalizePhoneQuery(text);
  if(/iphone/.test(normalized)&&/تاشو|foldable|folding/.test(String(text||"")))return "iPhone Duo";
@@ -1607,14 +1611,23 @@ if (!attachmentValidation.valid) {
     let phoneSpecsData = null;
     const phonePriceModel = !attachmentExists ? detectPhonePriceModel(lastMessage) : null;
     const phoneModelQuery = !attachmentExists ? extractPhoneModelQuery(lastMessage) : null;
+    const phoneSpecsIntent = !attachmentExists && Boolean(phoneModelQuery) && isPhoneSpecsQuestion(lastMessage);
     const phoneBuyingIntent = !attachmentExists ? detectPhoneBuyingIntent(lastMessage) : { budgetToman: null, foldable: false, recommendation: false };
+
+    // A technical phone-specification request must not be diverted to generic RSS shopping/news.
+    // Keep the dedicated GSMArena lookup as the primary source for this intent.
+    if (phoneSpecsIntent) {
+      questionType.shop = false;
+      questionType.news = false;
+      questionType.market = false;
+    }
 
     if (!attachmentExists && phonePriceModel && isPhonePriceQuestion(lastMessage)) {
       phonePriceData = await getPhonePriceData(request, phonePriceModel);
     }
     // A price-only question needs the price service, not a second hardware-specs lookup.
     // Fetch specs only when the user explicitly asks about technical details or comparison.
-    if (!attachmentExists && phoneModelQuery && /مشخصات|سخت.?افزار|پردازنده|چیپست|رم|حافظه|دوربین|باتری|نمایشگر|صفحه.?نمایش|مقایسه/i.test(lastMessage)) {
+    if (phoneSpecsIntent) {
       phoneSpecsData = await getPhoneSpecsData(request, phoneModelQuery);
     }
 
@@ -1664,7 +1677,13 @@ if (!attachmentValidation.valid) {
       externalContext += formatPhonePriceData(phonePriceData);
     }
 
-    if (phoneSpecsData) {
+    if (phoneSpecsIntent) {
+      externalContext += `
+درخواست کاربر مشخصاً درباره مشخصات سخت‌افزاری گوشی ${phoneModelQuery} است.
+این درخواست جست‌وجوی خبر یا محصول فروشگاهی نیست؛ پاسخ باید بر مشخصات فنی بازیابی‌شده متمرکز باشد.
+اگر داده فنی موفق بازیابی شده، مشخصات را دسته‌بندی‌شده و روشن ارائه کن و درباره نبودن خبر RSS صحبت نکن.
+اگر بازیابی شکست خورده، فقط خطای بازیابی مشخصات را شفاف اعلام کن و پاسخ RSS فروشگاهی را جایگزین آن نکن.
+`;
       externalContext += formatPhoneSpecsData(phoneSpecsData);
     }
 
