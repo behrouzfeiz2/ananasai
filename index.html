@@ -435,7 +435,7 @@
         </div>
 
         <div id="proTimeRemainingContainer" class="hidden text-[11px] text-amber-400 font-medium pt-1.5 border-t border-ananas-border/60 flex items-center justify-between">
-          <span>⏳ اعتبار پرو:</span>
+          <span id="proTimeRemainingLabel">⏳ اعتبار پرو:</span>
           <span id="proTimeRemainingText">۳۰ روز باقی‌مانده</span>
         </div>
       </div>
@@ -881,6 +881,8 @@
 
       const isProActive = Boolean(userToken) && quotaState.isPro !== false;
       const isUltraActive = isProActive && (quotaState.isUltra || quotaState.tier === 'ultra');
+      const timeLabel = document.getElementById('proTimeRemainingLabel');
+      if (timeLabel) timeLabel.textContent = isUltraActive ? '⏳ اعتبار حالت الترا:' : '⏳ اعتبار پرو:';
       if (imageLibraryBtn) imageLibraryBtn.classList.toggle('hidden', !isUltraActive && !userToken.startsWith('ULTRA-'));
       const limit = Number(quotaState.limit || (isUltraActive ? 150 : isProActive ? 100 : 5));
       const used = Math.min(limit, Number(quotaState.used || 0));
