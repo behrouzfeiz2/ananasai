@@ -302,7 +302,6 @@
 
     .chat-history-item { position: relative; }
     .chat-menu-trigger { opacity: 0; pointer-events: none; }
-    .chat-history-item.is-active .chat-menu-trigger,
     .chat-history-item:hover .chat-menu-trigger,
     .chat-history-item:focus-within .chat-menu-trigger { opacity: 1; pointer-events: auto; }
     .chat-context-menu { direction: rtl; }
@@ -1851,7 +1850,7 @@
     function loadSession(id) {
       stopTextToSpeech();
       activeSessionId = id;
-      chatMenuOpenId = id;
+      chatMenuOpenId = null;
       renderMessages();
       renderHistoryList();
 
@@ -2297,6 +2296,14 @@
       const menu = document.getElementById('attachmentMenu');
       const button = document.getElementById('attachmentMenuButton');
       if (menu && button && !menu.contains(event.target) && !button.contains(event.target)) closeAttachmentMenu();
+
+      // بستن منوی مدیریت گفتگو با کلیک خارج از منو و دکمه سه‌نقطه
+      if (chatMenuOpenId !== null &&
+          !event.target.closest('.chat-context-menu') &&
+          !event.target.closest('.chat-menu-trigger')) {
+        chatMenuOpenId = null;
+        renderHistoryList();
+      }
     });
 
     /* در دسکتاپ Enter پیام را ارسال می‌کند؛ Shift + Enter سطر جدید می‌سازد.
