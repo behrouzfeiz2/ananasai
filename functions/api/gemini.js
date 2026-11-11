@@ -482,8 +482,8 @@ function formatMarketData(data, question = "") {
     { re: /یوان|\bcny\b|yuan/, title: /یوان|cny|yuan/ },
     { re: /درهم|\baed\b|dirham/, title: /درهم|aed|dirham/ },
     { re: /لیر|\btry\b|lira|turkish lira/, title: /لیر|try|lira/ },
-    { re: /روبل|\\brub\\b|ruble|russian ruble/, title: /روبل|rub|ruble/ },
-    { re: /فرانک(?:\\s*سوئیس)?|\\bchf\\b|swiss franc/, title: /فرانک|chf|swiss franc/ },
+    { re: /روبل|\brub\b|ruble|russian ruble/, title: /روبل|rub|ruble/ },
+    { re: /فرانک(?:\s*سوئیس)?|\bchf\b|swiss franc/, title: /فرانک|chf|swiss franc/ },
     { re: /سکه|coin/, title: /سکه|coin/ },
     { re: /نفت|برنت|brent|oil/, title: /نفت|برنت|brent|oil/ }
   ];
