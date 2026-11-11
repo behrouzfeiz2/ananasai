@@ -640,9 +640,9 @@ const PHONE_PRICE_MODELS = [
  {id:"iphone-16",aliases:["apple iphone 16","iphone 16","آیفون ۱۶","آیفون 16","اپل آیفون ۱۶"]}
 ];
 function detectPhonePriceModel(text) {
+ if (!isPhonePriceQuestion(text)) return null;
  const n=normalizePhoneQuery(text);
  for(const model of PHONE_PRICE_MODELS)for(const alias of model.aliases)if(n.includes(normalizePhoneQuery(alias)))return model;
- if (!isPhonePriceQuestion(text)) return null;
  const query=extractPhoneModelQuery(text);
  if (!query) return null;
  return { id: query.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""), name: query, query };
@@ -679,7 +679,7 @@ function formatPhonePriceData(data) {
   if (!data?.success || !data.product) {
     return `
 دریافت قیمت این مدل در حال حاضر با مشکل مواجه شد.
-قیمت یا مشخصات فروش را حدس نزن و به‌جای آن نتیجه RSS را به‌عنوان قیمت معرفی نکن.
+قیمت یا مشخصات فروش را حدس نزن و اطلاعات دیگری را به‌عنوان قیمت این مدل معرفی نکن.
 به کاربر بگو دریافت قیمت این مدل موقتاً با مشکل مواجه شده و می‌تواند دوباره تلاش کند.
 `;
   }
@@ -688,7 +688,7 @@ function formatPhonePriceData(data) {
   const offers = (p.offers || []).map((offer, i) => `
 پیشنهاد فروشنده ${i + 1}:
 فروشنده: ${offer.seller || "نامشخص"}
-تنوع/مشخصات نسخه: ${offer.variant || "در داده منبع مشخص نشده"}
+تنوع/مشخصات نسخه: ${offer.variant || "در داده‌های دریافتی مشخص نشده"}
 قیمت: ${Number(offer.price).toLocaleString("en-US")} تومان
 لینک خرید: ${offer.purchase_url || "در داده دریافتی لینک خرید قابل تشخیص نبود"}
 `).join("\\n");
@@ -711,7 +711,7 @@ ${offers || "هیچ پیشنهاد فروشنده‌ای در صفحه قابل 
 - این داده‌ها مرجع اصلی پاسخ به سؤال قیمت همین مدل هستند.
 - اگر قیمت شروع یا پیشنهاد فروشنده موجود است، قیمت را مستقیم و با واحد تومان اعلام کن.
 - اگر چند قیمت وجود دارد، قیمت شروع و کمترین پیشنهاد استخراج‌شده را از هم تفکیک کن؛ فروشنده و نسخه را فقط در صورت وجود داده اعلام کن.
-- لینک خرید را فقط اگر منبع ارائه کرده درج کن.
+- لینک خرید را فقط در صورت وجود در داده‌های دریافتی درج کن.
 - اگر status برابر no_listed_price است، بگو فعلاً قیمت یا فروشنده‌ای ثبت نشده؛ این به معنی نبود قیمت در کل بازار نیست.
 - زمان بررسی را ذکر کن؛ قیمت را تضمین‌شده یا موجودی قطعی بازار معرفی نکن.
 - از RSS یا دانش قبلی برای ساختن قیمت جایگزین استفاده نکن.
