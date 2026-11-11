@@ -642,7 +642,10 @@ const PHONE_PRICE_MODELS = [
 function detectPhonePriceModel(text) {
  const n=normalizePhoneQuery(text);
  for(const model of PHONE_PRICE_MODELS)for(const alias of model.aliases)if(n.includes(normalizePhoneQuery(alias)))return model;
- return null;
+ if (!isPhonePriceQuestion(text)) return null;
+ const query=extractPhoneModelQuery(text);
+ if (!query) return null;
+ return { id: query.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""), name: query, query };
 }
 function extractPhoneModelQuery(text) {
  const normalized=normalizePhoneQuery(text);
@@ -659,10 +662,23 @@ function extractPhoneModelQuery(text) {
  const query=selected.join(" ").trim();
  return query.length>=5?query:null;
 }
+async function getPhonePriceData(request, model) {
+  const endpoint = new URL("/api/phone-prices", new URL(request.url).origin);
+  endpoint.searchParams.set("model", model.query || model.id);
+  try {
+    const response = await fetchWithTimeout(endpoint.toString(), { method: "GET", headers: { "Accept": "application/json" } }, CONFIG.DATA_TIMEOUT);
+    const result = await response.json();
+    if (!response.ok || result?.success !== true || !result.product) throw new Error(result?.error || "Phone price service returned an invalid response");
+    return { success: true, product: result.product };
+  } catch (error) {
+    console.error("ANANAS_PHONE_PRICE_ERROR", model.id, error.message);
+    return { success: false, model: model.id, error: error.message };
+  }
+}
 function formatPhonePriceData(data) {
   if (!data?.success || !data.product) {
     return `
-جست‌وجوی قیمت گوشی از سرویس اختصاصی دیجیاتو انجام شد، اما سرویس در حال حاضر پاسخ معتبر نداد.
+دریافت قیمت این مدل در حال حاضر با مشکل مواجه شد.
 قیمت یا مشخصات فروش را حدس نزن و به‌جای آن نتیجه RSS را به‌عنوان قیمت معرفی نکن.
 به کاربر بگو دریافت قیمت این مدل موقتاً با مشکل مواجه شده و می‌تواند دوباره تلاش کند.
 `;
@@ -678,30 +694,28 @@ function formatPhonePriceData(data) {
 `).join("\\n");
 
   return `
-اطلاعات اختصاصی قیمت گوشی از صفحه محصول دیجیاتو:
+اطلاعات قیمت این مدل:
 
 مدل: ${p.name || p.id}
 وضعیت داده: ${p.status}
-توضیح منبع: ${p.message || ""}
+توضیح وضعیت: ${p.message || ""}
 قیمت شروع ثبت‌شده: ${p.starting_price ? Number(p.starting_price).toLocaleString("en-US") + " تومان" : "در صفحه ثبت نشده"}
 کمترین قیمت استخراج‌شده: ${p.lowest_price ? Number(p.lowest_price).toLocaleString("en-US") + " تومان" : "در صفحه ثبت نشده"}
 تعداد فروشندگان استخراج‌شده: ${p.seller_count || 0}
 زمان بررسی: ${p.checked_at || "نامشخص"}
-منبع: Digiato
-صفحه منبع: ${p.source_url || "نامشخص"}
 
 پیشنهادهای فروش:
 ${offers || "هیچ پیشنهاد فروشنده‌ای در صفحه قابل استخراج نبود."}
 
 قوانین الزامی:
-- این داده‌ها مرجع اصلی پاسخ به سؤال قیمت همین مدل هستند؛ به‌جای RSS از آن‌ها استفاده کن.
+- این داده‌ها مرجع اصلی پاسخ به سؤال قیمت همین مدل هستند.
 - اگر قیمت شروع یا پیشنهاد فروشنده موجود است، قیمت را مستقیم و با واحد تومان اعلام کن.
 - اگر چند قیمت وجود دارد، قیمت شروع و کمترین پیشنهاد استخراج‌شده را از هم تفکیک کن؛ فروشنده و نسخه را فقط در صورت وجود داده اعلام کن.
 - لینک خرید را فقط اگر منبع ارائه کرده درج کن.
-- اگر status برابر no_listed_price است، روشن بگو در صفحه دیجیاتو فعلاً قیمت/فروشنده‌ای ثبت نشده؛ این به معنی نبود قیمت در کل بازار نیست.
-- زمان بررسی و لینک منبع را ذکر کن؛ هرگز این داده را قیمت تضمین‌شده یا موجودی قطعی بازار معرفی نکن.
+- اگر status برابر no_listed_price است، بگو فعلاً قیمت یا فروشنده‌ای ثبت نشده؛ این به معنی نبود قیمت در کل بازار نیست.
+- زمان بررسی را ذکر کن؛ قیمت را تضمین‌شده یا موجودی قطعی بازار معرفی نکن.
 - از RSS یا دانش قبلی برای ساختن قیمت جایگزین استفاده نکن.
-- این endpoint در حال حاضر قیمت را ارائه می‌کند، نه مشخصات کامل سخت‌افزاری. مشخصات فنی را فقط در صورتی بیان کن که از داده معتبر و در دسترس دیگری در همین درخواست دریافت شده باشد؛ در غیر این صورت صریحاً بگو مشخصات فنی در این جست‌وجو بازیابی نشده است.
+- این داده‌ها قیمت را ارائه می‌کنند، نه مشخصات کامل سخت‌افزاری. مشخصات فنی را فقط در صورتی بیان کن که از داده معتبر و در دسترس دیگری در همین درخواست دریافت شده باشد؛ در غیر این صورت صریحاً بگو مشخصات فنی در این جست‌وجو بازیابی نشده است.
 `;
 }
 
@@ -1581,7 +1595,7 @@ if (!attachmentValidation.valid) {
     const phoneModelQuery = !attachmentExists ? extractPhoneModelQuery(lastMessage) : null;
     const phoneBuyingIntent = !attachmentExists ? detectPhoneBuyingIntent(lastMessage) : { budgetToman: null, foldable: false, recommendation: false };
 
-    if (!attachmentExists && phonePriceModel) {
+    if (!attachmentExists && phonePriceModel && isPhonePriceQuestion(lastMessage)) {
       phonePriceData = await getPhonePriceData(request, phonePriceModel);
     }
     if (!attachmentExists && phoneModelQuery && /مشخصات|سخت.?افزار|پردازنده|چیپست|رم|حافظه|دوربین|باتری|نمایشگر|صفحه.?نمایش|قیمت|گوشی|موبایل|مقایسه/i.test(lastMessage)) {
@@ -1803,7 +1817,7 @@ if (!attachmentValidation.valid) {
         ? newsData.news.length
         : 0,
 
-      phonePriceRequested: Boolean(phonePriceModel),
+      phonePriceRequested: Boolean(phonePriceModel && isPhonePriceQuestion(lastMessage)),
       phonePriceServiceAvailable: Boolean(phonePriceData?.success),
       phonePriceModel: phonePriceModel?.id || null,
       phoneSpecsRequested: Boolean(phoneModelQuery),
