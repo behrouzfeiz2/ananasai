@@ -92,6 +92,25 @@ function getDateInfo() {
   };
 }
 
+function normalizePhoneQuery(value) {
+ return normalizeText(value).replace(/گالاکسی|گلکسی/gi,"galaxy").replace(/سامسونگ/gi,"samsung").replace(/شیائومی/gi,"xiaomi").replace(/ردمی/gi,"redmi").replace(/پوکو/gi,"poco").replace(/آیفون|ایفون/gi,"iphone").replace(/[۰-۹]/g,d=>"۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[٠-٩]/g,d=>"٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[\u200c\u200f\u200e]/g," ").replace(/[^\p{L}\p{N}\s.+-]/gu," ").replace(/\s+/g," ").trim();
+}
+function extractPhoneBudgetToman(text) {
+ const n=String(text||"").replace(/[۰-۹]/g,d=>String("۰۱۲۳۴۵۶۷۸۹".indexOf(d))).replace(/[٠-٩]/g,d=>String("٠١٢٣٤٥٦٧٨٩".indexOf(d)));
+ let m=n.match(/([\d,]+(?:\.\d+)?)\s*(?:میلیون|ملیون)\s*(?:تومان|تومن)?/i);
+ if(m)return Math.round(Number(m[1].replace(/,/g,""))*1000000);
+ m=n.match(/([\d,]+(?:\.\d+)?)\s*هزار\s*(?:تومان|تومن)/i);
+ if(m)return Math.round(Number(m[1].replace(/,/g,""))*1000);
+ m=n.match(/(?:تا|حدود|بودجه(?:م)?|حداکثر|نهایتاً?)\s*([\d,]+(?:\.\d+)?)\s*(?:تومان|تومن)?/i)||n.match(/([\d,]+(?:\.\d+)?)\s*(?:تومان|تومن)/i);
+ if(!m)return null; let amount=Number(m[1].replace(/,/g,"")); if(!Number.isFinite(amount)||amount<=0)return null; if(amount<100000)amount*=1000000; return Math.round(amount);
+}
+function detectPhoneBuyingIntent(text) {
+ const q=normalizePhoneQuery(text), budget=extractPhoneBudgetToman(text);
+ const foldable=/تاشو|تا شو|foldable|folding|flip phone|z fold|z flip/i.test(q);
+ const phone=/گوشی|موبایل|تلفن همراه|smartphone|mobile|iphone|samsung|galaxy|xiaomi|redmi|poco|آیفون|سامسونگ|شیائومی|ردمی|پوکو/i.test(q);
+ const recommend=/چی بخرم|چه گوشی|کدام گوشی|کدوم گوشی|پیشنهاد.*گوشی|گوشی.*پیشنهاد|بخرم|خرید.*گوشی|برای خرید/i.test(q);
+ return {budgetToman:budget,foldable,recommendation:Boolean((budget&&phone)||(foldable&&recommend)||(phone&&recommend))};
+}
 function normalizeText(text) {
   return String(text || "")
     .toLowerCase()
@@ -616,43 +635,30 @@ ${newsText}
 // ======================================================
 
 const PHONE_PRICE_MODELS = [
-  { id: "galaxy-a57", aliases: ["samsung galaxy a57", "galaxy a57", "گلکسی a57", "سامسونگ گلکسی a57", "سامسونگ a57"] },
-  { id: "redmi-note-14-4g", aliases: ["xiaomi redmi note 14 4g", "redmi note 14 4g", "redmi note 14", "ردمی نوت ۱۴", "ردمی نوت 14", "شیائومی ردمی نوت ۱۴"] },
-  { id: "iphone-16", aliases: ["apple iphone 16", "iphone 16", "آیفون ۱۶", "آیفون 16", "اپل آیفون ۱۶"] }
+ {id:"galaxy-a57",aliases:["samsung galaxy a57","galaxy a57","گلکسی a57","گالاکسی a57","سامسونگ گلکسی a57","سامسونگ گالاکسی a57","سامسونگ a57"]},
+ {id:"redmi-note-14-4g",aliases:["xiaomi redmi note 14 4g","redmi note 14 4g","redmi note 14","ردمی نوت ۱۴","ردمی نوت 14","شیائومی ردمی نوت ۱۴"]},
+ {id:"iphone-16",aliases:["apple iphone 16","iphone 16","آیفون ۱۶","آیفون 16","اپل آیفون ۱۶"]}
 ];
-
 function detectPhonePriceModel(text) {
-  const normalized = normalizeText(text).replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/\s+/g, " ");
-  for (const model of PHONE_PRICE_MODELS) {
-    for (const alias of model.aliases) {
-      const a = normalizeText(alias).replace(/\s+/g, " ");
-      if (normalized.includes(a)) return model;
-    }
-  }
-  return null;
+ const n=normalizePhoneQuery(text);
+ for(const model of PHONE_PRICE_MODELS)for(const alias of model.aliases)if(n.includes(normalizePhoneQuery(alias)))return model;
+ return null;
 }
-
-async function getPhonePriceData(request, model) {
-  const endpoint = new URL("/api/phone-prices", new URL(request.url).origin);
-  endpoint.searchParams.set("model", model.id);
-
-  try {
-    const response = await fetchWithTimeout(endpoint.toString(), {
-      method: "GET",
-      headers: { "Accept": "application/json" }
-    }, CONFIG.DATA_TIMEOUT);
-
-    const result = await response.json();
-    if (!response.ok || result?.success !== true || !result.product) {
-      throw new Error(result?.error || "Phone price service returned an invalid response");
-    }
-    return { success: true, product: result.product };
-  } catch (error) {
-    console.error("ANANAS_PHONE_PRICE_ERROR", model.id, error.message);
-    return { success: false, model: model.id, error: error.message };
-  }
+function extractPhoneModelQuery(text) {
+ const normalized=normalizePhoneQuery(text);
+ if(/iphone/.test(normalized)&&/تاشو|foldable|folding/.test(String(text||"")))return "iPhone Duo";
+ const tokens=normalized.split(" ").filter(Boolean);
+ const start=tokens.findIndex(x=>["samsung","galaxy","xiaomi","redmi","poco","iphone"].includes(x));
+ if(start<0)return null;
+ const stop=new Set(["مشخصات","سخت","افزار","پردازنده","چیپست","رم","حافظه","دوربین","باتری","نمایشگر","صفحه","قیمت","گوشی","موبایل","چنده","چیه","چیست","داره","بخرم","مقایسه","چی","تاشو","اسمش","اسم","را","رو","میخوام","میخواهم","لطفا","بگو","چقدر","چه"]);
+ const selected=[];
+ for(let i=start;i<tokens.length&&selected.length<6;i++){
+  if(stop.has(tokens[i]))break;
+  selected.push(tokens[i]);
+ }
+ const query=selected.join(" ").trim();
+ return query.length>=5?query:null;
 }
-
 function formatPhonePriceData(data) {
   if (!data?.success || !data.product) {
     return `
@@ -699,6 +705,22 @@ ${offers || "هیچ پیشنهاد فروشنده‌ای در صفحه قابل 
 `;
 }
 
+async function getPhoneSpecsData(request, modelQuery) {
+ if(!modelQuery)return null;
+ const endpoint=new URL("/api/phone-specs",new URL(request.url).origin);
+ endpoint.searchParams.set("q",modelQuery);
+ try{
+  const response=await fetchWithTimeout(endpoint.toString(),{headers:{"Accept":"application/json"}},CONFIG.DATA_TIMEOUT);
+  const result=await response.json();
+  if(!response.ok||result?.success!==true||!result.phone)throw new Error(result?.error||"No phone spec match");
+  return {success:true,phone:result.phone};
+ }catch(error){console.error("ANANAS_PHONE_SPECS_ERROR",modelQuery,error.message);return {success:false,query:modelQuery,error:error.message};}
+}
+function formatPhoneSpecsData(data) {
+ if(!data?.success||!data.phone)return "مشخصات فنی این مدل از منبع مشخصات بازیابی نشد؛ هیچ مشخصه‌ای را حدس نزن.";
+ const p=data.phone, rows=(p.specs||[]).map(x=>"- "+x.label+": "+x.value).join("\n");
+ return "مشخصات سخت‌افزاری بازیابی‌شده:\nمدل: "+(p.name||"نامشخص")+"\nبرند: "+(p.brand||"نامشخص")+"\n"+rows+"\nمنبع: "+(p.source||"GSMArena")+"\nلینک: "+(p.source_url||"نامشخص")+"\nزمان بررسی: "+(p.checked_at||"نامشخص")+"\nفقط مشخصات بالا را قطعی اعلام کن؛ نسخه‌های رم و حافظه را تفکیک کن؛ موارد ناموجود را حدس نزن. قیمت بازار ایران را از این داده نتیجه نگیر.";
+}
 async function getShopData(request, query) {
   if (!CONFIG.ENABLE_SHOP_SEARCH) return null;
 
@@ -975,6 +997,11 @@ ${date.gregorian}
 - اگر نتایج جست‌وجوی محصول از فیدهای RSS دریافت شده‌اند، آن‌ها را با ذکر منبع، تاریخ و لینک معرفی کن.
 - محتوای مقاله و بررسی را با محصول قابل خرید یا قیمت زنده اشتباه نگیر.
 - هرگز ادعا نکن که در گوگل جست‌وجو کرده‌ای.
+- در پرسش خرید گوشی، «تا ۴۰ تومن» یا «۴۰ تومان» در بافت بودجه یعنی حدود ۴۰ میلیون تومان؛ عدد بودجه را به تومان شفاف اعلام کن.
+- «گلکسی» و «گالاکسی» هر دو Samsung Galaxy هستند؛ اعداد فارسی و لاتین مدل را یکسان تشخیص بده.
+- برای پیشنهاد خرید گوشی، چند گزینه زیر سقف بودجه را با مزایا، ضعف‌ها و تناسب با نوع استفاده مقایسه کن. قیمت را فقط از داده قیمت معتبر نقل کن؛ اگر قیمت روز موجود نیست، قیمت نساز.
+- گوشی تاشو را به دو نوع کتابی Fold و صدفی Flip تفکیک کن و بر اساس کاربرد پیشنهاد بده.
+- نام آیفون تاشوی عرضه‌شده اپل iPhone Duo است؛ آن را با شایعات قدیمی iPhone Fold اشتباه نگیر. منبع رسمی: https://www.apple.com/iphone-duo/
 - هرگز منبع، لینک، خبر یا قیمت ساختگی تولید نکن.
 - اگر داده‌ای در اختیار نداری، صریحاً بگو.
 - از پاسخ‌های طولانی و غیرضروری خودداری کن.
@@ -1549,10 +1576,16 @@ if (!attachmentValidation.valid) {
     let newsData = null;
     let shopData = null;
     let phonePriceData = null;
+    let phoneSpecsData = null;
     const phonePriceModel = !attachmentExists ? detectPhonePriceModel(lastMessage) : null;
+    const phoneModelQuery = !attachmentExists ? extractPhoneModelQuery(lastMessage) : null;
+    const phoneBuyingIntent = !attachmentExists ? detectPhoneBuyingIntent(lastMessage) : { budgetToman: null, foldable: false, recommendation: false };
 
     if (!attachmentExists && phonePriceModel) {
       phonePriceData = await getPhonePriceData(request, phonePriceModel);
+    }
+    if (!attachmentExists && phoneModelQuery && /مشخصات|سخت.?افزار|پردازنده|چیپست|رم|حافظه|دوربین|باتری|نمایشگر|صفحه.?نمایش|قیمت|گوشی|موبایل|مقایسه/i.test(lastMessage)) {
+      phoneSpecsData = await getPhoneSpecsData(request, phoneModelQuery);
     }
 
     if (!attachmentExists && questionType.market) {
@@ -1599,6 +1632,20 @@ if (!attachmentValidation.valid) {
 
     if (phonePriceModel) {
       externalContext += formatPhonePriceData(phonePriceData);
+    }
+
+    if (phoneSpecsData) {
+      externalContext += formatPhoneSpecsData(phoneSpecsData);
+    }
+
+    if (phoneBuyingIntent.recommendation) {
+      externalContext += `
+قصد خرید گوشی تشخیص داده شد.
+سقف بودجه به تومان: ${phoneBuyingIntent.budgetToman ? phoneBuyingIntent.budgetToman.toLocaleString("en-US") : "مشخص نشده"}
+گوشی تاشو: ${phoneBuyingIntent.foldable ? "بله" : "خیر"}
+بودجه را سقف هزینه بدان. فقط گزینه‌هایی را پیشنهاد بده که از سقف بیشتر نیستند. اگر قیمت معتبر در دسترس نیست، قیمت نساز و محدودیت داده قیمت را توضیح بده. Fold کتابی و Flip صدفی را از هم تفکیک کن.
+منظور از آیفون تاشو محصول عرضه‌شده Apple یعنی iPhone Duo است؛ اطلاعات رسمی در https://www.apple.com/iphone-duo/ قرار دارد.
+`;
     }
 
     if (questionType.shop && !phonePriceModel) {
@@ -1759,6 +1806,11 @@ if (!attachmentValidation.valid) {
       phonePriceRequested: Boolean(phonePriceModel),
       phonePriceServiceAvailable: Boolean(phonePriceData?.success),
       phonePriceModel: phonePriceModel?.id || null,
+      phoneSpecsRequested: Boolean(phoneModelQuery),
+      phoneSpecsAvailable: Boolean(phoneSpecsData?.success),
+      phoneSpecsModel: phoneSpecsData?.phone?.name || phoneModelQuery || null,
+      phoneBudgetToman: phoneBuyingIntent.budgetToman || null,
+      phoneBuyingIntent: Boolean(phoneBuyingIntent.recommendation),
 
       shopRequested: Boolean(questionType.shop && !phonePriceModel),
       shopServiceAvailable: Boolean(shopData?.success),
@@ -1793,6 +1845,9 @@ if (!attachmentValidation.valid) {
 
     if (phonePriceData?.success) {
       responseJson.phonePriceData = phonePriceData;
+    }
+    if (phoneSpecsData?.success) {
+      responseJson.phoneSpecsData = phoneSpecsData;
     }
 
     if (shopData?.success) {
