@@ -40,10 +40,87 @@ async function getAccount(request, env) {
   if (data.tier && !["pro", "ultra"].includes(data.tier)) return { error: "سطح اشتراک معتبر نیست.", status: 401 };
   return { token, tier: data.tier === "ultra" || token.startsWith("ULTRA-") ? "ultra" : "pro" };
 }
+const githubRefreshFlights = new Map();
+
+async function refreshGithubLink(env, storageKey, currentData) {
+  const existingFlight = githubRefreshFlights.get(storageKey);
+  if (existingFlight) return existingFlight;
+  const flight = (async () => {
+    const latestRaw = await env.ANANAS_KV.get(storageKey);
+    const latest = latestRaw ? JSON.parse(latestRaw) : currentData;
+    if (!latest?.encrypted) throw new Error("اتصال GitHub پیدا نشد؛ لطفاً دوباره متصل شوید.");
+    const now = Date.now();
+    if (Number.isFinite(latest.expires_at) && latest.expires_at > now + 60_000) {
+      return { token: await decrypt(latest.encrypted, env.GITHUB_CLIENT_SECRET), login: latest.login };
+    }
+    if (!latest.refresh_encrypted) {
+      if (Number.isFinite(latest.expires_at) && latest.expires_at <= now) {
+        throw new Error("توکن قدیمی GitHub منقضی شده و Refresh Token ذخیره‌شده‌ای ندارد؛ یک‌بار اتصال GitHub را مجدداً انجام دهید.");
+      }
+      return { token: await decrypt(latest.encrypted, env.GITHUB_CLIENT_SECRET), login: latest.login };
+    }
+
+    const refreshToken = await decrypt(latest.refresh_encrypted, env.GITHUB_CLIENT_SECRET);
+    const form = new URLSearchParams({
+      client_id: env.GITHUB_CLIENT_ID || "",
+      client_secret: env.GITHUB_CLIENT_SECRET || "",
+      grant_type: "refresh_token",
+      refresh_token: refreshToken
+    });
+    const response = await fetch("https://github.com/login/oauth/access_token", {
+      method: "POST",
+      headers: { "Accept": "application/json", "Content-Type": "application/x-www-form-urlencoded" },
+      body: form.toString()
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok || !result.access_token) {
+      const reason = String(result.error || "");
+      if (reason === "bad_refresh_token" || reason === "invalid_grant") {
+        // A parallel Worker isolate may already have rotated and stored the token pair.
+        const afterRaceRaw = await env.ANANAS_KV.get(storageKey);
+        if (afterRaceRaw) {
+          const afterRace = JSON.parse(afterRaceRaw);
+          if (Number.isFinite(afterRace.expires_at) && afterRace.expires_at > Date.now() + 60_000) {
+            return { token: await decrypt(afterRace.encrypted, env.GITHUB_CLIENT_SECRET), login: afterRace.login };
+          }
+        }
+        await env.ANANAS_KV.delete(storageKey);
+        const error = new Error("نشست تمدید GitHub منقضی یا لغو شده است؛ لطفاً اتصال GitHub را یک‌بار مجدداً برقرار کنید.");
+        error.status = 401;
+        throw error;
+      }
+      throw new Error("تمدید توکن GitHub موقتاً ناموفق بود. کمی بعد دوباره تلاش کنید.");
+    }
+
+    const updated = {
+      encrypted: await encrypt(result.access_token, env.GITHUB_CLIENT_SECRET),
+      refresh_encrypted: result.refresh_token
+        ? await encrypt(result.refresh_token, env.GITHUB_CLIENT_SECRET)
+        : latest.refresh_encrypted,
+      login: latest.login,
+      expires_at: Number.isFinite(result.expires_in) ? Date.now() + result.expires_in * 1000 : null,
+      refresh_expires_at: Number.isFinite(result.refresh_token_expires_in)
+        ? Date.now() + result.refresh_token_expires_in * 1000
+        : latest.refresh_expires_at || null,
+      updated_at: Date.now()
+    };
+    // Store the rotated access + refresh pair together in one KV value.
+    await env.ANANAS_KV.put(storageKey, JSON.stringify(updated));
+    return { token: result.access_token, login: updated.login };
+  })();
+  githubRefreshFlights.set(storageKey, flight);
+  try { return await flight; }
+  finally { if (githubRefreshFlights.get(storageKey) === flight) githubRefreshFlights.delete(storageKey); }
+}
+
 async function getLinked(env, userToken) {
-  const raw = await env.ANANAS_KV.get("github_link:" + await sha256(userToken));
+  const storageKey = "github_link:" + await sha256(userToken);
+  const raw = await env.ANANAS_KV.get(storageKey);
   if (!raw) return null;
   const data = JSON.parse(raw);
+  if (data.refresh_encrypted && Number.isFinite(data.expires_at) && data.expires_at <= Date.now() + 5 * 60_000) {
+    return refreshGithubLink(env, storageKey, data);
+  }
   return { token: await decrypt(data.encrypted, env.GITHUB_CLIENT_SECRET), login: data.login };
 }
 async function github(token, path, options = {}) {
@@ -146,7 +223,12 @@ async function handleGet({ request, env }) {
       const profile = await profileResponse.json();
       if (!profileResponse.ok) return redirect(new URL("/coder.html?github_error=profile", SITE_ORIGIN));
       await env.ANANAS_KV.put("github_link:" + stateData.token_hash, JSON.stringify({
-        encrypted: await encrypt(tokenData.access_token, env.GITHUB_CLIENT_SECRET), login: profile.login
+        encrypted: await encrypt(tokenData.access_token, env.GITHUB_CLIENT_SECRET),
+        refresh_encrypted: tokenData.refresh_token ? await encrypt(tokenData.refresh_token, env.GITHUB_CLIENT_SECRET) : null,
+        expires_at: Number.isFinite(tokenData.expires_in) ? Date.now() + tokenData.expires_in * 1000 : null,
+        refresh_expires_at: Number.isFinite(tokenData.refresh_token_expires_in) ? Date.now() + tokenData.refresh_token_expires_in * 1000 : null,
+        login: profile.login,
+        updated_at: Date.now()
       }));
       return redirect(new URL("/coder.html?github=connected", SITE_ORIGIN));
     }
@@ -159,7 +241,7 @@ async function handleGet({ request, env }) {
       const oauthUrl = new URL("https://github.com/login/oauth/authorize");
       oauthUrl.searchParams.set("client_id", env.GITHUB_CLIENT_ID);
       oauthUrl.searchParams.set("redirect_uri", SITE_ORIGIN + "/api/github?action=callback");
-      oauthUrl.searchParams.set("scope", "repo"); oauthUrl.searchParams.set("state", state);
+      oauthUrl.searchParams.set("scope", "repo offline_access"); oauthUrl.searchParams.set("state", state);
       return json({ url: oauthUrl.toString() });
     }
     const linked = await getLinked(env, account.token);
