@@ -1470,7 +1470,7 @@ function isGenericGoldQuestion(t){
 function getMarketChartAsset(t){
  const q=String(t||'').toLowerCase().replace(/[ي]/g,'ی').replace(/[ك]/g,'ک');
  const asksPrice=/قیمت|نرخ|چنده|چقدر|روند|نمودار|تغییر|هفته|ماه|سال|امروز|الان/.test(q);
- if(!asksPrice && !/^\s*(?:دلار|طلا|پوند|یورو|یوان|درهم|لیر)\s*[؟?!.]*\s*$/.test(q))return null;
+ if(!asksPrice && !/^\s*(?:دلار|طلا|پوند|یورو|یوان|درهم|لیر|روبل|فرانک)\s*[؟?!.]*\s*$/.test(q))return null;
  if(/دلار کانادا|دلار استرالیا|دلار نیوزیلند/.test(q))return null;
  if(/طلای?\s*(?:۱۸|18)|۱۸\s*عیار|18\s*عیار|عیار\s*هجده|هجده\s*عیار/.test(q))return 'gold18';
  if(/طلای?\s*(?:۲۴|24)|۲۴\s*عیار|24\s*عیار|عیار\s*بیست.?و.?چهار/.test(q))return 'gold24';
