@@ -1480,6 +1480,8 @@ function getMarketChartAsset(t){
  if(/یوان|\bcny\b|yuan/.test(q))return 'yuan';
  if(/درهم|\baed\b|dirham/.test(q))return 'dirham';
  if(/لیر|\btry\b|lira/.test(q))return 'lira';
+ if(/روبل|\brub\b|ruble/.test(q))return 'ruble';
+ if(/فرانک(?:\s*سوئیس)?|\bchf\b|swiss franc/.test(q))return 'swissFranc';
  if(/دلار|\busd\b/.test(q))return 'dollar';
  return null;
 }
