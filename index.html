@@ -572,32 +572,44 @@
     <div id="chatHistoryList" class="flex-1 overflow-y-auto px-2 space-y-1 py-2"></div>
 
     <div class="p-3 border-t border-ananas-border space-y-2 bg-ananas-dark/40 shrink-0">
-      <div id="accountStatusCard" class="flex flex-col gap-2 p-3 rounded-xl bg-ananas-card border border-ananas-border text-xs">
-        <div class="flex items-center justify-between">
-          <span class="text-gray-400">وضعیت حساب:</span>
-          <span id="accountStatusBadge" class="flex items-center gap-1.5 text-gray-300 font-medium">
-            <span class="w-2 h-2 rounded-full bg-gray-400"></span>
-            نسخه رایگان
+      <div id="accountStatusCard" class="relative rounded-xl bg-ananas-card border border-ananas-border text-xs overflow-hidden">
+        <button id="accountStatusToggle" type="button" onclick="toggleAccountStatusDetails()" aria-expanded="false" aria-controls="accountStatusDetails" class="w-full min-h-[38px] px-3 py-2 flex items-center justify-between gap-2 text-right hover:bg-white/[0.03] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ananas-500">
+          <span class="text-gray-400 font-medium">وضعیت حساب</span>
+          <span class="flex items-center gap-2">
+            <span id="accountStatusBadge" class="flex items-center gap-1.5 text-gray-300 font-medium">
+              <span class="w-2 h-2 rounded-full bg-gray-400"></span>
+              نسخه رایگان
+            </span>
+            <svg id="accountStatusChevron" class="w-3.5 h-3.5 text-gray-500 transition-transform duration-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
           </span>
-        </div>
-
-        <div class="pt-1.5 border-t border-ananas-border/60 space-y-1.5">
+        </button>
+        <div id="accountStatusDetails" class="hidden px-3 pb-3 pt-1 border-t border-ananas-border/60 space-y-2.5">
+          <div class="space-y-1">
+            <div class="flex items-center justify-between text-[11px]">
+              <span class="text-gray-400">پیام‌های امروز</span>
+              <span id="quotaCounterText" class="font-bold text-white tabular-nums">۰ از ۵ پیام</span>
+            </div>
+            <div class="w-full h-1.5 bg-ananas-dark rounded-full overflow-hidden border border-ananas-border/80">
+              <div id="quotaProgressBar" class="h-full bg-ananas-500 transition-all duration-300" style="width: 0%"></div>
+            </div>
+          </div>
           <div class="flex items-center justify-between text-[11px]">
-            <span class="text-gray-400">سهمیه پیام امروز:</span>
-            <span id="quotaCounterText" class="font-bold text-white">۰ از ۱۰ پیام</span>
+            <span class="flex items-center gap-1.5 text-gray-400">🎙️ تبدیل متن به صوت</span>
+            <span id="audioQuotaCounterText" class="font-bold text-white tabular-nums">۰ از ۰</span>
           </div>
-          <div class="w-full h-1.5 bg-ananas-dark rounded-full overflow-hidden border border-ananas-border/80">
-            <div id="quotaProgressBar" class="h-full bg-ananas-500 transition-all duration-300" style="width: 0%"></div>
+          <div class="flex items-center justify-between text-[11px]">
+            <span class="flex items-center gap-1.5 text-gray-400">🖼️ تولید تصویر</span>
+            <span id="imageQuotaCounterText" class="font-bold text-white tabular-nums">۰ از ۰</span>
           </div>
-          <div id="imageQuotaContainer" class="hidden flex items-center justify-between text-[11px] pt-1.5">
-            <span class="text-gray-400">سهمیه تصویر امروز:</span>
-            <span id="imageQuotaCounterText" class="font-bold text-white">۰ از ۵ تصویر</span>
+          <div class="flex items-center justify-between text-[11px]">
+            <span class="flex items-center gap-1.5 text-gray-400">✨ ویرایش تصویر</span>
+            <span id="imageEditQuotaCounterText" class="font-bold text-white tabular-nums">۰ از ۰</span>
           </div>
-        </div>
-
-        <div id="proTimeRemainingContainer" class="hidden text-[11px] text-amber-400 font-medium pt-1.5 border-t border-ananas-border/60 flex items-center justify-between">
-          <span id="proTimeRemainingLabel">⏳ اعتبار پرو:</span>
-          <span id="proTimeRemainingText">۳۰ روز باقی‌مانده</span>
+          <p id="imageQuotaSharedNote" class="hidden text-[10px] leading-5 text-gray-500">سهمیه تولید و ویرایش تصویر مشترک است.</p>
+          <div id="proTimeRemainingContainer" class="hidden text-[11px] text-amber-400 font-medium pt-2 border-t border-ananas-border/60 flex items-center justify-between">
+            <span id="proTimeRemainingLabel">⏳ اعتبار پرو:</span>
+            <span id="proTimeRemainingText">۳۰ روز باقی‌مانده</span>
+          </div>
         </div>
       </div>
 
@@ -1003,7 +1015,10 @@
     function updateImageQuotaCounter() {
       const counter = document.getElementById('imageQuotaCounterText');
       if (!counter) return;
-      counter.textContent = `${Math.min(imageQuotaState.used, imageQuotaState.limit)} از ${imageQuotaState.limit} تصویر`;
+      const value = `${Math.min(imageQuotaState.used, imageQuotaState.limit)} از ${imageQuotaState.limit}`;
+      counter.textContent = value;
+      const editCounter = document.getElementById('imageEditQuotaCounterText');
+      if (editCounter) editCounter.textContent = value;
     }
 
     async function fetchQuotaFromServer() {
@@ -1030,13 +1045,27 @@
       } catch (e) {}
     }
 
+    function toggleAccountStatusDetails(force) {
+      const details = document.getElementById('accountStatusDetails');
+      const button = document.getElementById('accountStatusToggle');
+      const chevron = document.getElementById('accountStatusChevron');
+      if (!details || !button) return;
+      const open = typeof force === 'boolean' ? force : details.classList.contains('hidden');
+      details.classList.toggle('hidden', !open);
+      button.setAttribute('aria-expanded', String(open));
+      if (chevron) chevron.classList.toggle('rotate-180', open);
+    }
+
     function updateAccountStatusBadge() {
       const badge = document.getElementById('accountStatusBadge');
       const actionBtnText = document.getElementById('actionBtnText');
       const timeContainer = document.getElementById('proTimeRemainingContainer');
       const timeText = document.getElementById('proTimeRemainingText');
       const quotaCounterText = document.getElementById('quotaCounterText');
-      const imageQuotaContainer = document.getElementById('imageQuotaContainer');
+      const audioQuotaCounterText = document.getElementById('audioQuotaCounterText');
+      const imageQuotaCounterText = document.getElementById('imageQuotaCounterText');
+      const imageEditQuotaCounterText = document.getElementById('imageEditQuotaCounterText');
+      const imageQuotaSharedNote = document.getElementById('imageQuotaSharedNote');
       const quotaProgressBar = document.getElementById('quotaProgressBar');
       const coderLockIcon = document.getElementById('coderLockIcon');
       const upgradeBtn = document.getElementById('upgradeProLinkBtn');
@@ -1051,10 +1080,16 @@
       const used = Math.min(limit, Number(quotaState.used || 0));
       const percent = Math.min(100, Math.round((used / limit) * 100));
 
-      quotaCounterText.textContent = `${used} از ${limit} پیام`;
-      if (isUltraActive && quotaState.audioLimit) quotaCounterText.textContent += ` · صوت: ${quotaState.audioUsed || 0} از ${quotaState.audioLimit}`;
-      if (imageQuotaContainer) imageQuotaContainer.classList.toggle('hidden', !isUltraActive);
-      updateImageQuotaCounter();
+      if (quotaCounterText) quotaCounterText.textContent = `${used} از ${limit} پیام`;
+      const audioLimit = isUltraActive ? Number(quotaState.audioLimit || 5) : 0;
+      const audioUsed = Math.min(audioLimit, Number(quotaState.audioUsed || 0));
+      if (audioQuotaCounterText) audioQuotaCounterText.textContent = `${audioUsed} از ${audioLimit}`;
+      const imageLimit = isUltraActive ? 5 : 0;
+      const imageUsed = isUltraActive ? Math.min(imageLimit, Number(imageQuotaState.used || 0)) : 0;
+      const imageValue = `${imageUsed} از ${imageLimit}`;
+      if (imageQuotaCounterText) imageQuotaCounterText.textContent = imageValue;
+      if (imageEditQuotaCounterText) imageEditQuotaCounterText.textContent = imageValue;
+      if (imageQuotaSharedNote) imageQuotaSharedNote.classList.toggle('hidden', !isUltraActive);
       quotaProgressBar.style.width = `${percent}%`;
       quotaProgressBar.className = `h-full transition-all duration-300 ${percent >= 90 ? 'bg-red-500' : (isProActive ? 'bg-amber-400' : 'bg-ananas-500')}`;
 
