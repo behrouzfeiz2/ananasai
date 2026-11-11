@@ -645,36 +645,20 @@ function detectPhonePriceModel(text) {
  return null;
 }
 function extractPhoneModelQuery(text) {
- const raw=normalizePhoneQuery(text);
- const patterns=[
- /(?:samsung|galaxy|گلکسی|گالاکسی|سامسونگ)\s+[a-z]?\s*\d{1,3}(?:\s*(?:ultra|plus|fe|edge|fold|flip|5g))?/i,
- /(?:xiaomi|redmi|poco|شیائومی|ردمی|پوکو)\s+[a-z0-9\p{L}][a-z0-9\p{L} .+-]{1,35}/iu,
- /(?:iphone|آیفون|ایفون)\s+(?:duo|دو|\d{1,2}(?:\s*(?:pro|max|plus|mini|e))?)/i
- ];
- for(const p of patterns){const m=raw.match(p);if(m?.[0])return m[0].trim().slice(0,80);}
- return null;
+ const normalized=normalizePhoneQuery(text);
+ if(/iphone/.test(normalized)&&/تاشو|foldable|folding/.test(String(text||"")))return "iPhone Duo";
+ const tokens=normalized.split(" ").filter(Boolean);
+ const start=tokens.findIndex(x=>["samsung","galaxy","xiaomi","redmi","poco","iphone"].includes(x));
+ if(start<0)return null;
+ const stop=new Set(["مشخصات","سخت","افزار","پردازنده","چیپست","رم","حافظه","دوربین","باتری","نمایشگر","صفحه","قیمت","گوشی","موبایل","چنده","چیه","چیست","داره","بخرم","مقایسه","چی","تاشو","اسمش","اسم","را","رو","میخوام","میخواهم","لطفا","بگو","چقدر","چه"]);
+ const selected=[];
+ for(let i=start;i<tokens.length&&selected.length<6;i++){
+  if(stop.has(tokens[i]))break;
+  selected.push(tokens[i]);
+ }
+ const query=selected.join(" ").trim();
+ return query.length>=5?query:null;
 }
-async function getPhonePriceData(request, model) {
-  const endpoint = new URL("/api/phone-prices", new URL(request.url).origin);
-  endpoint.searchParams.set("model", model.id);
-
-  try {
-    const response = await fetchWithTimeout(endpoint.toString(), {
-      method: "GET",
-      headers: { "Accept": "application/json" }
-    }, CONFIG.DATA_TIMEOUT);
-
-    const result = await response.json();
-    if (!response.ok || result?.success !== true || !result.product) {
-      throw new Error(result?.error || "Phone price service returned an invalid response");
-    }
-    return { success: true, product: result.product };
-  } catch (error) {
-    console.error("ANANAS_PHONE_PRICE_ERROR", model.id, error.message);
-    return { success: false, model: model.id, error: error.message };
-  }
-}
-
 function formatPhonePriceData(data) {
   if (!data?.success || !data.product) {
     return `
