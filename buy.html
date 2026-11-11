@@ -278,6 +278,8 @@
           <form 
             id="paymentNotifyForm" 
             onsubmit="submitPaymentForm(event)" 
+            toolname="submit-payment-notification"
+            tooldescription="ثبت اطلاعات اعلام واریز بانکی برای بررسی و فعال‌سازی اشتراک انتخاب‌شده. فقط پس از درخواست صریح کاربر و تأیید نهایی او اقدام کن؛ این فرم نباید خودکار ارسال شود."
             class="space-y-5"
           >
             <!-- نام کامل -->
@@ -289,6 +291,8 @@
                 <input 
                   type="text" 
                   id="fullName" 
+                  name="fullName"
+                  toolparamdescription="نام کامل شخصی که مبلغ اشتراک را واریز کرده است."
                   required 
                   placeholder="مثال: علی محمدی"
                   class="w-full rounded-2xl bg-ananas-dark border border-ananas-border focus:border-ananas-500 focus:ring-2 focus:ring-ananas-500/20 px-4 py-3.5 text-sm text-white placeholder-gray-500 outline-none transition"
@@ -305,6 +309,8 @@
                 <input 
                   type="tel" 
                   id="phoneNumber" 
+                  name="phoneNumber"
+                  toolparamdescription="شماره همراه ایرانی برای ارسال کد فعال‌سازی اشتراک؛ فقط با تأیید کاربر."
                   dir="ltr"
                   required 
                   maxlength="11"
@@ -326,6 +332,10 @@
                 <input 
                   type="text" 
                   id="senderCard" 
+                  name="senderCard"
+                  toolparamdescription="شماره ۱۶ رقمی کارت بانکی مبدأ انتقال وجه؛ اطلاعات حساس است و فقط در صورت ارائه و تأیید صریح کاربر وارد شود."
+                  autocomplete="off"
+                  inputmode="numeric"
                   dir="ltr"
                   required 
                   maxlength="19"

@@ -699,7 +699,7 @@
           </button>
         </div>
 
-        <form onsubmit="handleSubmit(event)" class="relative flex items-center gap-2 bg-ananas-card border border-ananas-border focus-within:border-ananas-500/70 rounded-2xl p-2">
+        <form onsubmit="handleSubmit(event)" toolname="send-message-to-ananas" tooldescription="ارسال پیام متنی کاربر به دستیار هوشمند آناناس برای دریافت پاسخ. فقط متن واردشده را ارسال کن؛ فایل‌ها فقط زمانی پیوست می‌شوند که کاربر خودش آن‌ها را انتخاب کرده باشد." class="relative flex items-center gap-2 bg-ananas-card border border-ananas-border focus-within:border-ananas-500/70 rounded-2xl p-2">
 
           <input type="file" id="fileInput" accept=".txt,.js,.py,.html,.css,.json,.pdf,.php,.sql,.cs,.cpp,.java,.ts,.md,.doc,.docx,.xls,.xlsx,.csv,.zip" class="hidden" onchange="handleFileSelect(event)" />
           <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="handleFileSelect(event)" />
@@ -730,6 +730,8 @@
 
           <textarea
             id="promptInput"
+            name="message"
+            toolparamdescription="متن پیام یا پرسشی که کاربر می‌خواهد برای دستیار آناناس ارسال شود."
             rows="1"
             placeholder="از آناناس بپرس ..."
             onkeydown="handleEnterKey(event)"
