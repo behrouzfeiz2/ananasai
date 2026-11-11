@@ -9,6 +9,7 @@ const corsHeaders = {
 const ASSETS = {
   dollar: { symbol: "price_dollar_rl", title: "دلار آزاد" },
   gold: { symbol: "geram24", title: "طلای ۲۴ عیار" },
+  gold18: { symbol: "geram18", title: "طلای ۱۸ عیار" },
   gold24: { symbol: "geram24", title: "طلای ۲۴ عیار" },
   pound: { symbol: "price_gbp", title: "پوند انگلیس" },
   euro: { symbol: "price_eur", title: "یورو" },
