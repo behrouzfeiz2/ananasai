@@ -611,6 +611,94 @@ ${newsText}
 // SHOP SEARCH - RSS SHOPPING & PRODUCT DISCOVERY
 // ======================================================
 
+// ======================================================
+// PHONE PRICE LOOKUP - DIGIATO
+// ======================================================
+
+const PHONE_PRICE_MODELS = [
+  { id: "galaxy-a57", aliases: ["samsung galaxy a57", "galaxy a57", "گلکسی a57", "سامسونگ گلکسی a57", "سامسونگ a57"] },
+  { id: "redmi-note-14-4g", aliases: ["xiaomi redmi note 14 4g", "redmi note 14 4g", "redmi note 14", "ردمی نوت ۱۴", "ردمی نوت 14", "شیائومی ردمی نوت ۱۴"] },
+  { id: "iphone-16", aliases: ["apple iphone 16", "iphone 16", "آیفون ۱۶", "آیفون 16", "اپل آیفون ۱۶"] }
+];
+
+function detectPhonePriceModel(text) {
+  const normalized = normalizeText(text).replace(/[۰-۹]/g, d => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/\s+/g, " ");
+  for (const model of PHONE_PRICE_MODELS) {
+    for (const alias of model.aliases) {
+      const a = normalizeText(alias).replace(/\s+/g, " ");
+      if (normalized.includes(a)) return model;
+    }
+  }
+  return null;
+}
+
+async function getPhonePriceData(request, model) {
+  const endpoint = new URL("/api/phone-prices", new URL(request.url).origin);
+  endpoint.searchParams.set("model", model.id);
+
+  try {
+    const response = await fetchWithTimeout(endpoint.toString(), {
+      method: "GET",
+      headers: { "Accept": "application/json" }
+    }, CONFIG.DATA_TIMEOUT);
+
+    const result = await response.json();
+    if (!response.ok || result?.success !== true || !result.product) {
+      throw new Error(result?.error || "Phone price service returned an invalid response");
+    }
+    return { success: true, product: result.product };
+  } catch (error) {
+    console.error("ANANAS_PHONE_PRICE_ERROR", model.id, error.message);
+    return { success: false, model: model.id, error: error.message };
+  }
+}
+
+function formatPhonePriceData(data) {
+  if (!data?.success || !data.product) {
+    return `
+جست‌وجوی قیمت گوشی از سرویس اختصاصی دیجیاتو انجام شد، اما سرویس در حال حاضر پاسخ معتبر نداد.
+قیمت یا مشخصات فروش را حدس نزن و به‌جای آن نتیجه RSS را به‌عنوان قیمت معرفی نکن.
+به کاربر بگو دریافت قیمت این مدل موقتاً با مشکل مواجه شده و می‌تواند دوباره تلاش کند.
+`;
+  }
+
+  const p = data.product;
+  const offers = (p.offers || []).map((offer, i) => `
+پیشنهاد فروشنده ${i + 1}:
+فروشنده: ${offer.seller || "نامشخص"}
+تنوع/مشخصات نسخه: ${offer.variant || "در داده منبع مشخص نشده"}
+قیمت: ${Number(offer.price).toLocaleString("en-US")} تومان
+لینک خرید: ${offer.purchase_url || "در داده دریافتی لینک خرید قابل تشخیص نبود"}
+`).join("\\n");
+
+  return `
+اطلاعات اختصاصی قیمت گوشی از صفحه محصول دیجیاتو:
+
+مدل: ${p.name || p.id}
+وضعیت داده: ${p.status}
+توضیح منبع: ${p.message || ""}
+قیمت شروع ثبت‌شده: ${p.starting_price ? Number(p.starting_price).toLocaleString("en-US") + " تومان" : "در صفحه ثبت نشده"}
+کمترین قیمت استخراج‌شده: ${p.lowest_price ? Number(p.lowest_price).toLocaleString("en-US") + " تومان" : "در صفحه ثبت نشده"}
+تعداد فروشندگان استخراج‌شده: ${p.seller_count || 0}
+زمان بررسی: ${p.checked_at || "نامشخص"}
+منبع: Digiato
+صفحه منبع: ${p.source_url || "نامشخص"}
+
+پیشنهادهای فروش:
+${offers || "هیچ پیشنهاد فروشنده‌ای در صفحه قابل استخراج نبود."}
+
+قوانین الزامی:
+- این داده‌ها مرجع اصلی پاسخ به سؤال قیمت همین مدل هستند؛ به‌جای RSS از آن‌ها استفاده کن.
+- اگر قیمت شروع یا پیشنهاد فروشنده موجود است، قیمت را مستقیم و با واحد تومان اعلام کن.
+- اگر چند قیمت وجود دارد، قیمت شروع و کمترین پیشنهاد استخراج‌شده را از هم تفکیک کن؛ فروشنده و نسخه را فقط در صورت وجود داده اعلام کن.
+- لینک خرید را فقط اگر منبع ارائه کرده درج کن.
+- اگر status برابر no_listed_price است، روشن بگو در صفحه دیجیاتو فعلاً قیمت/فروشنده‌ای ثبت نشده؛ این به معنی نبود قیمت در کل بازار نیست.
+- زمان بررسی و لینک منبع را ذکر کن؛ هرگز این داده را قیمت تضمین‌شده یا موجودی قطعی بازار معرفی نکن.
+- از RSS یا دانش قبلی برای ساختن قیمت جایگزین استفاده نکن.
+- این endpoint در حال حاضر قیمت را ارائه می‌کند، نه مشخصات کامل سخت‌افزاری. مشخصات فنی را فقط در صورتی بیان کن که از داده معتبر و در دسترس دیگری در همین درخواست دریافت شده باشد؛ در غیر این صورت صریحاً بگو مشخصات فنی در این جست‌وجو بازیابی نشده است.
+`;
+}
+
 async function getShopData(request, query) {
   if (!CONFIG.ENABLE_SHOP_SEARCH) return null;
 
@@ -1460,6 +1548,12 @@ if (!attachmentValidation.valid) {
     let marketData = null;
     let newsData = null;
     let shopData = null;
+    let phonePriceData = null;
+    const phonePriceModel = !attachmentExists ? detectPhonePriceModel(lastMessage) : null;
+
+    if (!attachmentExists && phonePriceModel) {
+      phonePriceData = await getPhonePriceData(request, phonePriceModel);
+    }
 
     if (!attachmentExists && questionType.market) {
       marketData = await getMarketData(request);
@@ -1469,7 +1563,7 @@ if (!attachmentValidation.valid) {
       newsData = await getNewsData(request, lastMessage);
     }
 
-    if (!attachmentExists && questionType.shop) {
+    if (!attachmentExists && questionType.shop && !phonePriceModel) {
       shopData = await getShopData(request, lastMessage);
     }
 
@@ -1503,7 +1597,11 @@ if (!attachmentValidation.valid) {
       }
     }
 
-    if (questionType.shop) {
+    if (phonePriceModel) {
+      externalContext += formatPhonePriceData(phonePriceData);
+    }
+
+    if (questionType.shop && !phonePriceModel) {
       if (shopData?.success) {
         externalContext += formatShopData(shopData);
       } else {
@@ -1658,7 +1756,11 @@ if (!attachmentValidation.valid) {
         ? newsData.news.length
         : 0,
 
-      shopRequested: Boolean(questionType.shop),
+      phonePriceRequested: Boolean(phonePriceModel),
+      phonePriceServiceAvailable: Boolean(phonePriceData?.success),
+      phonePriceModel: phonePriceModel?.id || null,
+
+      shopRequested: Boolean(questionType.shop && !phonePriceModel),
       shopServiceAvailable: Boolean(shopData?.success),
       shopFound: Boolean(
         shopData?.success &&
@@ -1687,6 +1789,10 @@ if (!attachmentValidation.valid) {
 
     if (newsData?.success) {
       responseJson.newsData = newsData;
+    }
+
+    if (phonePriceData?.success) {
+      responseJson.phonePriceData = phonePriceData;
     }
 
     if (shopData?.success) {
