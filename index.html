@@ -2271,13 +2271,13 @@
       if (menu && button && !menu.contains(event.target) && !button.contains(event.target)) closeAttachmentMenu();
     });
 
-    /* Enter در همه دستگاه‌ها سطر جدید می‌سازد؛ Ctrl/Command + Enter ارسال می‌کند */
+    /* در دسکتاپ Enter پیام را ارسال می‌کند؛ Shift + Enter سطر جدید می‌سازد.
+       در موبایل Enter همیشه رفتار پیش‌فرض textarea (سطر جدید) را حفظ می‌کند. */
     function handleEnterKey(e) {
-      if (
-        e.key === 'Enter' &&
-        !e.shiftKey &&
-        (e.ctrlKey || e.metaKey)
-      ) {
+      if (e.key !== 'Enter' || e.shiftKey) return;
+
+      const isMobile = window.matchMedia('(max-width: 767px)').matches;
+      if (!isMobile) {
         e.preventDefault();
         handleSubmit();
       }
