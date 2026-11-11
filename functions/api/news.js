@@ -49,6 +49,14 @@ const RSS_FEEDS = [
     url: "https://www.zoomit.ir/feed/"
   },
   {
+    name: "دیجیاتو",
+    url: "https://digiato.com/feed/"
+  },
+  {
+    name: "دیجیاتو (هوش مصنوعی)",
+    url: "https://digiato.com/topic/tech/artificial-intelligence/feed"
+  },
+  {
     name: "۱آی‌تی‌نویس",
     url: "https://www.1itnevis.com/feeds/posts/default?alt=rss"
   }
