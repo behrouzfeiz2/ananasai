@@ -470,30 +470,30 @@ async function getMarketData(request) {
   }
 }
 
-function formatMarketData(data) {
+function formatMarketData(data, question = "") {
   if (!data?.success) return "";
-
-  const lines = data.items.map(item =>
-    `- ${item.title}: ${item.price} ${item.unit}`
-  );
-
+  const q = normalizeText(question);
+  const wantsGold = /طلا|طلای|گرم\s*۱۸|گرم\s*18|gold/i.test(q);
+  const wantsDollar = /دلار|usd/i.test(q);
+  let items = data.items || [];
+  if (wantsGold) {
+    items = items.filter(item => /طلای?\s*(?:۱۸|18)|گرم\s*(?:۱۸|18)|gold/i.test(normalizeText(item.title)));
+  } else if (wantsDollar) {
+    items = items.filter(item => /دلار\s*(?:آزاد)?|usd/i.test(normalizeText(item.title)));
+  }
+  const lines = items.map(item => `- ${item.title}: ${item.price} ${item.unit}`);
   return `
-اطلاعات دریافتی از سرویس قیمت آناناس:
+اطلاعات قیمت بازار از سرویس آناناس:
+زمان دریافت داده: ${data.updated_at}
+${lines.length ? lines.join("\n") : "برای دارایی موردنظر نرخ معتبر دریافت نشد."}
 
-منبع: ${data.source}
-زمان دریافت: ${data.updated_at}
-
-${lines.join("\n")}
-
-قوانین استفاده:
-- فقط از اعداد بالا برای پاسخ به سؤال بازار استفاده کن.
-- واحد پول را دقیقاً همان‌طور که دریافت شده اعلام کن.
-- قیمت‌های نامشخص را حدس نزن.
-- زمان دریافت را به کاربر اعلام کن.
-- این داده‌ها را قیمت لحظه‌ای قطعی تلقی نکن؛ زمان به‌روزرسانی را ملاک قرار بده.
+قوانین:
+- فقط نرخ مربوط به سؤال کاربر را اعلام کن؛ هرگز فهرست کلی «آخرین نرخ‌های بازار» یا دارایی‌های نامرتبط را نمایش نده.
+- واحد پول و زمان دریافت را دقیق اعلام کن.
+- قیمت ناموجود را حدس نزن.
+- اگر نرخ اختصاصی دارایی پیدا نشد، صریحاً بگو نرخ معتبر در دسترس نیست.
 `;
 }
-
 // ======================================================
 // 6. NEWS DATA - RSS SERVICE
 // ======================================================
@@ -1627,7 +1627,7 @@ if (!attachmentValidation.valid) {
 
     if (questionType.market) {
       if (marketData?.success) {
-        externalContext += formatMarketData(marketData);
+        externalContext += formatMarketData(marketData, lastMessage);
       } else {
         externalContext += `
 سؤال کاربر درباره قیمت یا اطلاعات بازار است.

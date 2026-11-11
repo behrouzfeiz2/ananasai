@@ -36,9 +36,13 @@ async function fetchWithTimeout(url, timeout = 15000) {
     clearTimeout(timer);
   }
 }
-export async function onRequestGet() {
+export async function onRequestGet({ request }) {
   try {
-    const url = new URL("https://api.tgju.org/v1/market/indicator/summary-table-data/price_dollar_rl");
+    const requestUrl = new URL(request.url);
+    const asset = requestUrl.searchParams.get("asset") === "gold" ? "gold" : "dollar";
+    const symbol = asset === "gold" ? "geram18" : "price_dollar_rl";
+    const assetTitle = asset === "gold" ? "طلای ۱۸ عیار" : "دلار آزاد";
+    const url = new URL("https://api.tgju.org/v1/market/indicator/summary-table-data/" + symbol);
     const params = new URLSearchParams();
     params.set("lang", "fa");
     params.set("order_dir", "asc");
@@ -79,16 +83,16 @@ export async function onRequestGet() {
       const liveResponse = await fetchWithTimeout("https://call1.tgju.org/ajax.json", 9000);
       if (liveResponse.ok) {
         const live = await liveResponse.json();
-        const raw = numeric(live?.current?.price_dollar_rl?.p);
+        const raw = numeric(live?.current?.[symbol]?.p);
         if (raw && raw > 0) currentPrice = Math.round(raw / 10);
       }
     } catch (error) {
       // Keep the latest historical close if the live board is temporarily unavailable.
     }
-    return new Response(JSON.stringify({ success: true, currency: "تومان", currentPrice, updatedAt, points: history }), { status: 200, headers: corsHeaders });
+    return new Response(JSON.stringify({ success: true, asset, title: assetTitle, currency: "تومان", currentPrice, updatedAt, points: history }), { status: 200, headers: corsHeaders });
   } catch (error) {
     console.error("DOLLAR_HISTORY_ERROR", error.message);
-    return new Response(JSON.stringify({ success: false, error: "دریافت تاریخچه قیمت دلار موقتاً امکان‌پذیر نیست." }), { status: 503, headers: { ...corsHeaders, "Cache-Control": "no-store" } });
+    return new Response(JSON.stringify({ success: false, error: "دریافت تاریخچه قیمت بازار موقتاً امکان‌پذیر نیست." }), { status: 503, headers: { ...corsHeaders, "Cache-Control": "no-store" } });
   }
 }
 export async function onRequestOptions() {
