@@ -355,7 +355,7 @@ function detectQuestionType(text) {
   // قیمت‌های بازار مالی و کالاهای پایه به nerkh.js ارجاع می‌شوند.
   // عبارت عمومی «قیمت» عمداً در این الگو نیست تا «قیمت گوشی» خرید تشخیص داده شود.
   const marketPattern =
-    /بازار ارز|نرخ ارز|دلار|یورو|پوند|لیر|درهم|یوان|yuan|cny|gbp|aed|try|eur|سکه|طلای|طلا|نفت|برنت|مربع|انس جهانی|اونس|مظنه|بورس|شاخص کل|murban|brent|gold price|oil price|bitcoin price|btc price|ethereum price|exchange rate|forex|stock market|gold rate/i;
+    /بازار ارز|نرخ ارز|دلار|یورو|پوند|لیر|درهم|یوان|روبل|فرانک سوئیس|فرانک|yuan|cny|rub|ruble|chf|swiss franc|gbp|aed|try|eur|سکه|طلای|طلا|نفت|برنت|مربع|انس جهانی|اونس|مظنه|بورس|شاخص کل|murban|brent|gold price|oil price|bitcoin price|btc price|ethereum price|exchange rate|forex|stock market|gold rate/i;
 
   // پرسش‌هایی که صریحاً درباره خبر یا رویداد جاری هستند، در اولویت news می‌مانند.
   const newsPattern =
