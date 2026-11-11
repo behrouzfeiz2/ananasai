@@ -642,7 +642,7 @@ const PHONE_PRICE_MODELS = [
 // Detect explicit phone-price questions before starting external lookups.
 function isPhonePriceQuestion(text) {
   const query = normalizePhoneQuery(text);
-  return /(?:قیمت|نرخ|هزینه|چنده|چقدر|چند\\s*(?:تومان|تومن)|price|cost|how\\s+much)/i.test(query);
+  return /(?:قیمت|نرخ|هزینه|چنده|چقدر|چند|price|cost|how much)/i.test(query);
 }
 
 function detectPhonePriceModel(text) {
