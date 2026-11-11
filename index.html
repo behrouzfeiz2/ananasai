@@ -1237,6 +1237,25 @@
       return data;
     }
 
+    // استانداردهای خروجی تصویر بر اساس کاربرد؛ ابعاد مستقیماً به API ارسال می‌شوند.
+    function inferImageOutputSpec(prompt) {
+      const p=String(prompt||'').toLowerCase().replace(/[\u200c\u200f]/g,' ').replace(/\s+/g,' ');
+      const specs=[
+        {re:/(استوری|story|status|وضعیت).*(اینستاگرام|instagram|واتساپ|whatsapp|تلگرام|telegram)|(اینستاگرام|instagram|واتساپ|whatsapp|تلگرام|telegram).*(استوری|story|status|وضعیت)/i,w:1080,h:1920,label:'استوری عمودی ۹:۱۶'},
+        {re:/(کاور|thumbnail|تامبنیل).*(یوتیوب|youtube)|(یوتیوب|youtube).*(کاور|thumbnail|تامبنیل)/i,w:1280,h:720,label:'کاور یوتیوب ۱۶:۹'},
+        {re:/(بنر|کاور).*(کانال|channel).*(یوتیوب|youtube)|(یوتیوب|youtube).*(بنر|کاور کانال)/i,w:2560,h:1440,label:'بنر کانال یوتیوب ۱۶:۹'},
+        {re:/(پینترست|pinterest)/i,w:1000,h:1500,label:'پین عمودی پینترست ۲:۳'},
+        {re:/(کاور|تصویر شاخص|تصویر اصلی|og|open graph).*(بلاگ|وبلاگ|مقاله|سایت)|(بلاگ|وبلاگ|مقاله|سایت).*(کاور|تصویر شاخص|تصویر اصلی)/i,w:1200,h:630,label:'کاور عریض وبلاگ ۱.۹۱:۱'},
+        {re:/(بنر|هدر).*(سایت|وب سایت|وبسایت)/i,w:1920,h:600,label:'بنر عریض وب‌سایت'},
+        {re:/(پست|فید).*(اینستاگرام|instagram).*(عمودی|پرتره|۴:۵|4:5)|(اینستاگرام|instagram).*(پست|فید).*(عمودی|پرتره|۴:۵|4:5)/i,w:1080,h:1350,label:'پست عمودی اینستاگرام ۴:۵'},
+        {re:/(پست|فید).*(اینستاگرام|instagram).*(مربعی|square|۱:۱|1:1)|(اینستاگرام|instagram).*(پست|فید).*(مربعی|square|۱:۱|1:1)/i,w:1080,h:1080,label:'پست مربعی اینستاگرام ۱:۱'},
+        {re:/(پست|feed).*(اینستاگرام|instagram)|(اینستاگرام|instagram).*(پست|feed)/i,w:1080,h:1350,label:'پست عمودی اینستاگرام ۴:۵'},
+        {re:/(لینکدین|linkedin)/i,w:1200,h:627,label:'پست لینکدین عریض'}
+      ];
+      for(const spec of specs){if(spec.re.test(p))return{width:spec.w,height:spec.h,label:spec.label};}
+      return{width:1024,height:1024,label:'مربع استاندارد ۱:۱'};
+    }
+
     async function handleSubmit(e) {
       if (e) e.preventDefault();
       if (isGenerating) return;
@@ -1356,7 +1375,7 @@
         const imagePrompt = imageRequestIsGeneric ? '' : userText.trim();
         if (!userToken || !(quotaState.isUltra || quotaState.tier === 'ultra' || userToken.startsWith('ULTRA-'))) currentSession.messages.push({role:'model',isError:true,text:'⚠️ تولید تصویر فقط برای کاربران Ultra فعال است.'});
         else if (!imagePrompt) currentSession.messages.push({role:'model',text:'حتماً! چه تصویری می‌خواهید بسازم؟ لطفاً سوژه، نام برند و جزئیات موردنظر را بنویسید.'});
-        else currentSession.messages.push({role:'model',text:'مدل تولید تصویر را انتخاب کنید.',imageWizard:{prompt:imagePrompt,model:null,step:'model'}});
+        else { const outputSpec=inferImageOutputSpec(imagePrompt); currentSession.messages.push({role:'model',text:'مدل تولید تصویر را انتخاب کنید.',imageWizard:{prompt:imagePrompt,model:null,step:'model',...outputSpec}}); }
         saveSessions(); renderMessages(); renderHistoryList(); return;
       }
 
@@ -1765,7 +1784,7 @@
     }
     function renderImageWizard(idx,w){
       if(w.step==='model')return `<div class="flex justify-end"><div class="max-w-[90%] rounded-xl bg-ananas-card border border-fuchsia-500/30 p-4 space-y-3"><b class="text-fuchsia-200">🖼️ انتخاب مدل تصویر</b><p class="text-xs text-gray-300">${escapeHtml(w.prompt)}</p><button onclick="selectImageModel(${idx},'flux-dev')" class="w-full text-right p-3 rounded-lg border border-ananas-border"><b>FLUX Dev</b><small class="block text-gray-400">جزئیات و پایبندی بیشتر به متن</small></button><button onclick="selectImageModel(${idx},'z-image')" class="w-full text-right p-3 rounded-lg border border-ananas-border"><b>Z-Image</b><small class="block text-gray-400">سریع‌تر و اقتصادی‌تر</small></button></div></div>`;
-      if(w.step==='confirm')return `<div class="flex justify-end"><div class="max-w-[90%] rounded-xl bg-ananas-card border border-fuchsia-500/30 p-4 space-y-3"><b class="text-fuchsia-200">${w.hasReference?(w.sourceLibraryId?'تأیید ویرایش تصویر قبلی':'تأیید ویرایش تصویر ضمیمه‌شده')':'تأیید ساخت تصویر'}</b><p class="text-xs">${escapeHtml(w.prompt)}</p><p class="text-xs">مدل: <b>${w.model==='qwen-image-edit'?'Qwen Image Edit':w.model==='flux-dev'?'FLUX Dev':'Z-Image'}</b></p>${w.hasReference?'<p class="text-[11px] text-emerald-300">تصویر اصلی به‌عنوان مرجع حفظ می‌شود. درخواست ویرایش جزو سهمیه روزانه ۵ تصویر است.</p>':''}<button onclick="generateImageFromWizard(${idx})" class="px-4 py-2 rounded-lg bg-fuchsia-500 text-white text-xs">تأیید و شروع ${w.hasReference?'ویرایش':'ساخت تصویر'}</button> ${w.hasReference?'':'<button onclick="backToImageModels('+idx+')" class="px-3 py-2 rounded-lg border border-ananas-border text-xs">تغییر مدل</button>'}</div></div>`;
+      if(w.step==='confirm')return `<div class="flex justify-end"><div class="max-w-[90%] rounded-xl bg-ananas-card border border-fuchsia-500/30 p-4 space-y-3"><b class="text-fuchsia-200">${w.hasReference?(w.sourceLibraryId?'تأیید ویرایش تصویر قبلی':'تأیید ویرایش تصویر ضمیمه‌شده')':'تأیید ساخت تصویر'}</b><p class="text-xs">${escapeHtml(w.prompt)}</p><p class="text-xs">مدل: <b>${w.model==='qwen-image-edit'?'Qwen Image Edit':w.model==='flux-dev'?'FLUX Dev':'Z-Image'}</b></p><p class="text-xs text-emerald-300">قالب خروجی: <b>${escapeHtml(w.label||'مربع استاندارد ۱:۱')}</b> · ${Number(w.width)||1024}×${Number(w.height)||1024} پیکسل</p>${w.hasReference?'<p class="text-[11px] text-emerald-300">تصویر اصلی به‌عنوان مرجع حفظ می‌شود. درخواست ویرایش جزو سهمیه روزانه ۵ تصویر است.</p>':''}<button onclick="generateImageFromWizard(${idx})" class="px-4 py-2 rounded-lg bg-fuchsia-500 text-white text-xs">تأیید و شروع ${w.hasReference?'ویرایش':'ساخت تصویر'}</button> ${w.hasReference?'':'<button onclick="backToImageModels('+idx+')" class="px-3 py-2 rounded-lg border border-ananas-border text-xs">تغییر مدل</button>'}</div></div>`;
       return '<div class="flex justify-end"><div class="rounded-xl bg-ananas-card p-4 text-sm text-fuchsia-200">در حال تولید تصویر...</div></div>';
     }
     function getImageWizard(idx){const s=sessions.find(x=>x.id===activeSessionId),m=s&&s.messages[idx];return m&&m.imageWizard?m:null;}
@@ -1797,7 +1816,7 @@
           const uploaded=await upload.json();if(!upload.ok||!uploaded.success)throw new Error(uploaded.error||'بارگذاری تصویر مرجع ناموفق بود.');
           referenceId=uploaded.referenceId;
         }
-        const start=await fetch('/api/image',{method:'POST',headers,body:JSON.stringify({prompt:w.prompt,model:w.model,width:1024,height:1024,...(referenceId?{referenceId}:{})})});
+        const start=await fetch('/api/image',{method:'POST',headers,body:JSON.stringify({prompt:w.prompt,model:w.model,width:Number(w.width)||1024,height:Number(w.height)||1024,...(referenceId?{referenceId}:{})})});
         const job=await start.json();if(!start.ok||!job.success)throw new Error(job.error||'ثبت درخواست تصویر ناموفق بود.');
         if(job.quota){imageQuotaState={used:Number(job.quota.used)||0,limit:Number(job.quota.limit)||5};updateImageQuotaCounter();}
         let url=null,librarySaved=false;
