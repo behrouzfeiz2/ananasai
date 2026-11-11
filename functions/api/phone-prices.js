@@ -93,7 +93,10 @@ function buildPhoneModel(query) {
   const id = name.replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "").toLowerCase();
   const variants = [selected];
   if (selected[0] === "samsung" && selected[1] === "galaxy") variants.push(selected.slice(1));
+  if (selected[0] === "samsung" && selected[1] !== "galaxy") variants.push(["galaxy", ...selected.slice(1)]);
+  if (selected[0] === "galaxy") variants.push(["samsung", ...selected]);
   if (selected[0] === "xiaomi" && selected.length > 1) variants.push(selected.slice(1));
+  if ((selected[0] === "redmi" || selected[0] === "poco") && selected.length > 1) variants.push(["xiaomi", ...selected]);
   const paths = [];
   for (const variant of variants) {
     const slug = slugTitle(variant.join(" "));
