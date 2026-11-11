@@ -355,7 +355,7 @@ function detectQuestionType(text) {
   // قیمت‌های بازار مالی و کالاهای پایه به nerkh.js ارجاع می‌شوند.
   // عبارت عمومی «قیمت» عمداً در این الگو نیست تا «قیمت گوشی» خرید تشخیص داده شود.
   const marketPattern =
-    /بازار ارز|نرخ ارز|دلار|یورو|پوند|لیر|درهم|سکه|طلای|طلا|نفت|برنت|مربع|انس جهانی|اونس|مظنه|بورس|شاخص کل|murban|brent|gold price|oil price|bitcoin price|btc price|ethereum price|exchange rate|forex|stock market|gold rate/i;
+    /بازار ارز|نرخ ارز|دلار|یورو|پوند|لیر|درهم|یوان|yuan|cny|gbp|aed|try|eur|سکه|طلای|طلا|نفت|برنت|مربع|انس جهانی|اونس|مظنه|بورس|شاخص کل|murban|brent|gold price|oil price|bitcoin price|btc price|ethereum price|exchange rate|forex|stock market|gold rate/i;
 
   // پرسش‌هایی که صریحاً درباره خبر یا رویداد جاری هستند، در اولویت news می‌مانند.
   const newsPattern =
@@ -473,22 +473,30 @@ async function getMarketData(request) {
 function formatMarketData(data, question = "") {
   if (!data?.success) return "";
   const q = normalizeText(question);
-  const wantsGold = /طلا|طلای|گرم\s*۱۸|گرم\s*18|gold/i.test(q);
-  const wantsDollar = /دلار|usd/i.test(q);
+  const requested = [
+    { re: /طلای?\s*۲۴|طلای?\s*24|۲۴\s*عیار|24\s*عیار/, title: /۲۴|24/ },
+    { re: /طلای?\s*۱۸|طلای?\s*18|۱۸\s*عیار|18\s*عیار|طلا|gold/, title: /۱۸|18|طلا|gold/ },
+    { re: /دلار|\busd\b/, title: /دلار|usd/ },
+    { re: /پوند|\bgbp\b|pound/, title: /پوند|gbp|pound/ },
+    { re: /یورو|\beur\b|euro/, title: /یورو|eur|euro/ },
+    { re: /یوان|\bcny\b|yuan/, title: /یوان|cny|yuan/ },
+    { re: /درهم|\baed\b|dirham/, title: /درهم|aed|dirham/ },
+    { re: /لیر|\btry\b|lira|turkish lira/, title: /لیر|try|lira/ },
+    { re: /سکه|coin/, title: /سکه|coin/ },
+    { re: /نفت|برنت|brent|oil/, title: /نفت|برنت|brent|oil/ }
+  ];
+  const match = requested.find(item => item.re.test(q));
   let items = data.items || [];
-  if (wantsGold) {
-    items = items.filter(item => /طلای?\s*(?:۱۸|18)|گرم\s*(?:۱۸|18)|gold/i.test(normalizeText(item.title)));
-  } else if (wantsDollar) {
-    items = items.filter(item => /دلار\s*(?:آزاد)?|usd/i.test(normalizeText(item.title)));
-  }
+  if (match) items = items.filter(item => match.title.test(normalizeText(item.title)));
   const lines = items.map(item => `- ${item.title}: ${item.price} ${item.unit}`);
   return `
-اطلاعات قیمت بازار از سرویس آناناس:
+اطلاعات قیمت بازار:
 زمان دریافت داده: ${data.updated_at}
 ${lines.length ? lines.join("\n") : "برای دارایی موردنظر نرخ معتبر دریافت نشد."}
 
 قوانین:
-- فقط نرخ مربوط به سؤال کاربر را اعلام کن؛ هرگز فهرست کلی «آخرین نرخ‌های بازار» یا دارایی‌های نامرتبط را نمایش نده.
+- فقط نرخ همان دارایی مشخص‌شده در سؤال را اعلام کن؛ هرگز فهرست کلی «آخرین نرخ‌های بازار» یا نرخ دارایی‌های دیگر را نمایش نده.
+- اگر سؤال درباره طلای ۲۴ عیار است، نرخ طلای ۱۸ عیار را جایگزین نکن.
 - واحد پول و زمان دریافت را دقیق اعلام کن.
 - قیمت ناموجود را حدس نزن.
 - اگر نرخ اختصاصی دارایی پیدا نشد، صریحاً بگو نرخ معتبر در دسترس نیست.
