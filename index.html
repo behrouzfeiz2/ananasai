@@ -1470,7 +1470,7 @@ function isGenericGoldQuestion(t){
 function getMarketChartAsset(t){
  const q=String(t||'').toLowerCase().replace(/[ي]/g,'ی').replace(/[ك]/g,'ک');
  const asksPrice=/قیمت|نرخ|چنده|چقدر|روند|نمودار|تغییر|هفته|ماه|سال|امروز|الان/.test(q);
- if(!asksPrice && !/^\s*(?:دلار|طلا|پوند|یورو|یوان|درهم|لیر)\s*[؟?!.]*\s*$/.test(q))return null;
+ if(!asksPrice && !/^\s*(?:دلار|طلا|پوند|یورو|یوان|درهم|لیر|روبل|فرانک)\s*[؟?!.]*\s*$/.test(q))return null;
  if(/دلار کانادا|دلار استرالیا|دلار نیوزیلند/.test(q))return null;
  if(/طلای?\s*(?:۱۸|18)|۱۸\s*عیار|18\s*عیار|عیار\s*هجده|هجده\s*عیار/.test(q))return 'gold18';
  if(/طلای?\s*(?:۲۴|24)|۲۴\s*عیار|24\s*عیار|عیار\s*بیست.?و.?چهار/.test(q))return 'gold24';
@@ -1480,6 +1480,8 @@ function getMarketChartAsset(t){
  if(/یوان|\bcny\b|yuan/.test(q))return 'yuan';
  if(/درهم|\baed\b|dirham/.test(q))return 'dirham';
  if(/لیر|\btry\b|lira/.test(q))return 'lira';
+ if(/روبل|\brub\b|ruble/.test(q))return 'ruble';
+ if(/فرانک(?:\s*سوئیس)?|\bchf\b|swiss franc/.test(q))return 'swissFranc';
  if(/دلار|\busd\b/.test(q))return 'dollar';
  return null;
 }
@@ -1517,12 +1519,14 @@ function changeDollarChartRange(i,n){
 function renderDollarChart(c,i){
  if(!c?.points?.length)return '';
  const n=Number(c.selectedRange)||30,p=c.points.slice(-n),v=p.map(x=>+x.price),lo=Math.min(...v),hi=Math.max(...v),span=Math.max(1,hi-lo),fmt=x=>Math.round(x).toLocaleString('fa-IR');
+ const hasHistory=c.historyAvailable!==false&&p.length>1;
  const xy=v.map((x,j)=>[12+j*576/Math.max(1,v.length-1),150-(x-lo)/span*130]),path=xy.map((x,j)=>(j?'L':'M')+x[0].toFixed(1)+' '+x[1].toFixed(1)).join(' '),last=v[v.length-1],first=v[0],up=last>=first,col=up?'#34d399':'#f87171';
  const ranges=[[7,'۱ هفته'],[30,'۱ ماه'],[90,'۳ ماه'],[365,'۱ سال']];
- const buttons=ranges.map(x=>'<button onclick="changeDollarChartRange('+i+','+x[0]+')" class="rounded-lg px-2 py-1 text-xs '+(n===x[0]?'bg-amber-400 text-black':'bg-white/10 text-gray-300')+'">'+x[1]+'</button>').join('');
+ const buttons=hasHistory?ranges.map(x=>'<button onclick="changeDollarChartRange('+i+','+x[0]+')" class="rounded-lg px-2 py-1 text-xs '+(n===x[0]?'bg-amber-400 text-black':'bg-white/10 text-gray-300')+'">'+x[1]+'</button>').join(''):'';
  const date=x=>x.jalaliDate||x.date||'';
- const title=c.title||'دلار آزاد';
- return '<section class="mt-4 rounded-xl border border-emerald-500/20 bg-[#10251f] p-3 space-y-3" dir="rtl"><div class="flex justify-between"><div><b class="text-white">نمودار '+escapeHtml(title)+'</b><div class="text-xs text-gray-400">تغییرات روزانه · تومان</div></div><div class="text-left font-bold text-white">'+fmt(c.currentPrice||last)+' تومان<div class="text-xs" style="color:'+col+'">'+(up?'▲':'▼')+' '+fmt(Math.abs(last-first))+' ('+Math.abs((last-first)/Math.max(1,first)*100).toFixed(2)+'٪)</div></div></div><div class="flex gap-1.5 flex-wrap">'+buttons+'</div><svg viewBox="0 0 600 180" class="w-full"><path d="'+path+'" fill="none" stroke="'+col+'" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><text x="12" y="174" fill="#9ca3af" font-size="10">'+escapeHtml(date(p[0]))+'</text><text x="588" y="174" fill="#9ca3af" font-size="10" text-anchor="end">'+escapeHtml(date(p[p.length-1]))+'</text></svg><div class="flex justify-between text-xs text-gray-400"><span>کمینه '+fmt(lo)+'</span><span>بیشینه '+fmt(hi)+'</span></div><div class="text-[10px] text-gray-500">آخرین دریافت: '+escapeHtml(c.updatedAt||'نامشخص')+'</div></section>';
+ const title=c.title||'نرخ ارز';
+ const chartBody=hasHistory?'<div class="flex gap-1.5 flex-wrap">'+buttons+'</div><svg viewBox="0 0 600 180" class="w-full"><path d="'+path+'" fill="none" stroke="'+col+'" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><text x="12" y="174" fill="#9ca3af" font-size="10">'+escapeHtml(date(p[0]))+'</text><text x="588" y="174" fill="#9ca3af" font-size="10" text-anchor="end">'+escapeHtml(date(p[p.length-1]))+'</text></svg><div class="flex justify-between text-xs text-gray-400"><span>کمینه '+fmt(lo)+'</span><span>بیشینه '+fmt(hi)+'</span></div>':'<div class="text-xs text-amber-200/80">قیمت زنده دریافت شد؛ تاریخچه نمودار این ارز در منبع فعلی موجود نبود.</div>';
+ return '<section class="mt-4 rounded-xl border border-emerald-500/20 bg-[#10251f] p-3 space-y-3" dir="rtl"><div class="flex justify-between"><div><b class="text-white">نمودار '+escapeHtml(title)+'</b><div class="text-xs text-gray-400">تغییرات روزانه · تومان</div></div><div class="text-left font-bold text-white">'+fmt(c.currentPrice||last)+' تومان'+(hasHistory?'<div class="text-xs" style="color:'+col+'">'+(up?'▲':'▼')+' '+fmt(Math.abs(last-first))+' ('+Math.abs((last-first)/Math.max(1,first)*100).toFixed(2)+'٪)</div>':'')+'</div></div>'+chartBody+'<div class="text-[10px] text-gray-500">آخرین دریافت: '+escapeHtml(c.updatedAt||'نامشخص')+'</div></section>';
 }
 
     async function handleSubmit(e) {

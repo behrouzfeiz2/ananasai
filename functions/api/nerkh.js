@@ -60,6 +60,8 @@ export async function onRequestGet(context) {
       { title: "یوان چین", price: getPrice("price_cny"), unit: "ریال" },
       { title: "درهم امارات", price: getPrice("price_aed"), unit: "ریال" },
       { title: "لیر ترکیه", price: getPrice("price_try"), unit: "ریال" },
+      { title: "روبل روسیه", price: getPrice("price_rub"), unit: "ریال" },
+      { title: "فرانک سوئیس", price: getPrice("price_chf"), unit: "ریال" },
       { title: "سکه امامی", price: getPrice("sekee"), unit: "ریال" },
       { title: "نفت برنت", price: getPrice("oil_brent"), unit: "دلار" }
     ];

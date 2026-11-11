@@ -15,7 +15,9 @@ const ASSETS = {
   euro: { symbol: "price_eur", title: "یورو" },
   yuan: { symbol: "price_cny", title: "یوان چین" },
   dirham: { symbol: "price_aed", title: "درهم امارات" },
-  lira: { symbol: "price_try", title: "لیر ترکیه" }
+  lira: { symbol: "price_try", title: "لیر ترکیه" },
+  ruble: { symbol: "price_rub", title: "روبل روسیه" },
+  swissFranc: { symbol: "price_chf", title: "فرانک سوئیس" }
 };
 
 function cleanText(value) {
@@ -49,11 +51,21 @@ async function fetchWithTimeout(url, timeout = 15000) {
   }
 }
 export async function onRequestGet({ request }) {
+  const requestUrl = new URL(request.url);
+  const assetKey = requestUrl.searchParams.get("asset") || "dollar";
+  const asset = ASSETS[assetKey];
+  if (!asset) {
+    return new Response(JSON.stringify({ success: false, error: "دارایی درخواستی پشتیبانی نمی‌شود." }), { status: 400, headers: corsHeaders });
+  }
+  const { symbol, title } = asset;
+  let history = [];
+  let historyError = null;
+  let currentPrice = null;
+  let updatedAt = new Date().toLocaleString("fa-IR", { timeZone: "Asia/Tehran", dateStyle: "short", timeStyle: "short" });
+
+  // History and live quote are independent: a missing history table must not
+  // prevent returning a valid current quote from the live market board.
   try {
-    const requestUrl = new URL(request.url);
-    const assetKey = requestUrl.searchParams.get("asset") || "dollar";
-    const asset = ASSETS[assetKey] || ASSETS.dollar;
-    const { symbol, title } = asset;
     const url = new URL("https://api.tgju.org/v1/market/indicator/summary-table-data/" + symbol);
     const params = new URLSearchParams();
     params.set("lang", "fa");
@@ -86,26 +98,30 @@ export async function onRequestGet({ request }) {
     }).filter(Boolean);
     const unique = new Map();
     for (const point of points) unique.set(point.date, point);
-    const history = Array.from(unique.values()).sort((a,b) => a.date.localeCompare(b.date)).slice(-370);
-    if (!history.length) throw new Error("TGJU returned no usable history rows");
-
-    let currentPrice = history[history.length-1].price;
-    let updatedAt = new Date().toLocaleString("fa-IR", { timeZone: "Asia/Tehran", dateStyle: "short", timeStyle: "short" });
-    try {
-      const liveResponse = await fetchWithTimeout("https://call1.tgju.org/ajax.json", 9000);
-      if (liveResponse.ok) {
-        const live = await liveResponse.json();
-        const raw = numeric(live?.current?.[symbol]?.p);
-        if (raw && raw > 0) currentPrice = Math.round(raw / 10);
-      }
-    } catch (error) {
-      // Keep the latest historical close if the live board is temporarily unavailable.
-    }
-    return new Response(JSON.stringify({ success: true, asset: assetKey, symbol, title, currency: "تومان", currentPrice, updatedAt, points: history }), { status: 200, headers: corsHeaders });
+    history = Array.from(unique.values()).sort((a,b) => a.date.localeCompare(b.date)).slice(-370);
   } catch (error) {
-    console.error("MARKET_HISTORY_ERROR", error.message);
-    return new Response(JSON.stringify({ success: false, error: "دریافت تاریخچه قیمت بازار موقتاً امکان‌پذیر نیست." }), { status: 503, headers: { ...corsHeaders, "Cache-Control": "no-store" } });
+    historyError = error.message || String(error);
+    console.error("MARKET_HISTORY_SOURCE_ERROR", symbol, historyError);
   }
+
+  try {
+    const liveResponse = await fetchWithTimeout("https://call1.tgju.org/ajax.json", 9000);
+    if (liveResponse.ok) {
+      const live = await liveResponse.json();
+      const raw = numeric(live?.current?.[symbol]?.p);
+      if (raw && raw > 0) currentPrice = Math.round(raw / 10);
+    }
+  } catch (error) {
+    console.error("MARKET_LIVE_QUOTE_ERROR", symbol, error.message);
+  }
+
+  if (!currentPrice && history.length) currentPrice = history[history.length-1].price;
+  if (!currentPrice || currentPrice <= 0) {
+    return new Response(JSON.stringify({ success: false, error: "دریافت قیمت زنده و تاریخچه این دارایی از منبع بازار ناموفق بود.", detail: historyError }), { status: 503, headers: { ...corsHeaders, "Cache-Control": "no-store" } });
+  }
+  const historyAvailable = history.length > 1;
+  const points = history.length ? history : [{ date: new Date().toISOString().slice(0,10), jalaliDate: updatedAt, price: currentPrice }];
+  return new Response(JSON.stringify({ success: true, asset: assetKey, symbol, title, currency: "تومان", currentPrice, updatedAt, points, historyAvailable, historyError }), { status: 200, headers: corsHeaders });
 }
 export async function onRequestOptions() {
   return new Response(null, { status: 204, headers: corsHeaders });
