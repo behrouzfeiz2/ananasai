@@ -1033,6 +1033,67 @@ async function callGemini(
   }
 }
 // ======================================================
+// 8.1 GEMINI RETRY - فقط برای خطاهای موقت مدل اصلی
+// ======================================================
+
+async function callGeminiWithRetry(
+  model,
+  apiKey,
+  payload,
+  systemPrompt,
+  maxAttempts = 1
+) {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const result = await callGemini(
+        model,
+        apiKey,
+        payload,
+        systemPrompt
+      );
+
+      // خطاهای موقت سرور یا Gateway ارزش یک تلاش مجدد دارند.
+      const retryableStatus = [408, 425, 500, 502, 503, 504]
+        .includes(result.status);
+
+      if (!result.ok && retryableStatus && attempt < maxAttempts) {
+        console.warn("ANANAS_GEMINI_RETRY", {
+          model,
+          attempt,
+          status: result.status
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 800));
+        continue;
+      }
+
+      return result;
+
+    } catch (error) {
+      lastError = error;
+
+      // خطاهای fetch و timeout معمولاً موقتی‌اند.
+      if (attempt >= maxAttempts) {
+        throw error;
+      }
+
+      console.warn("ANANAS_GEMINI_RETRY", {
+        model,
+        attempt,
+        error: error?.name || "NetworkError",
+        message: error?.message || String(error)
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 800));
+    }
+  }
+
+  throw lastError || new Error("Gemini request failed");
+}
+
+// ======================================================
 // 9. GROQ FALLBACK
 // ======================================================
 
@@ -1381,11 +1442,14 @@ if (!attachmentValidation.valid) {
 
     for (const targetModel of models) {
       try {
-        const result = await callGemini(
+        // مدل اصلی در صورت خطای موقت فقط یک بار در پس‌زمینه تکرار می‌شود.
+        // مدل‌های جایگزین بدون Retry اجرا می‌شوند تا تأخیر بی‌مورد ایجاد نشود.
+        const result = await callGeminiWithRetry(
           targetModel,
           geminiKey,
           payload,
-          systemPrompt
+          systemPrompt,
+          targetModel === models[0] ? 2 : 1
         );
 
         if (!result.ok) {
