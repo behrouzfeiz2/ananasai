@@ -115,7 +115,7 @@ function extractOffers(text, html) {
 
     const boundary = section.search(/(?:فروشگاهی با این مشخصات یافت نشد|تغییرات قیمت|معرفی تخصصی)/i);
     const sellerText = boundary >= 0 ? section.slice(0, boundary) : section;
-    const priceRe = /([\d۰-۹٠-٩][\d۰-۹٠-٩٬,.\s]{3,})\s*تومان/g;
+    const priceRe = /([\d۰-۹٠-٩][\d۰-۹٠-٩٬,]{3,})\s*تومان/g;
     let match;
 
     while ((match = priceRe.exec(sellerText)) !== null) {
