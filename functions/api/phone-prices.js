@@ -71,7 +71,8 @@ function normalizePhoneModel(value) {
     .replace(/\s+/g, " ").trim();
 }
 function slugTitle(value) {
-  return value.split(" ").filter(Boolean).map(part =>
+  return value.split(" ").filter(Boolean).map((part, index) =>
+    index === 0 && part === "iphone" ? "iphone" :
     /^\d+[a-z]*$/i.test(part) ? part.toUpperCase() :
     part.charAt(0).toUpperCase() + part.slice(1)
   ).join("-");
@@ -288,7 +289,7 @@ export async function onRequestGet(context) {
   const query = (url.searchParams.get("model") || url.searchParams.get("q") || "").trim();
   const refresh = ["1", "true", "yes"].includes((url.searchParams.get("refresh") || "").toLowerCase());
   if (!query || query.toLowerCase() === "models") {
-    return json({ success: true, models: TEST_MODELS.map(({ id, name }) => ({ id, name })), usage: "/api/phone-prices?model=Samsung%20Galaxy%20S25%20Ultra" });
+    return json({ success: true, dynamic_lookup: true, supported_brands: ["Samsung", "Apple iPhone", "Xiaomi", "Redmi", "POCO"], usage: "/api/phone-prices?model=Samsung%20Galaxy%20S25%20Ultra" });
   }
   const model = resolveModel(query);
   if (!model) return json({ success: false, error: "نام برند یا مدل گوشی قابل تشخیص نیست." }, 400);
