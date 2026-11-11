@@ -1464,7 +1464,7 @@ function isGenericGoldQuestion(t){
  const asksPrice=/قیمت|نرخ|چنده|چقدر|روند|نمودار|تغییر|هفته|ماه|سال|امروز|الان/.test(q);
  const asksGold=/طلا|طلای|گرم طلا|gold/.test(q);
  const hasPurity=/(?:۱۸|18|عیار\s*هجده|هجده\s*عیار|۲۴|24|عیار\s*بیست.?و.?چهار|بیست.?و.?چهار\s*عیار)/.test(q);
- return asksGold && asksPrice && !hasPurity;
+ const bareGold=/^\\s*(?:طلا|طلای|gold)\\s*[؟?!.]*\\s*$/.test(q);\n return asksGold && (asksPrice || bareGold) && !hasPurity;
 }
 function getMarketChartAsset(t){
  const q=String(t||'').toLowerCase().replace(/[ي]/g,'ی').replace(/[ك]/g,'ک');
