@@ -189,6 +189,7 @@ function renderCoderHistoryList(){
 }
 function toggleCoderMenu(event,id){event.stopPropagation();coderMenuOpenId=coderMenuOpenId===id?null:id;renderCoderHistoryList();}
 function beginCoderConversation(repo,branch){
+ files=[];$("fileList").classList.add("hidden");$("fileOptions").innerHTML="";
  activeConversationId=newCoderConversationId();
  activeConversation={id:activeConversationId,title:"گفتگوی جدید",repository:repo?.full_name||"",branch:branch||repo?.default_branch||"",proposal_id:null,pull_request_number:null,pull_request_url:null,pull_request_branch:null,status:"chat",created_at:Date.now()};
  coderHistory=[];pendingProposalId=null;activeDrafts=[];coderMenuOpenId=null;
@@ -199,7 +200,7 @@ function beginCoderConversation(repo,branch){
  renderCoderHistoryList();
 }
 async function saveActiveConversation(){
- if(!activeConversationId||!activeConversation||!coderHistory.length)return false;
+ if(!activeConversationId||!activeConversation||!coderHistory.some(item=>item.role==="user"))return false;
  const firstUser=coderHistory.find(item=>item.role==="user")?.content||"";
  const title=activeConversation.title&&activeConversation.title!=="گفتگوی جدید"?activeConversation.title:(firstUser.replace(/\s+/g," ").slice(0,58)||"گفتگوی جدید");
  const record={
@@ -238,7 +239,7 @@ async function loadCoderConversation(id){
  try{
   const data=await api(null,"POST",{action:"history_get",id}),conversation=data.conversation;
   if(!conversation||conversation.id!==id)throw new Error("اطلاعات گفتگو معتبر نیست.");
-  activeConversationId=conversation.id;activeConversation=conversation;
+  activeConversationId=conversation.id;activeConversation=conversation;files=[];$("fileList").classList.add("hidden");$("fileOptions").innerHTML="";
   coderHistory=Array.isArray(conversation.messages)?conversation.messages:[];
   pendingProposalId=conversation.proposal_id||null;activeDrafts=[];coderMenuOpenId=null;
   selectedRepo=repositories.find(item=>item.full_name===conversation.repository)||null;
@@ -294,7 +295,7 @@ async function deleteCoderConversation(id){
 }
 async function saveConversationBranch(){
  if(!activeConversation)return;
- activeConversation.branch=$("branchInput").value.trim();await saveActiveConversation();
+ activeConversation.branch=$("branchInput").value.trim();files=[];$("fileList").classList.add("hidden");$("fileOptions").innerHTML="";await saveActiveConversation();
 }
 
 async function selectRepo(){
