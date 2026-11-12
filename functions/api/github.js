@@ -453,9 +453,9 @@ async function handlePost({ request, env }) {
           body: JSON.stringify({
             title: "Ananas AI: " + safeTaskTitle(proposal.task), head: branch, base: proposal.base_branch,
             draft: true, maintainer_can_modify: false,
-            body: "## تغییرات پیشنهادی عامل کدنویس آناناس\\n\\n" + proposal.summary +
-              "\\n\\n## فایل‌های تغییر یافته\\n" + completed.map(path => "- " + path).join("\\n") +
-              "\\n\\n## کنترل ایمنی\\n- تغییرات به‌صورت patch محدود و در یک commit اتمیک ثبت شده‌اند.\\n- شاخه اصلی مستقیماً تغییر نکرده است.\\n- این Pull Request به‌صورت Draft باقی می‌ماند."
+            body: "## تغییرات پیشنهادی عامل کدنویس آناناس\n\n" + proposal.summary +
+              "\n\n## فایل‌های تغییر یافته\n" + completed.map(path => "- " + path).join("\n") +
+              "\n\n## کنترل ایمنی\n- تغییرات به‌صورت patch محدود و در یک commit اتمیک ثبت شده‌اند.\n- شاخه اصلی مستقیماً تغییر نکرده است.\n- این Pull Request به‌صورت Draft باقی می‌ماند."
           })
         });
       } else {
