@@ -348,7 +348,7 @@ async function handlePost({ request, env }) {
     const account = await getAccount(request, env);
     if (account.error) return json({ error: account.error }, account.status);
     const contentLength = Number(request.headers.get("Content-Length") || 0);
-    if (contentLength > 180000) return json({ error: "حجم درخواست بیش از حد مجاز است." }, 413);
+    if (contentLength > 450000) return json({ error: "حجم درخواست بیش از حد مجاز است." }, 413);
     let body;
     try { body = await request.json(); } catch { return json({ error: "بدنه درخواست JSON معتبر نیست." }, 400); }
     if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "ساختار درخواست معتبر نیست." }, 400);
