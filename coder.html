@@ -21,7 +21,20 @@
   <div class="flex items-center gap-2"><span id="tierBadge" class="text-xs rounded-full px-3 py-1 bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">در حال بررسی حساب...</span><a href="index.html" class="text-xs text-gray-300 hover:text-amber-300">بازگشت به چت</a></div>
  </div>
 </header>
-<main class="max-w-6xl mx-auto px-4 py-8 space-y-6">
+<main class="max-w-7xl mx-auto px-3 sm:px-4 py-4 grid grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] gap-4 items-start">
+ <aside id="coderHistorySidebar" class="min-w-0 lg:sticky lg:top-20">
+  <section class="rounded-2xl border border-ananas-border bg-ananas-card overflow-hidden">
+   <div class="px-4 py-3 flex items-center justify-between gap-2 border-b border-ananas-border">
+    <div><h2 class="font-bold text-sm">تاریخچه کدنویس</h2><p class="text-[10px] text-gray-500 mt-1">گفتگوهای ذخیره‌شده شما</p></div>
+    <button id="historyToggleBtn" type="button" onclick="toggleHistoryPanel()" class="lg:hidden text-xs rounded-lg border border-ananas-border px-3 py-2 text-gray-300">نمایش</button>
+   </div>
+   <div id="coderHistoryPanel" class="hidden lg:block p-3 space-y-3">
+    <button type="button" onclick="createNewCoderConversation()" class="w-full rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-sm px-3 py-3 flex items-center justify-center gap-2"><span class="text-lg leading-none">＋</span> گفتگوی جدید</button>
+    <div id="coderHistoryList" class="space-y-1 max-h-[65vh] overflow-y-auto" aria-live="polite"><p class="text-xs text-gray-500 text-center py-5">در حال بارگذاری گفتگوها...</p></div>
+   </div>
+  </section>
+ </aside>
+ <div id="coderMainContent" class="min-w-0 space-y-6">
  <section class="text-center max-w-3xl mx-auto space-y-3 py-4">
   <div class="mx-auto w-16 h-16 rounded-2xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-4xl">💻</div>
   <h1 class="text-2xl sm:text-3xl font-extrabold">عامل کدنویس <span class="text-amber-400">آناناس</span></h1>
@@ -50,7 +63,7 @@
     <select id="repoSelect" onchange="selectRepo()" class="w-full rounded-xl bg-ananas-dark border border-ananas-border p-3 text-sm text-white outline-none focus:border-amber-400"><option value="">انتخاب پروژه...</option></select>
    </label>
    <label class="text-xs text-gray-400 space-y-2">شاخه پروژه
-    <input id="branchInput" class="code w-full rounded-xl bg-ananas-dark border border-ananas-border p-3 text-sm text-white outline-none focus:border-amber-400" placeholder="main">
+    <input id="branchInput" onchange="saveConversationBranch()" class="code w-full rounded-xl bg-ananas-dark border border-ananas-border p-3 text-sm text-white outline-none focus:border-amber-400" placeholder="main">
    </label>
   </div>
   <div id="repoMeta" class="text-xs text-gray-500"></div>
@@ -86,11 +99,13 @@
   <div id="analysisResult" class="text-sm text-gray-300 leading-8"></div>
  </section>
  <section class="text-center text-[11px] text-gray-600 py-3">AnanasAI Code Agent · Powered by Gemini · GitHub API</section>
+ </div>
 </main>
 <script>
 const userToken=localStorage.getItem("ananas_user_token")||"";
 const deviceUUID=localStorage.getItem("ananas_device_uuid")||"";
 let repositories=[],selectedRepo=null,files=[],pendingProposalId=null,coderHistory=[],activeDrafts=[];
+let coderConversations=[],activeConversationId=null,activeConversation=null,coderMenuOpenId=null;
 const $=id=>document.getElementById(id);
 function headers(){return{"Content-Type":"application/json","X-User-Token":userToken,"X-Device-UUID":deviceUUID};}
 async function api(action,method="GET",data=null){
@@ -118,6 +133,7 @@ async function boot(){
   const clientTier=qd.quota.isUltra||qd.quota.tier==="ultra"?"ultra":"pro";
   if(status.tier && status.tier!==clientTier){showError("سطح اشتراک در سرویس‌ها یکسان نیست. لطفاً یک‌بار از حساب خارج و دوباره وارد شوید.");$("connectBtn").disabled=true;return;}
   if(status.connected){$("githubStatus").textContent="متصل به @"+status.login;$("connectBtn").classList.add("hidden");$("reloadReposBtn").classList.remove("hidden");$("disconnectBtn").classList.remove("hidden");$("connectIntro").classList.add("hidden");await loadRepos();}else{$("githubStatus").textContent="هنوز متصل نشده";$("connectBtn").classList.remove("hidden");$("reloadReposBtn").classList.add("hidden");$("disconnectBtn").classList.add("hidden");$("connectIntro").classList.remove("hidden");}
+  await loadCoderHistory();
  }catch(e){showError(e.message);}
 }
 async function connectGitHub(){
@@ -145,13 +161,153 @@ async function loadRepos(){
  finally{$("reloadReposBtn").disabled=false;}
 }
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
-function selectRepo(){
- const name=$("repoSelect").value;selectedRepo=repositories.find(r=>r.full_name===name)||null;
- $("branchInput").value=selectedRepo?.default_branch||"";
- $("repoMeta").textContent=selectedRepo?(selectedRepo.description||"بدون توضیحات"):"";
- const ready=!!selectedRepo;$("analyzeBtn").disabled=!ready;$("treeBtn").disabled=!ready;$("applyBtn").disabled=!ready;
- pendingProposalId=null;coderHistory=[];activeDrafts=[];$("targetPath").value="";$("conversationLog").innerHTML='<p class="text-xs text-gray-500 text-center py-3">گفتگوی کدنویسی هنوز شروع نشده است.</p>';$("workStatus").classList.add("hidden");
- $("analysisSection").classList.add("hidden");$("taskSection").classList.toggle("hidden",!ready);$("fileList").classList.add("hidden");
+
+function newCoderConversationId(){
+ if(window.crypto?.randomUUID)return crypto.randomUUID().replace(/-/g,"");
+ return "coder"+Date.now().toString(36)+Math.random().toString(36).slice(2,12);
+}
+function toggleHistoryPanel(){
+ const panel=$("coderHistoryPanel");panel.classList.toggle("hidden");
+ $("historyToggleBtn").textContent=panel.classList.contains("hidden")?"نمایش":"بستن";
+}
+function renderCoderHistoryList(){
+ const list=$("coderHistoryList");
+ if(!coderConversations.length){list.innerHTML='<p class="text-xs text-gray-500 text-center py-6">هنوز گفتگوی کدنویسی ثبت نشده است.</p>';return;}
+ list.innerHTML=coderConversations.map(item=>{
+  const id=escapeHtml(item.id),active=item.id===activeConversationId,menuOpen=coderMenuOpenId===item.id;
+  const status=item.status==="merged"?'<span class="text-[9px] text-emerald-300">ادغام‌شده</span>':item.status==="draft"?'<span class="text-[9px] text-cyan-300">دارای PR</span>':item.status==="preview"?'<span class="text-[9px] text-amber-300">پیش‌نمایش</span>':'';
+  return '<div class="chat-history-item group relative flex items-center gap-1 w-full px-2 rounded-lg border '+(active?'bg-[#303030] text-white border-[#505050]':'text-gray-300 hover:bg-[#202020] border-transparent')+'">'+
+   '<button type="button" onclick="loadCoderConversation(\''+id+'\')" class="flex-1 min-w-0 text-right py-2.5 overflow-hidden">'+
+    '<span class="block truncate text-xs font-medium" dir="auto">'+escapeHtml(item.title||"گفتگوی بدون عنوان")+'</span>'+
+    '<span class="mt-1 flex items-center gap-2 min-w-0 text-[9px] text-gray-500"><span class="truncate code" dir="ltr">'+escapeHtml(item.repository||"بدون پروژه")+'</span>'+status+'</span>'+
+   '</button>'+
+   '<button type="button" onclick="toggleCoderMenu(event,\''+id+'\')" class="shrink-0 w-8 h-9 rounded-lg inline-flex items-center justify-center text-gray-400 hover:bg-[#454545]" title="مدیریت گفتگو" aria-label="مدیریت گفتگو">⋮</button>'+
+   (menuOpen?'<div class="absolute left-1 top-[calc(100%-2px)] z-50 w-36 rounded-xl border border-[#555] bg-[#202020] p-1.5 shadow-2xl"><button type="button" onclick="renameCoderConversation(\''+id+'\')" class="w-full text-right px-3 py-2 rounded-lg text-white hover:bg-[#383838] text-xs">تغییر عنوان</button><button type="button" onclick="deleteCoderConversation(\''+id+'\')" class="w-full text-right px-3 py-2 rounded-lg text-red-300 hover:bg-[#383838] text-xs">حذف گفتگو</button></div>':'')+
+  '</div>';
+ }).join("");
+}
+function toggleCoderMenu(event,id){event.stopPropagation();coderMenuOpenId=coderMenuOpenId===id?null:id;renderCoderHistoryList();}
+function beginCoderConversation(repo,branch){
+ activeConversationId=newCoderConversationId();
+ activeConversation={id:activeConversationId,title:"گفتگوی جدید",repository:repo?.full_name||"",branch:branch||repo?.default_branch||"",proposal_id:null,pull_request_number:null,pull_request_url:null,pull_request_branch:null,status:"chat",created_at:Date.now()};
+ coderHistory=[];pendingProposalId=null;activeDrafts=[];coderMenuOpenId=null;
+ $("targetPath").value="";$("taskInput").value="";
+ $("conversationLog").innerHTML='<p class="text-xs text-gray-500 text-center py-3">گفتگوی کدنویسی هنوز شروع نشده است.</p>';
+ $("workStatus").classList.add("hidden");$("analysisSection").classList.add("hidden");
+ $("taskSection").classList.toggle("hidden",!repo);
+ renderCoderHistoryList();
+}
+async function saveActiveConversation(){
+ if(!activeConversationId||!activeConversation||!coderHistory.length)return false;
+ const firstUser=coderHistory.find(item=>item.role==="user")?.content||"";
+ const title=activeConversation.title&&activeConversation.title!=="گفتگوی جدید"?activeConversation.title:(firstUser.replace(/\s+/g," ").slice(0,58)||"گفتگوی جدید");
+ const record={
+  id:activeConversationId,title,
+  repository:activeConversation.repository||selectedRepo?.full_name||"",
+  branch:$("branchInput").value.trim()||activeConversation.branch||selectedRepo?.default_branch||"",
+  messages:coderHistory.slice(-160),
+  proposal_id:pendingProposalId||activeConversation.proposal_id||null,
+  pull_request_number:activeConversation.pull_request_number||null,
+  pull_request_url:activeConversation.pull_request_url||null,
+  pull_request_branch:activeConversation.pull_request_branch||null,
+  status:activeConversation.status||"chat"
+ };
+ try{
+  const data=await api(null,"POST",{action:"history_save",conversation:record});
+  activeConversation={...activeConversation,...record,updated_at:data.conversation?.updated_at||Date.now()};
+  const summary=data.conversation||{...record,message_count:record.messages.length,updated_at:Date.now()};
+  coderConversations=[summary,...coderConversations.filter(item=>item.id!==activeConversationId)].sort((a,b)=>Number(b.updated_at||0)-Number(a.updated_at||0));
+  renderCoderHistoryList();return true;
+ }catch(error){
+  console.warn("Coder conversation save failed:",error);
+  const status=$("workStatus");if(status&&!status.classList.contains("hidden"))status.dataset.saveWarning="ذخیره تاریخچه ناموفق بود؛ اتصال را بررسی کنید.";
+  return false;
+ }
+}
+async function loadCoderHistory(){
+ try{
+  const data=await api(null,"POST",{action:"history_list"});
+  coderConversations=Array.isArray(data.conversations)?data.conversations:[];
+  renderCoderHistoryList();
+  if(!activeConversationId&&coderConversations.length)await loadCoderConversation(coderConversations[0].id);
+ }catch(error){$("coderHistoryList").innerHTML='<p class="text-xs text-red-300 text-center py-5">'+escapeHtml(error.message)+'</p>';}
+}
+async function loadCoderConversation(id){
+ try{
+  const data=await api(null,"POST",{action:"history_get",id}),conversation=data.conversation;
+  if(!conversation||conversation.id!==id)throw new Error("اطلاعات گفتگو معتبر نیست.");
+  activeConversationId=conversation.id;activeConversation=conversation;
+  coderHistory=Array.isArray(conversation.messages)?conversation.messages:[];
+  pendingProposalId=conversation.proposal_id||null;activeDrafts=[];coderMenuOpenId=null;
+  selectedRepo=repositories.find(item=>item.full_name===conversation.repository)||null;
+  $("projectSection").classList.toggle("hidden",!repositories.length);
+  if(selectedRepo){
+   $("repoSelect").value=selectedRepo.full_name;$("branchInput").value=conversation.branch||selectedRepo.default_branch||"";
+   $("repoMeta").textContent=selectedRepo.description||"بدون توضیحات";$("analyzeBtn").disabled=false;$("treeBtn").disabled=false;
+  }else{
+   $("repoSelect").value="";$("branchInput").value=conversation.branch||"";$("repoMeta").textContent=conversation.repository||"";
+   $("analyzeBtn").disabled=true;$("treeBtn").disabled=true;
+  }
+  $("taskSection").classList.remove("hidden");$("applyBtn").disabled=!selectedRepo;
+  $("targetPath").value="";$("taskInput").value="";$("analysisSection").classList.add("hidden");
+  if(conversation.pull_request_url){
+   $("workStatus").classList.remove("hidden");
+   $("workStatus").innerHTML='<div class="font-bold text-cyan-300">'+(conversation.status==="merged"?"این گفتگو به PR ادغام‌شده متصل است":"Pull Request مرتبط با این گفتگو")+'</div><p class="mt-2 text-xs text-gray-400">'+escapeHtml(conversation.repository||"")+' · '+escapeHtml(conversation.pull_request_branch||"")+'</p><a class="inline-flex mt-3 text-cyan-300 underline text-sm" target="_blank" rel="noopener" href="'+escapeHtml(conversation.pull_request_url)+'">مشاهده Pull Request #'+Number(conversation.pull_request_number||0)+' در GitHub</a>';
+  }else{$("workStatus").classList.add("hidden");}
+  renderCoderConversation();renderCoderHistoryList();
+  if(window.innerWidth<1024&&!$("coderHistoryPanel").classList.contains("hidden"))toggleHistoryPanel();
+ }catch(error){showError("بازیابی گفتگو ناموفق بود: "+error.message);}
+}
+async function createNewCoderConversation(){
+ await saveActiveConversation();
+ if(!selectedRepo){showError("برای شروع گفتگوی کدنویسی، ابتدا یک پروژه GitHub انتخاب کنید.");return;}
+ beginCoderConversation(selectedRepo,$("branchInput").value.trim()||selectedRepo.default_branch);
+ if(window.innerWidth<1024&&!$("coderHistoryPanel").classList.contains("hidden"))toggleHistoryPanel();
+}
+async function renameCoderConversation(id){
+ const item=coderConversations.find(conversation=>conversation.id===id);if(!item)return;
+ const title=prompt("عنوان جدید گفتگو را وارد کنید:",item.title||"");
+ if(title===null||!title.trim())return;
+ try{
+  const data=await api(null,"POST",{action:"history_rename",id,title:title.trim()});
+  coderConversations=coderConversations.map(conversation=>conversation.id===id?{...conversation,title:data.conversation.title,updated_at:data.conversation.updated_at}:conversation);
+  if(activeConversationId===id&&activeConversation)activeConversation.title=data.conversation.title;
+  coderMenuOpenId=null;renderCoderHistoryList();
+ }catch(error){showError("تغییر عنوان انجام نشد: "+error.message);}
+}
+async function deleteCoderConversation(id){
+ const item=coderConversations.find(conversation=>conversation.id===id);if(!item)return;
+ if(!confirm("گفتگوی «"+(item.title||"بدون عنوان")+"» حذف شود؟ این کار فقط تاریخچه کدنویس را حذف می‌کند و روی Pull Request در GitHub اثری ندارد."))return;
+ try{
+  await api(null,"POST",{action:"history_delete",id});
+  coderConversations=coderConversations.filter(conversation=>conversation.id!==id);coderMenuOpenId=null;
+  if(activeConversationId===id){
+   activeConversationId=null;activeConversation=null;coderHistory=[];pendingProposalId=null;
+   $("conversationLog").innerHTML='<p class="text-xs text-gray-500 text-center py-3">گفتگوی کدنویسی هنوز شروع نشده است.</p>';
+   $("workStatus").classList.add("hidden");$("taskInput").value="";$("targetPath").value="";
+   if(selectedRepo)beginCoderConversation(selectedRepo,$("branchInput").value.trim());
+  }
+  renderCoderHistoryList();
+ }catch(error){showError("حذف گفتگو انجام نشد: "+error.message);}
+}
+async function saveConversationBranch(){
+ if(!activeConversation)return;
+ activeConversation.branch=$("branchInput").value.trim();await saveActiveConversation();
+}
+
+async function selectRepo(){
+ const nextRepo=repositories.find(r=>r.full_name===$("repoSelect").value)||null;
+ if(!nextRepo){selectedRepo=null;$("applyBtn").disabled=true;$("taskSection").classList.add("hidden");return;}
+ const previousRepository=activeConversation?.repository||"";
+ if(activeConversation&&coderHistory.length&&previousRepository&&previousRepository!==nextRepo.full_name)await saveActiveConversation();
+ selectedRepo=nextRepo;$("branchInput").value=selectedRepo.default_branch||"";
+ $("repoMeta").textContent=selectedRepo.description||"بدون توضیحات";
+ $("analyzeBtn").disabled=false;$("treeBtn").disabled=false;$("applyBtn").disabled=false;
+ $("analysisSection").classList.add("hidden");$("fileList").classList.add("hidden");
+ if(activeConversation&&coderHistory.length&&previousRepository&&previousRepository!==nextRepo.full_name)beginCoderConversation(selectedRepo,$("branchInput").value);
+ else if(!activeConversation)beginCoderConversation(selectedRepo,$("branchInput").value);
+ else{activeConversation.repository=selectedRepo.full_name;activeConversation.branch=$("branchInput").value;$("taskSection").classList.remove("hidden");}
+ renderCoderHistoryList();
 }
 async function loadTree(){
  if(!selectedRepo)throw new Error("ابتدا پروژه را انتخاب کنید.");
@@ -217,13 +373,13 @@ async function listDrafts(fromChat=false){
   activeDrafts=d.drafts||[];
   if(!activeDrafts.length){
    const message="هیچ Draft Pull Request متعلق به عامل آناناس برای شاخه main پیدا نشد.";
-   status.textContent=message;if(fromChat){coderHistory.push({role:"assistant",content:message});renderCoderConversation();}return;
+   status.textContent=message;if(fromChat){coderHistory.push({role:"assistant",content:message});renderCoderConversation();await saveActiveConversation();}return;
   }
   status.innerHTML='<div class="font-bold text-amber-300">پیش‌نویس‌های قابل ادغام در main</div><div class="mt-3 space-y-2">'+activeDrafts.map(item=>'<div class="rounded-lg border border-ananas-border p-3"><div class="font-semibold">#'+Number(item.number)+' · '+escapeHtml(item.title||"بدون عنوان")+'</div><div class="code text-xs text-gray-400 mt-1">'+escapeHtml(item.branch)+'</div><a class="text-xs text-cyan-300 underline" target="_blank" rel="noopener" href="'+escapeHtml(item.url)+'">مشاهده در GitHub</a></div>').join("")+'</div>'+
   '<button onclick="mergeDrafts()" class="mt-4 rounded-xl bg-emerald-400 text-slate-950 font-bold px-5 py-3 text-sm">ادغام همه پیش‌نویس‌ها در main</button>'+
   '<p class="mt-2 text-[11px] text-gray-500">پیش از ادغام، تأیید جداگانه گرفته می‌شود. GitHub همچنان قوانین محافظت شاخه و بررسی‌های اجباری را اعمال می‌کند.</p>';
-  if(fromChat){coderHistory.push({role:"assistant",content:activeDrafts.length+" پیش‌نویس متعلق به آناناس برای main پیدا شد. فهرست و گزینه ادغام در پنل نمایش داده شده است."});renderCoderConversation();}
- }catch(e){status.textContent="خطا در دریافت پیش‌نویس‌ها: "+e.message;if(fromChat){coderHistory.push({role:"assistant",content:"خطا: "+e.message});renderCoderConversation();}}
+  if(fromChat){coderHistory.push({role:"assistant",content:activeDrafts.length+" پیش‌نویس متعلق به آناناس برای main پیدا شد. فهرست و گزینه ادغام در پنل نمایش داده شده است."});renderCoderConversation();await saveActiveConversation();}
+ }catch(e){status.textContent="خطا در دریافت پیش‌نویس‌ها: "+e.message;if(fromChat){coderHistory.push({role:"assistant",content:"خطا: "+e.message});renderCoderConversation();await saveActiveConversation();}}
 }
 async function mergeDrafts(){
  if(!activeDrafts.length)return;
@@ -237,14 +393,19 @@ async function mergeDrafts(){
    (merged.length?'<ul class="list-disc pr-5 mt-2">'+merged.map(item=>'<li>PR #'+Number(item.number)+' — <a class="text-cyan-300 underline" href="'+escapeHtml(item.url)+'" target="_blank" rel="noopener">GitHub</a></li>').join("")+'</ul>':'')+
    (failed.length?'<div class="mt-3 text-red-300 font-semibold">مواردی که ادغام نشدند</div><ul class="list-disc pr-5">'+failed.map(item=>'<li>PR #'+Number(item.number)+': '+escapeHtml(item.reason)+'</li>').join("")+'</ul>':'');
   coderHistory.push({role:"assistant",content:"نتیجه ادغام: "+merged.length+" پیش‌نویس ادغام شد و "+failed.length+" مورد نیازمند بررسی باقی ماند."});renderCoderConversation();
-  activeDrafts=[];
+  if(activeConversation&&activeConversation.pull_request_number&&merged.some(item=>Number(item.number)===Number(activeConversation.pull_request_number)))activeConversation.status="merged";
+  activeDrafts=[];await saveActiveConversation();
  }catch(e){status.textContent="خطا: "+e.message;}
 }
 async function applyChanges(){
  const task=$("taskInput").value.trim();if(!task)return showError("پیام یا درخواست اصلاح را بنویسید.");
  if(!selectedRepo)return showError("ابتدا مخزن را انتخاب کنید.");
  hideError();
+ if(!activeConversationId||!activeConversation)beginCoderConversation(selectedRepo,$("branchInput").value.trim());
+ if(activeConversation?.repository&&activeConversation.repository!==selectedRepo.full_name){await saveActiveConversation();beginCoderConversation(selectedRepo,$("branchInput").value.trim());}
  coderHistory.push({role:"user",content:task});renderCoderConversation();
+ if(activeConversation){activeConversation.repository=selectedRepo.full_name;activeConversation.branch=$("branchInput").value.trim()||selectedRepo.default_branch;if(activeConversation.title==="گفتگوی جدید")activeConversation.title=task.replace(/\s+/g," ").slice(0,58);}
+ await saveActiveConversation();
  $("taskInput").value="";
  if(isMergeDraftCommand(task)){await listDrafts(true);return;}
  $("applyBtn").disabled=true;$("applyBtn").textContent="در حال بررسی درخواست...";
@@ -263,14 +424,19 @@ async function applyChanges(){
   const d=await api(null,"POST",payload);
   if(d.preview_required){
    renderProposalPreview(d);
+   if(activeConversation){activeConversation.status="preview";activeConversation.proposal_id=d.proposal_id||pendingProposalId;}
    coderHistory.push({role:"assistant",content:d.assistant_message||d.summary||"پیش‌نمایش اصلاحات آماده است. آن را بررسی کنید یا با پیام بعدی اصلاحش کنید."});
+   await saveActiveConversation();
   }else{
    status.textContent=d.message||d.summary||"برای این پیام تغییری اعمال نشد.";
+   if(activeConversation)activeConversation.status=activeConversation.pull_request_number?"draft":"chat";
    coderHistory.push({role:"assistant",content:d.message||d.summary||"برای ادامه، جزئیات بیشتری ارائه کنید."});
+   await saveActiveConversation();
   }
  }catch(e){
   status.textContent="خطا: "+e.message;
   coderHistory.push({role:"assistant",content:"خطا در بررسی درخواست: "+e.message});
+  await saveActiveConversation();
  }finally{
   renderCoderConversation();$("applyBtn").disabled=false;$("applyBtn").textContent="ارسال پیام و تهیه/بازنگری پیش‌نویس";
  }
@@ -286,15 +452,16 @@ async function confirmChanges(){
  try{
   const d=await api(null,"POST",{action:"confirm",repo:selectedRepo.full_name,proposal_id:proposalId});
   pendingProposalId=d.proposal_id||proposalId;
+  if(activeConversation){activeConversation.status="draft";activeConversation.proposal_id=pendingProposalId;activeConversation.pull_request_number=Number(d.number||activeConversation.pull_request_number||0)||null;activeConversation.pull_request_url=d.pull_request||activeConversation.pull_request_url||null;activeConversation.pull_request_branch=d.branch||activeConversation.pull_request_branch||null;}
   status.innerHTML='<div class="font-bold text-emerald-300">'+(d.created?'Draft Pull Request ساخته شد':'همان Draft Pull Request به‌روزرسانی شد')+'</div><p class="mt-2">'+escapeHtml(d.summary||"")+'</p>'+
    '<p class="mt-2 text-xs text-gray-400">فایل‌های این مرحله:</p><ul class="list-disc pr-5">'+(d.files||[]).map(x=>'<li class="code">'+escapeHtml(x)+'</li>').join("")+'</ul>'+
    '<a class="inline-flex mt-4 rounded-lg bg-emerald-400 text-black px-4 py-2 font-bold" target="_blank" rel="noopener" href="'+escapeHtml(d.pull_request)+'">مشاهده Draft Pull Request در GitHub</a>'+
    '<p class="mt-3 text-xs text-amber-200">گفتگو باز می‌ماند؛ برای بررسی خطا یا اصلاح بخش دیگری، پیام بعدی را ارسال کنید تا همین Draft PR به‌روزرسانی شود.</p>';
   coderHistory.push({role:"assistant",content:(d.created?"Draft PR ساخته شد.":"Draft PR قبلی به‌روزرسانی شد.")+" فایل‌ها: "+(d.files||[]).join(", ")+" . می‌توانید گفتگو را ادامه دهید تا همان پیش‌نویس را اصلاح کنیم."});
-  renderCoderConversation();
+  renderCoderConversation();await saveActiveConversation();
  }catch(e){
   status.textContent="خطا: "+e.message;
-  coderHistory.push({role:"assistant",content:"ثبت تغییرات ناموفق بود: "+e.message});renderCoderConversation();
+  coderHistory.push({role:"assistant",content:"ثبت تغییرات ناموفق بود: "+e.message});renderCoderConversation();await saveActiveConversation();
  }finally{
   $("applyBtn").disabled=false;
   if(confirmButton && confirmButton.isConnected){confirmButton.disabled=false;confirmButton.textContent="تأیید تغییرات";}
