@@ -269,10 +269,12 @@ async function commitProposalBatch(token, repository, branch, baseCommit, change
   return commit.sha;
 }
 
-async function getAnanasDrafts(token, repository, base) {
+async function getAnanasDrafts(token, repository, base, expectedLogin) {
   const pulls = await github(token, "/repos/" + repository + "/pulls?state=open&base=" + encodeURIComponent(base) + "&per_page=100");
   return (Array.isArray(pulls) ? pulls : []).filter(p =>
-    p.draft === true && p.base?.ref === base && String(p.head?.ref || "").startsWith("ananas/agent-")
+    p.draft === true && p.base?.ref === base &&
+    String(p.head?.ref || "").startsWith("ananas/agent-") &&
+    (!expectedLogin || p.user?.login === expectedLogin)
   ).map(p => ({ number: p.number, title: p.title, branch: p.head.ref, url: p.html_url, updated_at: p.updated_at }));
 }
 \nasync function handleGet({ request, env }) {
@@ -361,11 +363,11 @@ async function handlePost({ request, env }) {
 
     if (action === "list_drafts") {
       const base = String(body.base || "main");
-      return json({ drafts: await getAnanasDrafts(linked.token, repository, base), base });
+      return json({ drafts: await getAnanasDrafts(linked.token, repository, base, linked.login), base });
     }
     if (action === "merge_drafts") {
       const base = String(body.base || "main");
-      const drafts = await getAnanasDrafts(linked.token, repository, base);
+      const drafts = await getAnanasDrafts(linked.token, repository, base, linked.login);
       const allowed = new Map(drafts.map(item => [item.number, item]));
       const numbers = [...new Set((Array.isArray(body.pr_numbers) ? body.pr_numbers : []).map(Number))];
       if (!numbers.length || numbers.length > 30) return json({ error: "شماره پیش‌نویس‌های انتخاب‌شده معتبر نیست." }, 400);
@@ -376,7 +378,11 @@ async function handlePost({ request, env }) {
       for (const number of numbers) {
         try {
           const pull = await github(linked.token, "/repos/" + repository + "/pulls/" + number);
-          if (!pull.node_id || pull.draft !== true) throw new Error("این پیش‌نویس دیگر در وضعیت Draft نیست؛ برای جلوگیری از ادغام ناخواسته عملیات متوقف شد.");
+          if (!pull.node_id || pull.state !== "open" || pull.draft !== true ||
+              pull.base?.ref !== base || !String(pull.head?.ref || "").startsWith("ananas/agent-") ||
+              pull.user?.login !== linked.login) {
+            throw new Error("وضعیت، مالک یا شاخه این پیش‌نویس تغییر کرده است؛ برای جلوگیری از ادغام ناخواسته عملیات متوقف شد.");
+          }
           const ready = await github(linked.token, "/graphql", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -529,10 +535,10 @@ async function handlePost({ request, env }) {
           "\\nمخزن: " + repository + "\\nشاخه: " + data.branch +
           "\\nدرخواست: " + task + "\\nفایل‌های تغییرکرده پیش‌نویس قبلی: " + JSON.stringify(previousPaths) +
           "\\nمسیرهای مجاز: " + JSON.stringify(eligible.slice(0, 700).map(item => item.path)) +
-          "\\nفقط JSON با شکل {\\"paths\\":[\\"مسیر دقیق\\"]} برگردان؛ حداکثر 4 مسیر از فهرست. فقط فایل مالک همان بخش را انتخاب کن؛ اگر مسیر روشن نیست آرایه خالی بده.";
+          "\\nفقط JSON با شکل {\\"paths\\":[\\"مسیر دقیق\\"]} برگردان؛ حداکثر 4 مسیر از فهرست. فایل‌های قبلی را فقط وقتی انتخاب کن که پیام جدید به همان بخش اشاره دارد؛ اگر کاربر بخش دیگری را خواسته، فقط فایل همان بخش را برگردان. اگر مسیر روشن نیست آرایه خالی بده.";
         const routing = await callGemini(env, routePrompt);
         selectedPaths = Array.isArray(routing?.paths) ? routing.paths.filter(path => typeof path === "string" && eligiblePaths.has(path)) : [];
-        selectedPaths = [...new Set([...previousPaths, ...selectedPaths])].filter(path => eligiblePaths.has(path));
+        selectedPaths = [...new Set(selectedPaths)].filter(path => eligiblePaths.has(path));
       }
       if (!selectedPaths.length) return json({ error: "فایل دقیق مرتبط با درخواست مشخص نشد. مسیر فایل یا کامپوننت را در «محدوده ویرایش» وارد کنید." }, 422);
       for (const path of selectedPaths) if (!eligiblePaths.has(path)) {
