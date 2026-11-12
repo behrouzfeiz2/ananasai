@@ -45,7 +45,17 @@ export async function onRequestPost({request,env}){
     }
     const q=JSON.parse(await env.ANANAS_KV.get(u.key)||"{}"),used=Number(q.used)||0;
     if(used>=5)return out({error:"سهمیه روزانه ۵ تصویر شما تمام شده است.",quota:{used,limit:5}},429);
-    const generationBody={model,prompt,...(model==="qwen-image-edit"?{}:{width,height}),...(referenceUrl?{image:referenceUrl}:{})};
+    // Server-side safeguard: preserve all nail details in Qwen edits unless explicitly requested.
+    const qwenNailProtection = model === "qwen-image-edit" ? `
+
+قانون حفاظتی اجباری برای تصویر مرجع:
+اگر در تصویر مرجع دست، انگشت، ناخن یا لاک ناخن دیده می‌شود، رنگ لاک، رنگ طبیعی ناخن، شکل، طول، فرم، طراحی و بافت ناخن‌ها را دقیقاً بدون تغییر حفظ کن.
+به هیچ عنوان رنگ ناخن یا لاک را تغییر نده، لاک را حذف یا اضافه نکن، ناخن‌ها را بازطراحی نکن و ظاهر آن‌ها را زیباتر، یکدست‌تر یا متفاوت نکن.
+این بخش از تصویر باید کاملاً دست‌نخورده باقی بماند، مگر اینکه کاربر در درخواست فعلی خود به‌صراحت تغییر رنگ ناخن/لاک یا ویرایش خود ناخن‌ها را خواسته باشد.
+در صورت نبود درخواست صریح درباره ناخن، فقط بخش‌های دیگری را که کاربر مشخص کرده ویرایش کن و ناخن‌ها را عیناً از تصویر مرجع حفظ کن.
+` : "";
+    const effectivePrompt = qwenNailProtection ? prompt + qwenNailProtection : prompt;
+    const generationBody={model,prompt:effectivePrompt,...(model==="qwen-image-edit"?{}:{width,height}),...(referenceUrl?{image:referenceUrl}:{})};
     const r=await fetch(API+"/generations",{method:"POST",headers:{Authorization:"Bearer "+env.ALPHA_KEY,"Content-Type":"application/json"},body:JSON.stringify(generationBody)});
     const j=await r.json();if(!r.ok||j.error||!j.id)return out({error:j.error?.message||"ثبت درخواست ناموفق بود."},r.status||502);
     await env.ANANAS_KV.put(u.key,JSON.stringify({used:used+1}),{expirationTtl:172800});
