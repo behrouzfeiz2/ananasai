@@ -26,7 +26,7 @@ const CODER_GUIDELINES = [
   "اگر مرجع دقیق پیدا نمی‌شود یا درخواست مبهم است، تغییر حدسی نزن؛ توضیح بده یا سؤال مشخص بپرس.",
   "برای یک اصلاح موضعی، فقط همان بخش را تغییر بده و هیچ کد سالمی را برای ساده‌سازی حذف نکن.",
   "هیچ merge، حذف فایل یا تغییر مستقیم شاخه اصلی بدون دستور صریح و تأیید کاربر انجام نده."
-].join("\\n");
+].join("\n");
 async function sha256(value) { return encode64(await crypto.subtle.digest("SHA-256", textEncoder.encode(value))); }
 async function encryptionKey(secret) {
   const raw = await crypto.subtle.digest("SHA-256", textEncoder.encode(secret));
@@ -531,11 +531,11 @@ async function handlePost({ request, env }) {
       const previousPaths = (previousProposal?.changes || []).map(item => item.path);
 
       if (!selectedPaths.length) {
-        const routePrompt = CODER_GUIDELINES + "\\nفقط مسیر فایل‌های مرتبط با درخواست را انتخاب کن؛ هنوز کدی را تغییر نده." +
-          "\\nمخزن: " + repository + "\\nشاخه: " + data.branch +
-          "\\nدرخواست: " + task + "\\nفایل‌های تغییرکرده پیش‌نویس قبلی: " + JSON.stringify(previousPaths) +
-          "\\nمسیرهای مجاز: " + JSON.stringify(eligible.slice(0, 700).map(item => item.path)) +
-          "\\nفقط JSON با شکل {\\"paths\\":[\\"مسیر دقیق\\"]} برگردان؛ حداکثر 4 مسیر از فهرست. فایل‌های قبلی را فقط وقتی انتخاب کن که پیام جدید به همان بخش اشاره دارد؛ اگر کاربر بخش دیگری را خواسته، فقط فایل همان بخش را برگردان. اگر مسیر روشن نیست آرایه خالی بده.";
+        const routePrompt = CODER_GUIDELINES + "\nفقط مسیر فایل‌های مرتبط با درخواست را انتخاب کن؛ هنوز کدی را تغییر نده." +
+          "\nمخزن: " + repository + "\nشاخه: " + data.branch +
+          "\nدرخواست: " + task + "\nفایل‌های تغییرکرده پیش‌نویس قبلی: " + JSON.stringify(previousPaths) +
+          "\nمسیرهای مجاز: " + JSON.stringify(eligible.slice(0, 700).map(item => item.path)) +
+          "\nفقط JSON با شکل {\"paths\":[\"مسیر دقیق\"]} برگردان؛ حداکثر 4 مسیر از فهرست. فایل‌های قبلی را فقط وقتی انتخاب کن که پیام جدید به همان بخش اشاره دارد؛ اگر کاربر بخش دیگری را خواسته، فقط فایل همان بخش را برگردان. اگر مسیر روشن نیست آرایه خالی بده.";
         const routing = await callGemini(env, routePrompt);
         selectedPaths = Array.isArray(routing?.paths) ? routing.paths.filter(path => typeof path === "string" && eligiblePaths.has(path)) : [];
         selectedPaths = [...new Set(selectedPaths)].filter(path => eligiblePaths.has(path));
@@ -560,16 +560,16 @@ async function handlePost({ request, env }) {
 
       const history = (Array.isArray(body.history) ? body.history : []).slice(-10)
         .map(item => (item?.role === "assistant" ? "آناناس: " : "کاربر: ") + String(item?.content || "").slice(0, 1400))
-        .join("\\n");
-      const prompt = CODER_GUIDELINES + "\\nتو مهندس ارشد همین مخزن هستی. فقط پیام جدید کاربر را با توجه به تاریخچه و نسخه فعلی پیش‌نویس اعمال کن." +
-        "\\nدرخواست اولیه: " + String(previousProposal?.task || task) +
-        "\\nپیام جدید: " + task + "\\nتاریخچه گفتگو:\\n" + history +
-        "\\nمخزن: " + repository + " | شاخه: " + data.branch +
-        "\\nفقط این فایل‌ها در محدوده ویرایش هستند: " + JSON.stringify(documents) +
-        "\\nفقط در همان بخش مرتبط اصلاح کن. تغییرهای قبلی که در محتوای فایل دیده می‌شوند را حفظ کن مگر کاربر صریحاً درخواست بازگردانی بدهد." +
-        "\\nخروجی فقط JSON معتبر با ساختار {\\"summary\\":\\"خلاصه فارسی\\",\\"assistant_message\\":\\"پاسخ فارسی گفتگو\\",\\"changes\\":[{\\"path\\":\\"مسیر دقیق\\",\\"edits\\":[{\\"find\\":\\"قطعه دقیق و یکتا\\",\\"replace\\":\\"قطعه جایگزین\\"}]}]}." +
-        "\\nحداکثر 4 فایل و 20 اصلاح برای هر فایل. هر find باید دقیقاً یک‌بار در محتوای همان فایل باشد. replace فقط قطعه کوچک باشد نه کل فایل. فایل محرمانه، env، workflow، dependency و فایل جدید تغییر نکند." +
-        "\\nاگر پیام فقط سؤال است یا مرجع دقیق نیست، changes را خالی برگردان و در assistant_message توضیح بده یا سؤال مشخص بپرس؛ تغییر حدسی نزن.";
+        .join("\n");
+      const prompt = CODER_GUIDELINES + "\nتو مهندس ارشد همین مخزن هستی. فقط پیام جدید کاربر را با توجه به تاریخچه و نسخه فعلی پیش‌نویس اعمال کن." +
+        "\nدرخواست اولیه: " + String(previousProposal?.task || task) +
+        "\nپیام جدید: " + task + "\nتاریخچه گفتگو:\n" + history +
+        "\nمخزن: " + repository + " | شاخه: " + data.branch +
+        "\nفقط این فایل‌ها در محدوده ویرایش هستند: " + JSON.stringify(documents) +
+        "\nفقط در همان بخش مرتبط اصلاح کن. تغییرهای قبلی که در محتوای فایل دیده می‌شوند را حفظ کن مگر کاربر صریحاً درخواست بازگردانی بدهد." +
+        "\nخروجی فقط JSON معتبر با ساختار {\"summary\":\"خلاصه فارسی\",\"assistant_message\":\"پاسخ فارسی گفتگو\",\"changes\":[{\"path\":\"مسیر دقیق\",\"edits\":[{\"find\":\"قطعه دقیق و یکتا\",\"replace\":\"قطعه جایگزین\"}]}]}." +
+        "\nحداکثر 4 فایل و 20 اصلاح برای هر فایل. هر find باید دقیقاً یک‌بار در محتوای همان فایل باشد. replace فقط قطعه کوچک باشد نه کل فایل. فایل محرمانه، env، workflow، dependency و فایل جدید تغییر نکند." +
+        "\nاگر پیام فقط سؤال است یا مرجع دقیق نیست، changes را خالی برگردان و در assistant_message توضیح بده یا سؤال مشخص بپرس؛ تغییر حدسی نزن.";
       const proposal = await callGemini(env, prompt);
       if (!proposal || typeof proposal !== "object" || Array.isArray(proposal)) return json({ error: "پاسخ مدل ساختار معتبری ندارد؛ هیچ تغییری ثبت نشد." }, 502);
       const proposedChanges = Array.isArray(proposal.changes) ? proposal.changes : [];
