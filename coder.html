@@ -66,7 +66,7 @@
    <p class="text-xs text-gray-400 mt-1">درخواست را بفرستید، پیش‌نمایش را بررسی کنید و با پیام بعدی همان تغییر را اصلاح کنید. پس از ثبت اولین Draft PR نیز می‌توانید همین گفتگو را ادامه دهید تا همان پیش‌نویس به‌روزرسانی شود.</p>
   </div>
   <label class="block text-xs text-gray-400 space-y-2">محدوده ویرایش (اختیاری)
-   <input id="targetPath" list="fileOptions" dir="ltr" class="code w-full rounded-xl bg-ananas-dark border border-ananas-border p-3 text-sm text-white outline-none focus:border-amber-400" placeholder="مثلاً src/components/Header.tsx">
+   <input id="targetPath" list="fileOptions" dir="ltr" class="code w-full rounded-xl bg-ananas-dark border border-ananas-border p-3 text-sm text-white outline-none focus:border-amber-400" placeholder="src/Header.tsx, src/App.tsx (حداکثر ۴ مسیر)">
    <datalist id="fileOptions"></datalist>
    <span class="block text-[11px] text-gray-500">برای محدودکردن تغییر به یک فایل، مسیر آن را بنویسید یا از پیشنهادها انتخاب کنید. در صورت خالی‌بودن، آناناس فقط فایل‌های مرتبط را از روی ساختار پروژه انتخاب می‌کند.</span>
   </label>
@@ -251,12 +251,13 @@ async function applyChanges(){
  const status=$("workStatus");status.classList.remove("hidden");status.textContent="در حال بررسی محدوده و ساخت Patch موضعی؛ هنوز تغییری در GitHub ثبت نمی‌شود...";
  try{
   if(!files.length)await loadTree();
-  const targetPath=$("targetPath").value.trim();
+  const targetPaths=[...new Set($("targetPath").value.split(/[\\n,;]+/).map(path=>path.trim()).filter(Boolean))];
+  if(targetPaths.length>4)throw new Error("حداکثر چهار مسیر فایل را در محدوده ویرایش وارد کنید.");
   const action=pendingProposalId?"refine":"apply";
   const payload={
    action,repo:selectedRepo.full_name,branch:$("branchInput").value.trim(),
    task,message:task,proposal_id:pendingProposalId||undefined,
-   target_paths:targetPath?[targetPath]:[],
+   target_paths:targetPaths,
    history:coderHistory.slice(-10).map(item=>({role:item.role,content:item.content}))
   };
   const d=await api(null,"POST",payload);
