@@ -251,7 +251,7 @@ async function applyChanges(){
  const status=$("workStatus");status.classList.remove("hidden");status.textContent="در حال بررسی محدوده و ساخت Patch موضعی؛ هنوز تغییری در GitHub ثبت نمی‌شود...";
  try{
   if(!files.length)await loadTree();
-  const targetPaths=[...new Set($("targetPath").value.split(/[\\n,;]+/).map(path=>path.trim()).filter(Boolean))];
+  const targetPaths=[...new Set($("targetPath").value.split(/[\n,;]+/).map(path=>path.trim()).filter(Boolean))];
   if(targetPaths.length>4)throw new Error("حداکثر چهار مسیر فایل را در محدوده ویرایش وارد کنید.");
   const action=pendingProposalId?"refine":"apply";
   const payload={
