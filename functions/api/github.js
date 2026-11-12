@@ -444,13 +444,16 @@ async function handlePost({ request, env }) {
         : (previous?.title && previous.title !== "گفتگوی جدید"
           ? previous.title
           : (firstRequest.replace(/\s+/g, " ").slice(0, 58) || "گفتگوی جدید"));
-      const proposalId = String(incoming.proposal_id || previous?.proposal_id || "");
+      const hasField = name => Object.prototype.hasOwnProperty.call(incoming, name);
+      const proposalIdValue = hasField("proposal_id") ? incoming.proposal_id : previous?.proposal_id;
+      const proposalId = String(proposalIdValue || "");
       if (proposalId && !/^[A-Za-z0-9_-]{20,80}$/.test(proposalId)) return json({ error: "شناسه پیش‌نویس گفتگو معتبر نیست." }, 400);
-      const pullNumber = incoming.pull_request_number == null ? previous?.pull_request_number || null : Number(incoming.pull_request_number);
+      const pullNumberValue = hasField("pull_request_number") ? incoming.pull_request_number : previous?.pull_request_number;
+      const pullNumber = pullNumberValue == null ? null : Number(pullNumberValue);
       if (pullNumber != null && (!Number.isInteger(pullNumber) || pullNumber < 1 || pullNumber > 1000000)) return json({ error: "شماره Pull Request معتبر نیست." }, 400);
-      const pullUrl = String(incoming.pull_request_url || previous?.pull_request_url || "");
+      const pullUrl = String((hasField("pull_request_url") ? incoming.pull_request_url : previous?.pull_request_url) || "");
       if (pullUrl && !/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+\/?$/.test(pullUrl)) return json({ error: "نشانی Pull Request معتبر نیست." }, 400);
-      const pullBranch = String(incoming.pull_request_branch || previous?.pull_request_branch || "");
+      const pullBranch = String((hasField("pull_request_branch") ? incoming.pull_request_branch : previous?.pull_request_branch) || "");
       if (pullBranch && !/^ananas\/agent-[A-Za-z0-9_-]+$/.test(pullBranch)) return json({ error: "شاخه Pull Request معتبر نیست." }, 400);
       const allowedStatuses = ["chat", "preview", "draft", "merged", "closed"];
       const requestedStatus = String(incoming.status || previous?.status || "chat");
