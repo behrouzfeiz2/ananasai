@@ -348,7 +348,7 @@ async function handlePost({ request, env }) {
     const account = await getAccount(request, env);
     if (account.error) return json({ error: account.error }, account.status);
     const contentLength = Number(request.headers.get("Content-Length") || 0);
-    if (contentLength > 48000) return json({ error: "حجم درخواست بیش از حد مجاز است." }, 413);
+    if (contentLength > 180000) return json({ error: "حجم درخواست بیش از حد مجاز است." }, 413);
     let body;
     try { body = await request.json(); } catch { return json({ error: "بدنه درخواست JSON معتبر نیست." }, 400); }
     if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "ساختار درخواست معتبر نیست." }, 400);
@@ -356,6 +356,130 @@ async function handlePost({ request, env }) {
     if (action === "disconnect") {
       await env.ANANAS_KV.delete("github_link:" + await sha256(account.token));
       return json({ disconnected: true });
+    }
+
+    // گفتگوهای کدنویس در فضای اختصاصی هر حساب ذخیره می‌شوند و به اتصال فعال GitHub وابسته نیستند.
+    if (["history_list", "history_get", "history_save", "history_delete", "history_rename"].includes(action)) {
+      const accountHash = await sha256(account.token);
+      const indexKey = "coder_history_index:" + accountHash;
+      const recordKey = id => "coder_history_record:" + accountHash + ":" + id;
+      const validId = value => /^[A-Za-z0-9_-]{8,64}$/.test(String(value || ""));
+      const rawIndex = await env.ANANAS_KV.get(indexKey);
+      let index = [];
+      try { index = rawIndex ? JSON.parse(rawIndex) : []; } catch { index = []; }
+      if (!Array.isArray(index)) index = [];
+
+      if (action === "history_list") {
+        return json({ conversations: index.filter(item => item && validId(item.id)).sort((a, b) => Number(b.updated_at || 0) - Number(a.updated_at || 0)) });
+      }
+
+      const id = String(body.id || body.conversation?.id || "");
+      if (!validId(id)) return json({ error: "شناسه گفتگو معتبر نیست." }, 400);
+      const storageKey = recordKey(id);
+
+      if (action === "history_get") {
+        const raw = await env.ANANAS_KV.get(storageKey);
+        if (!raw) return json({ error: "این گفتگو پیدا نشد یا حذف شده است." }, 404);
+        let conversation;
+        try { conversation = JSON.parse(raw); } catch { return json({ error: "اطلاعات این گفتگو قابل بازیابی نیست." }, 500); }
+        return json({ conversation });
+      }
+
+      if (action === "history_delete") {
+        await env.ANANAS_KV.delete(storageKey);
+        index = index.filter(item => item?.id !== id);
+        await env.ANANAS_KV.put(indexKey, JSON.stringify(index));
+        return json({ deleted: true, id });
+      }
+
+      const rawRecord = await env.ANANAS_KV.get(storageKey);
+      let previous = null;
+      if (rawRecord) {
+        try { previous = JSON.parse(rawRecord); } catch { return json({ error: "نسخه ذخیره‌شده گفتگو قابل خواندن نیست." }, 500); }
+      }
+
+      if (action === "history_rename") {
+        const title = String(body.title || "").replace(/[\r\n\t]+/g, " ").trim().slice(0, 120);
+        if (!title) return json({ error: "عنوان گفتگو نمی‌تواند خالی باشد." }, 400);
+        if (!previous) return json({ error: "گفتگو پیدا نشد." }, 404);
+        previous.title = title;
+        previous.updated_at = Date.now();
+        await env.ANANAS_KV.put(storageKey, JSON.stringify(previous));
+        index = index.map(item => item?.id === id ? {
+          ...item, title, updated_at: previous.updated_at
+        } : item);
+        await env.ANANAS_KV.put(indexKey, JSON.stringify(index));
+        return json({ renamed: true, conversation: previous });
+      }
+
+      const incoming = body.conversation;
+      if (!incoming || typeof incoming !== "object" || Array.isArray(incoming) || incoming.id !== id) {
+        return json({ error: "ساختار اطلاعات گفتگو معتبر نیست." }, 400);
+      }
+      const repository = String(incoming.repository || previous?.repository || "").trim();
+      if (repository && !repoOK(repository)) return json({ error: "نام پروژه در اطلاعات گفتگو معتبر نیست." }, 400);
+      if (previous?.repository && repository && previous.repository !== repository) {
+        return json({ error: "پروژه یک گفتگوی ذخیره‌شده قابل تغییر نیست؛ برای پروژه دیگر گفتگوی جدید بسازید." }, 409);
+      }
+      const branch = String(incoming.branch || previous?.branch || "").trim();
+      if (branch && !/^[A-Za-z0-9._/-]{1,200}$/.test(branch)) return json({ error: "نام شاخه معتبر نیست." }, 400);
+
+      const inputMessages = Array.isArray(incoming.messages) ? incoming.messages : [];
+      if (inputMessages.length > 160) return json({ error: "تعداد پیام‌های گفتگو از حد مجاز بیشتر است." }, 413);
+      let totalCharacters = 0;
+      const messages = [];
+      for (const message of inputMessages) {
+        if (!message || !["user", "assistant"].includes(message.role) || typeof message.content !== "string") {
+          return json({ error: "ساختار یکی از پیام‌های گفتگو معتبر نیست." }, 400);
+        }
+        const text = message.content.slice(0, 7000);
+        totalCharacters += text.length;
+        if (totalCharacters > 120000) return json({ error: "حجم تاریخچه گفتگو از حد مجاز بیشتر است." }, 413);
+        messages.push({ role: message.role, content: text });
+      }
+      const firstRequest = messages.find(message => message.role === "user")?.content || "";
+      const suppliedTitle = String(incoming.title || "").replace(/[\r\n\t]+/g, " ").trim().slice(0, 120);
+      const title = suppliedTitle && suppliedTitle !== "گفتگوی جدید"
+        ? suppliedTitle
+        : (previous?.title && previous.title !== "گفتگوی جدید"
+          ? previous.title
+          : (firstRequest.replace(/\s+/g, " ").slice(0, 58) || "گفتگوی جدید"));
+      const proposalId = String(incoming.proposal_id || previous?.proposal_id || "");
+      if (proposalId && !/^[A-Za-z0-9_-]{20,80}$/.test(proposalId)) return json({ error: "شناسه پیش‌نویس گفتگو معتبر نیست." }, 400);
+      const pullNumber = incoming.pull_request_number == null ? previous?.pull_request_number || null : Number(incoming.pull_request_number);
+      if (pullNumber != null && (!Number.isInteger(pullNumber) || pullNumber < 1 || pullNumber > 1000000)) return json({ error: "شماره Pull Request معتبر نیست." }, 400);
+      const pullUrl = String(incoming.pull_request_url || previous?.pull_request_url || "");
+      if (pullUrl && !/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+\/?$/.test(pullUrl)) return json({ error: "نشانی Pull Request معتبر نیست." }, 400);
+      const pullBranch = String(incoming.pull_request_branch || previous?.pull_request_branch || "");
+      if (pullBranch && !/^ananas\/agent-[A-Za-z0-9_-]+$/.test(pullBranch)) return json({ error: "شاخه Pull Request معتبر نیست." }, 400);
+      const allowedStatuses = ["chat", "preview", "draft", "merged", "closed"];
+      const requestedStatus = String(incoming.status || previous?.status || "chat");
+      if (!allowedStatuses.includes(requestedStatus)) return json({ error: "وضعیت گفتگو معتبر نیست." }, 400);
+
+      const now = Date.now();
+      const conversation = {
+        id, title, repository, branch, messages,
+        proposal_id: proposalId || null,
+        pull_request_number: pullNumber,
+        pull_request_url: pullUrl || null,
+        pull_request_branch: pullBranch || null,
+        status: requestedStatus,
+        created_at: previous?.created_at || now,
+        updated_at: now
+      };
+      await env.ANANAS_KV.put(storageKey, JSON.stringify(conversation));
+      const summary = {
+        id, title, repository, branch, status: conversation.status,
+        pull_request_number: conversation.pull_request_number,
+        pull_request_url: conversation.pull_request_url,
+        message_count: messages.length,
+        created_at: conversation.created_at,
+        updated_at: conversation.updated_at
+      };
+      index = [summary, ...index.filter(item => item?.id !== id)]
+        .sort((a, b) => Number(b.updated_at || 0) - Number(a.updated_at || 0));
+      await env.ANANAS_KV.put(indexKey, JSON.stringify(index));
+      return json({ saved: true, conversation: summary });
     }
     if (!["confirm", "analyze", "apply", "refine", "list_drafts", "merge_drafts"].includes(action)) return json({ error: "درخواست ناشناخته است." }, 404);
     if (!repoOK(repository)) return json({ error: "مخزن نامعتبر است." }, 400);
