@@ -61,10 +61,24 @@
   <div id="fileList" class="hidden max-h-64 overflow-auto rounded-xl border border-ananas-border bg-ananas-dark p-3 text-xs code space-y-1"></div>
  </section>
  <section id="taskSection" class="hidden rounded-2xl border border-ananas-border bg-ananas-card p-5 sm:p-6 space-y-4">
-  <div><h2 class="font-bold text-lg">۳. تغییرات موردنظر در پروژه</h2><p class="text-xs text-gray-400 mt-1">تغییرات موردنظر را به زبان طبیعی توضیح دهید؛ می‌توانید پیش از آن تحلیل ساختار پروژه را نیز به‌صورت اختیاری اجرا کنید.</p></div>
-  <textarea id="taskInput" rows="5" class="w-full rounded-xl bg-ananas-dark border border-ananas-border p-4 text-sm leading-7 text-white outline-none focus:border-amber-400" placeholder="مثلاً: طراحی صفحه ورود را واکنش‌گرا کن، اعتبارسنجی فرم را اضافه کن و ظاهر فعلی سایت را حفظ کن..."></textarea>
-  <div class="rounded-xl border border-amber-400/20 bg-amber-400/5 p-3 text-xs text-amber-100 leading-6">برای ایمنی، آناناس تغییرات را در شاخه جداگانه ایجاد می‌کند و Pull Request می‌سازد. شاخه اصلی پروژه مستقیماً تغییر نمی‌کند. فایل‌های محرمانه و GitHub Actions workflowها از ویرایش خودکار مستثنا هستند.</div>
-  <button id="applyBtn" onclick="applyChanges()" disabled class="rounded-xl bg-gradient-to-l from-amber-400 to-yellow-300 text-slate-950 font-extrabold px-6 py-3 text-sm disabled:opacity-40">تهیه پیش‌نمایش تغییرات</button>
+  <div>
+   <h2 class="font-bold text-lg">۳. گفتگو و ویرایش مرحله‌ای کد</h2>
+   <p class="text-xs text-gray-400 mt-1">درخواست را بفرستید، پیش‌نمایش را بررسی کنید و با پیام بعدی همان تغییر را اصلاح کنید. پس از ثبت اولین Draft PR نیز می‌توانید همین گفتگو را ادامه دهید تا همان پیش‌نویس به‌روزرسانی شود.</p>
+  </div>
+  <label class="block text-xs text-gray-400 space-y-2">محدوده ویرایش (اختیاری)
+   <input id="targetPath" list="fileOptions" dir="ltr" class="code w-full rounded-xl bg-ananas-dark border border-ananas-border p-3 text-sm text-white outline-none focus:border-amber-400" placeholder="مثلاً src/components/Header.tsx">
+   <datalist id="fileOptions"></datalist>
+   <span class="block text-[11px] text-gray-500">برای محدودکردن تغییر به یک فایل، مسیر آن را بنویسید یا از پیشنهادها انتخاب کنید. در صورت خالی‌بودن، آناناس فقط فایل‌های مرتبط را از روی ساختار پروژه انتخاب می‌کند.</span>
+  </label>
+  <div id="conversationLog" class="min-h-20 max-h-72 overflow-y-auto rounded-xl border border-ananas-border bg-ananas-dark/70 p-3 space-y-3 text-sm" aria-live="polite">
+   <p class="text-xs text-gray-500 text-center py-3">گفتگوی کدنویسی هنوز شروع نشده است.</p>
+  </div>
+  <textarea id="taskInput" rows="4" class="w-full rounded-xl bg-ananas-dark border border-ananas-border p-4 text-sm leading-7 text-white outline-none focus:border-amber-400" placeholder="مثلاً: فقط دکمه ذخیره در پنل تنظیمات را اصلاح کن و به سایر قسمت‌ها دست نزن..."></textarea>
+  <div class="rounded-xl border border-cyan-400/20 bg-cyan-400/5 p-3 text-xs text-cyan-100 leading-6">هر مرحله ابتدا به‌صورت Patch محدود و قابل بررسی ارائه می‌شود. می‌توانید بگویید «این بخش اشتباه است»، «فقط همین تابع را اصلاح کن» یا تغییر را دقیق‌تر توضیح دهید. هیچ تغییری پیش از تأیید شما روی GitHub ثبت نمی‌شود.</div>
+  <div class="flex flex-wrap items-center gap-2">
+   <button id="applyBtn" onclick="applyChanges()" disabled class="rounded-xl bg-gradient-to-l from-amber-400 to-yellow-300 text-slate-950 font-extrabold px-6 py-3 text-sm disabled:opacity-40">ارسال پیام و تهیه پیش‌نمایش</button>
+   <button id="listDraftsBtn" onclick="listDrafts()" class="rounded-xl border border-ananas-border px-4 py-3 text-sm text-gray-200 hover:border-amber-400">نمایش پیش‌نویس‌های main</button>
+  </div>
   <div id="workStatus" class="hidden rounded-xl bg-black/20 border border-ananas-border p-4 text-sm text-gray-300 leading-7"></div>
  </section>
  <section id="analysisSection" class="hidden rounded-2xl border border-ananas-border bg-ananas-card p-5 sm:p-6 space-y-3">
