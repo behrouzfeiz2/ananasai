@@ -608,7 +608,12 @@ async function handlePost({ request, env }) {
         assistant_message: String(proposal.assistant_message || summary).slice(0, 2000),
         stats, preview: changes.map(item => ({ path: item.path, edits: item.preview_edits || [] })),
         high_risk: stats.some(item => item.high_risk), expires_in_minutes: 15,
-        message: "این پیشنهاد فقط شامل patchهای محدود روی فایل‌های مرتبط است؛ تا تأیید شما هیچ تغییری در GitHub ثبت نمی‌شود."
+        existing_pr: stored.mode === "existing_pr",
+        pull_request: stored.pull_request_url || null,
+        pull_request_number: stored.pull_request_number || null,
+        message: stored.mode === "existing_pr"
+          ? "این پیشنهاد روی همان Draft Pull Request اعمال می‌شود؛ تا تأیید شما شاخه پیش‌نویس هم تغییر نمی‌کند."
+          : "این پیشنهاد فقط شامل patchهای محدود روی فایل‌های مرتبط است؛ تا تأیید شما هیچ تغییری در GitHub ثبت نمی‌شود."
       });
     }
     return json({ error: "درخواست ناشناخته است." }, 404);
