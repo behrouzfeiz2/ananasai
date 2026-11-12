@@ -430,6 +430,97 @@
     }
   
 
+    /* Desktop: floating, borderless chat controls to maximize chat space */
+    @media (min-width: 641px) {
+      #chatMainHeader {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 30;
+        height: auto;
+        min-height: 0;
+        padding: 9px 16px;
+        border: 0;
+        background: transparent;
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+        flex-direction: row-reverse;
+        direction: ltr;
+        pointer-events: none;
+      }
+
+      #chatMainHeader > div {
+        pointer-events: auto;
+      }
+
+      #headerSidebarBtn {
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        padding: 8px;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 12px;
+        background: #f59e0b;
+        color: #111111;
+        box-shadow: 0 4px 14px rgba(245,158,11,0.18);
+        transition: background 0.2s ease, transform 0.2s ease;
+      }
+
+      #headerSidebarBtn:not([class~="lg:hidden"]) {
+        display: inline-flex;
+      }
+
+      #headerSidebarBtn:hover,
+      #headerSidebarBtn:focus-visible {
+        background: #fbbf24;
+      }
+
+      #headerSidebarBtn:active {
+        transform: scale(0.96);
+      }
+
+      #headerModeGroup {
+        direction: rtl;
+        gap: 7px;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+      }
+
+      #headerModeGroup button {
+        min-height: 38px;
+        padding: 7px 10px;
+        border: 1px solid rgba(255,255,255,0.09);
+        border-radius: 11px;
+        background: #1b1b1b !important;
+        box-shadow: 0 3px 12px rgba(0,0,0,0.2);
+        color: #b4b4bc !important;
+        font-size: 12px;
+        transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+      }
+
+      #headerModeGroup button:hover {
+        background: #292929 !important;
+        color: #ffffff !important;
+      }
+
+      #headerModeGroup button.bg-ananas-500,
+      #headerModeGroup button.bg-cyan-500 {
+        background: #f59e0b !important;
+        border-color: rgba(251,191,36,0.55);
+        color: #111111 !important;
+        box-shadow: 0 4px 14px rgba(245,158,11,0.16);
+      }
+
+      #messagesContainer {
+        padding-top: 3.5rem;
+      }
+    }
+
     /* Mobile: floating, borderless ChatGPT-style chat controls */
     @media (max-width: 640px) {
       #chatMainHeader {
@@ -664,7 +755,7 @@
   <!-- بخش اصلی چت -->
   <main class="flex-1 flex flex-col h-full bg-ananas-dark relative overflow-hidden min-w-0">
 
-    <header id="chatMainHeader" class="h-16 border-b border-ananas-border px-4 lg:px-8 flex items-center justify-between bg-ananas-dark/80 backdrop-blur-md z-20 shrink-0">
+    <header id="chatMainHeader" class="px-4 lg:px-8 flex items-center justify-between z-20 shrink-0">
       <div class="flex items-center gap-3">
         <button id="headerSidebarBtn" onclick="toggleSidebar()" class="lg:hidden p-2 rounded-xl bg-ananas-card border border-ananas-border text-gray-300 hover:text-white transition">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -716,7 +807,7 @@
     </div>
 
     <!-- کادر ارسال پیام -->
-    <div class="p-2 sm:p-4 border-t border-ananas-border bg-ananas-dark/95 backdrop-blur-md shrink-0">
+    <div class="p-2 sm:p-4 bg-ananas-dark/95 backdrop-blur-md shrink-0">
       <div class="max-w-3xl mx-auto space-y-2">
 
         <div id="attachmentPreview" class="hidden mb-1 p-2 rounded-xl bg-ananas-card border border-ananas-border flex items-center justify-between">
