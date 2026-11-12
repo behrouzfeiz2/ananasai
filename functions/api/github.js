@@ -619,12 +619,17 @@ async function handlePost({ request, env }) {
         base_sha: data.sha, base_commit: baseRef.object.sha, changes, stats,
         expires_at: Date.now() + (previousProposal?.mode === "existing_pr" ? 7 * 24 * 60 * 60 * 1000 : 15 * 60 * 1000)
       };
-      await env.ANANAS_KV.put("github_proposal:" + await sha256(account.token) + ":" + proposalId, JSON.stringify(stored), { expirationTtl: 900 });
+      await env.ANANAS_KV.put(
+        "github_proposal:" + await sha256(account.token) + ":" + proposalId,
+        JSON.stringify(stored),
+        { expirationTtl: stored.mode === "existing_pr" ? 7 * 24 * 60 * 60 : 900 }
+      );
       return json({
         preview_required: true, proposal_id: proposalId, summary,
         assistant_message: String(proposal.assistant_message || summary).slice(0, 2000),
         stats, preview: changes.map(item => ({ path: item.path, edits: item.preview_edits || [] })),
-        high_risk: stats.some(item => item.high_risk), expires_in_minutes: 15,
+        high_risk: stats.some(item => item.high_risk),
+        expires_in_minutes: stored.mode === "existing_pr" ? 7 * 24 * 60 : 15,
         existing_pr: stored.mode === "existing_pr",
         pull_request: stored.pull_request_url || null,
         pull_request_number: stored.pull_request_number || null,
