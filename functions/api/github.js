@@ -277,7 +277,8 @@ async function getAnanasDrafts(token, repository, base, expectedLogin) {
     (!expectedLogin || p.user?.login === expectedLogin)
   ).map(p => ({ number: p.number, title: p.title, branch: p.head.ref, url: p.html_url, updated_at: p.updated_at }));
 }
-\nasync function handleGet({ request, env }) {
+
+async function handleGet({ request, env }) {
   const url = new URL(request.url), action = url.searchParams.get("action") || "";
   try {
     if (action === "callback") {
