@@ -31,6 +31,7 @@
    <div id="coderHistoryPanel" class="hidden lg:block p-3 space-y-3">
     <button type="button" onclick="createNewCoderConversation()" class="w-full rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-sm px-3 py-3 flex items-center justify-center gap-2"><span class="text-lg leading-none">＋</span> گفتگوی جدید</button>
     <div id="coderHistoryList" class="space-y-1 max-h-[65vh] overflow-y-auto" aria-live="polite"><p class="text-xs text-gray-500 text-center py-5">در حال بارگذاری گفتگوها...</p></div>
+    <p id="coderHistorySync" class="text-[10px] text-gray-500 text-center pt-1">گفتگوها در حساب شما ذخیره می‌شوند.</p>
    </div>
   </section>
  </aside>
@@ -217,9 +218,10 @@ async function saveActiveConversation(){
   activeConversation={...activeConversation,...record,updated_at:data.conversation?.updated_at||Date.now()};
   const summary=data.conversation||{...record,message_count:record.messages.length,updated_at:Date.now()};
   coderConversations=[summary,...coderConversations.filter(item=>item.id!==activeConversationId)].sort((a,b)=>Number(b.updated_at||0)-Number(a.updated_at||0));
-  renderCoderHistoryList();return true;
+  renderCoderHistoryList();$("coderHistorySync").textContent="تاریخچه ذخیره شد";$("coderHistorySync").className="text-[10px] text-emerald-400 text-center pt-1";return true;
  }catch(error){
   console.warn("Coder conversation save failed:",error);
+  $("coderHistorySync").textContent="ذخیره تاریخچه ناموفق بود؛ اتصال را بررسی کنید";$("coderHistorySync").className="text-[10px] text-red-300 text-center pt-1";
   const status=$("workStatus");if(status&&!status.classList.contains("hidden"))status.dataset.saveWarning="ذخیره تاریخچه ناموفق بود؛ اتصال را بررسی کنید.";
   return false;
  }
@@ -401,6 +403,7 @@ async function applyChanges(){
  const task=$("taskInput").value.trim();if(!task)return showError("پیام یا درخواست اصلاح را بنویسید.");
  if(!selectedRepo)return showError("ابتدا مخزن را انتخاب کنید.");
  hideError();
+ if(activeConversation?.status==="merged"){activeConversation.status="chat";activeConversation.proposal_id=null;activeConversation.pull_request_number=null;activeConversation.pull_request_url=null;activeConversation.pull_request_branch=null;pendingProposalId=null;}
  if(!activeConversationId||!activeConversation)beginCoderConversation(selectedRepo,$("branchInput").value.trim());
  if(activeConversation?.repository&&activeConversation.repository!==selectedRepo.full_name){await saveActiveConversation();beginCoderConversation(selectedRepo,$("branchInput").value.trim());}
  coderHistory.push({role:"user",content:task});renderCoderConversation();
