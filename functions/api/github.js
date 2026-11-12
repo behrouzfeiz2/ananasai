@@ -212,8 +212,14 @@ function validateStoredProposal(proposal) {
       typeof proposal.repository !== "string" || !repoOK(proposal.repository) ||
       typeof proposal.base_branch !== "string" || !/^[A-Za-z0-9._/-]{1,200}$/.test(proposal.base_branch) ||
       !/^[a-f0-9]{40}$/i.test(proposal.base_sha || "") || !/^[a-f0-9]{40}$/i.test(proposal.base_commit || "") ||
-      !Array.isArray(proposal.changes) || proposal.changes.length < 1 || proposal.changes.length > 6 ||
+      !Array.isArray(proposal.changes) || proposal.changes.length > 6 ||
       !Number.isFinite(proposal.expires_at) || proposal.expires_at <= Date.now()) throw new Error("پیش‌نمایش ناقص، منقضی یا نامعتبر است.");
+  if (proposal.mode && !["new", "existing_pr"].includes(proposal.mode)) throw new Error("وضعیت پیش‌نویس معتبر نیست.");
+  if (proposal.mode === "existing_pr" &&
+      (typeof proposal.branch !== "string" || !proposal.branch.startsWith("ananas/agent-") ||
+       !Number.isInteger(proposal.pull_request_number) || proposal.pull_request_number < 1)) {
+    throw new Error("اطلاعات Pull Request پیش‌نویس معتبر نیست.");
+  }
   const seen = new Set();
   for (const change of proposal.changes) {
     if (!change || !isEditableSourcePath(change.path) || seen.has(change.path) || typeof change.content !== "string" ||
@@ -384,49 +390,83 @@ async function handlePost({ request, env }) {
 
     if (action === "confirm") {
       const proposalId = String(body.proposal_id || "");
-      if (!/^[A-Za-z0-9_-]{20,80}$/.test(proposalId)) return json({ error: "شناسه پیش‌نمایش نامعتبر است." }, 400);
+      if (!/^[A-Za-z0-9_-]{20,80}$/.test(proposalId)) return json({ error: "شناسه پیش‌نویس نامعتبر است." }, 400);
       const storageKey = "github_proposal:" + await sha256(account.token) + ":" + proposalId;
       const rawProposal = await env.ANANAS_KV.get(storageKey);
-      if (!rawProposal) return json({ error: "پیش‌نمایش منقضی یا قبلاً استفاده شده است. درخواست را دوباره اجرا کنید." }, 410);
+      if (!rawProposal) return json({ error: "پیش‌نمایش منقضی شده است؛ درخواست را دوباره اجرا کنید." }, 410);
       let proposal;
       try { proposal = JSON.parse(rawProposal); validateStoredProposal(proposal); }
-      catch (error) { await env.ANANAS_KV.delete(storageKey); return json({ error: error.message || "پیش‌نمایش نامعتبر است." }, 410); }
-      if (proposal.repository !== repository) { await env.ANANAS_KV.delete(storageKey); return json({ error: "پیش‌نمایش به این مخزن تعلق ندارد." }, 403); }
-      const current = await getTree(linked.token, repository, proposal.base_branch);
+      catch (error) { return json({ error: error.message || "پیش‌نویس نامعتبر است." }, 410); }
+      if (proposal.repository !== repository) return json({ error: "پیش‌نویس به این مخزن تعلق ندارد." }, 403);
+      if (!proposal.changes.length) return json({ error: "در این مرحله تغییر جدیدی برای ثبت وجود ندارد." }, 409);
+
+      const mode = proposal.mode || "new";
+      const branch = mode === "existing_pr" ? proposal.branch : "ananas/agent-" + proposalId.slice(0, 32);
+      const sourceBranch = mode === "existing_pr" ? branch : proposal.base_branch;
+      const current = await getTree(linked.token, repository, sourceBranch);
       if (current.sha !== proposal.base_sha || current.sha !== proposal.base_commit) {
-        await env.ANANAS_KV.delete(storageKey);
-        return json({ error: "شاخه پایه پس از تهیه پیش‌نمایش تغییر کرده است. برای جلوگیری از تداخل، درخواست را دوباره اجرا کنید." }, 409);
+        return json({ error: "شاخه از زمان تهیه پیش‌نمایش تغییر کرده است. برای جلوگیری از تداخل، دوباره گفتگو و پیش‌نمایش را اجرا کنید." }, 409);
       }
-      const branch = "ananas/agent-" + proposalId.slice(0, 32);
-      const owner = repository.split("/")[0];
-      const existingPulls = await github(linked.token, "/repos/" + repository + "/pulls?state=all&head=" + encodeURIComponent(owner + ":" + branch) + "&base=" + encodeURIComponent(proposal.base_branch));
-      if (Array.isArray(existingPulls) && existingPulls.length) {
-        const existing = existingPulls[0]; await env.ANANAS_KV.delete(storageKey);
-        return json({ applied: true, summary: proposal.summary, files: proposal.changes.map(x => x.path), branch, pull_request: existing.html_url, number: existing.number, draft: !!existing.draft, already_created: true, stats: proposal.stats || [] });
+
+      if (mode === "existing_pr") {
+        const pull = await github(linked.token, "/repos/" + repository + "/pulls/" + proposal.pull_request_number);
+        if (pull.state !== "open" || !pull.draft || pull.head?.ref !== branch || pull.base?.ref !== proposal.base_branch) {
+          return json({ error: "پیش‌نویس GitHub دیگر باز یا در حالت Draft نیست؛ برای جلوگیری از تغییر ناخواسته، عملیات متوقف شد." }, 409);
+        }
+      } else {
+        try {
+          await github(linked.token, "/repos/" + repository + "/git/refs", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ref: "refs/heads/" + branch, sha: proposal.base_commit })
+          });
+        } catch (error) {
+          if (error.status === 422) return json({ error: "شاخه این پیش‌نویس از قبل وجود دارد؛ برای جلوگیری از هم‌پوشانی، درخواست تازه‌ای بسازید." }, 409);
+          throw error;
+        }
       }
-      let branchExists = false;
-      try { await github(linked.token, "/repos/" + repository + "/git/ref/heads/" + branch.split("/").map(encodeURIComponent).join("%2F")); branchExists = true; }
-      catch (error) { if (error.status !== 404) throw error; }
-      if (branchExists) throw new Error("شاخه این پیش‌نمایش قبلاً ایجاد شده اما Pull Request آن پیدا نشد. برای جلوگیری از تداخل، شاخه را بررسی و درخواست تازه‌ای تهیه کنید.");
-      await github(linked.token, "/repos/" + repository + "/git/refs", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ref: "refs/heads/" + branch, sha: proposal.base_commit })
-      });
+
       const completed = proposal.changes.map(change => change.path);
-      // تمام فایل‌های تغییرکرده در یک Git commit اتمیک ثبت می‌شوند؛ نه commit جداگانه برای هر فایل.
+      // تمام فایل‌های این مرحله با یک commit اتمیک روی همان شاخه پیش‌نویس ثبت می‌شوند.
       await commitProposalBatch(linked.token, repository, branch, proposal.base_commit, proposal.changes, proposal.task);
-      const pullRequest = await github(linked.token, "/repos/" + repository + "/pulls", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: "Ananas AI: " + safeTaskTitle(proposal.task), head: branch, base: proposal.base_branch,
-          draft: true, maintainer_can_modify: false,
-          body: "## تغییرات پیشنهادی عامل کدنویس آناناس\n\n" + proposal.summary +
-            "\n\n## فایل‌های تغییر یافته\n" + completed.map(path => "- " + path).join("\n") +
-            "\n\n## کنترل ایمنی\n- اصلاحات دقیق و مبتنی بر متن مرجع اعمال شده‌اند.\n- فایل جدید یا فایل محرمانه تغییر نکرده است.\n- این Pull Request به‌صورت Draft ساخته شده و نیازمند بررسی و تبدیل دستی به Ready for review است.\n- شاخه اصلی مستقیماً تغییر نکرده است."
-        })
+
+      let pullRequest;
+      if (mode === "new") {
+        pullRequest = await github(linked.token, "/repos/" + repository + "/pulls", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: "Ananas AI: " + safeTaskTitle(proposal.task), head: branch, base: proposal.base_branch,
+            draft: true, maintainer_can_modify: false,
+            body: "## تغییرات پیشنهادی عامل کدنویس آناناس\\n\\n" + proposal.summary +
+              "\\n\\n## فایل‌های تغییر یافته\\n" + completed.map(path => "- " + path).join("\\n") +
+              "\\n\\n## کنترل ایمنی\\n- تغییرات به‌صورت patch محدود و در یک commit اتمیک ثبت شده‌اند.\\n- شاخه اصلی مستقیماً تغییر نکرده است.\\n- این Pull Request به‌صورت Draft باقی می‌ماند."
+          })
+        });
+      } else {
+        pullRequest = await github(linked.token, "/repos/" + repository + "/pulls/" + proposal.pull_request_number);
+      }
+
+      const latest = await getTree(linked.token, repository, branch);
+      const latestRef = await github(linked.token, "/repos/" + repository + "/git/ref/heads/" + branch.split("/").map(encodeURIComponent).join("%2F"));
+      const updatedProposal = {
+        ...proposal,
+        mode: "existing_pr",
+        branch,
+        pull_request_number: pullRequest.number || proposal.pull_request_number,
+        pull_request_url: pullRequest.html_url || proposal.pull_request_url,
+        base_sha: latest.sha,
+        base_commit: latestRef.object.sha,
+        changes: [],
+        stats: [],
+        expires_at: Date.now() + 7 * 24 * 60 * 60 * 1000
+      };
+      await env.ANANAS_KV.put(storageKey, JSON.stringify(updatedProposal), { expirationTtl: 7 * 24 * 60 * 60 });
+      return json({
+        applied: true, created: mode === "new", updated: mode === "existing_pr",
+        summary: proposal.summary, files: completed, branch,
+        pull_request: updatedProposal.pull_request_url,
+        number: updatedProposal.pull_request_number, draft: true,
+        proposal_id: proposalId, stats: proposal.stats || []
       });
-      await env.ANANAS_KV.delete(storageKey);
-      return json({ applied: true, summary: proposal.summary, files: completed, branch, pull_request: pullRequest.html_url, number: pullRequest.number, draft: pullRequest.draft, stats: proposal.stats || [] });
     }
 
     let previousProposal = null;
@@ -440,7 +480,9 @@ async function handlePost({ request, env }) {
       catch (error) { return json({ error: error.message || "پیش‌نویس گفتگو معتبر نیست." }, 410); }
       if (previousProposal.repository !== repository) return json({ error: "پیش‌نویس به مخزن دیگری تعلق دارد." }, 403);
     }
-    const requestBranch = previousProposal?.base_branch || body.branch || "";
+    const requestBranch = previousProposal?.mode === "existing_pr"
+      ? previousProposal.branch
+      : (previousProposal?.base_branch || body.branch || "");
     if (previousProposal && body.branch && String(body.branch) !== previousProposal.base_branch) {
       return json({ error: "شاخه انتخابی با شاخه پیش‌نویس قبلی یکسان نیست." }, 409);
     }
@@ -551,9 +593,14 @@ async function handlePost({ request, env }) {
       const summary = String(proposal.summary || "اصلاحات موضعی آماده بررسی است.").slice(0, 2000);
       const baseRef = await github(linked.token, "/repos/" + repository + "/git/ref/heads/" + data.branch.split("/").map(encodeURIComponent).join("%2F"));
       const stored = {
-        repository, task: previousProposal?.task || task, summary, base_branch: data.branch,
+        repository, task: previousProposal?.task || task, summary,
+        mode: previousProposal?.mode || "new",
+        branch: previousProposal?.branch || null,
+        pull_request_number: previousProposal?.pull_request_number || null,
+        pull_request_url: previousProposal?.pull_request_url || null,
+        base_branch: previousProposal?.base_branch || data.branch,
         base_sha: data.sha, base_commit: baseRef.object.sha, changes, stats,
-        expires_at: Date.now() + 15 * 60 * 1000
+        expires_at: Date.now() + (previousProposal?.mode === "existing_pr" ? 7 * 24 * 60 * 60 * 1000 : 15 * 60 * 1000)
       };
       await env.ANANAS_KV.put("github_proposal:" + await sha256(account.token) + ":" + proposalId, JSON.stringify(stored), { expirationTtl: 900 });
       return json({
