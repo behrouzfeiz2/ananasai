@@ -90,7 +90,7 @@
 <script>
 const userToken=localStorage.getItem("ananas_user_token")||"";
 const deviceUUID=localStorage.getItem("ananas_device_uuid")||"";
-let repositories=[],selectedRepo=null,files=[],pendingProposalId=null;
+let repositories=[],selectedRepo=null,files=[],pendingProposalId=null,coderHistory=[],activeDrafts=[];
 const $=id=>document.getElementById(id);
 function headers(){return{"Content-Type":"application/json","X-User-Token":userToken,"X-Device-UUID":deviceUUID};}
 async function api(action,method="GET",data=null){
@@ -150,12 +150,13 @@ function selectRepo(){
  $("branchInput").value=selectedRepo?.default_branch||"";
  $("repoMeta").textContent=selectedRepo?(selectedRepo.description||"بدون توضیحات"):"";
  const ready=!!selectedRepo;$("analyzeBtn").disabled=!ready;$("treeBtn").disabled=!ready;$("applyBtn").disabled=!ready;
+ pendingProposalId=null;coderHistory=[];activeDrafts=[];$("targetPath").value="";$("conversationLog").innerHTML='<p class="text-xs text-gray-500 text-center py-3">گفتگوی کدنویسی هنوز شروع نشده است.</p>';$("workStatus").classList.add("hidden");
  $("analysisSection").classList.add("hidden");$("taskSection").classList.toggle("hidden",!ready);$("fileList").classList.add("hidden");
 }
 async function loadTree(){
  if(!selectedRepo)throw new Error("ابتدا پروژه را انتخاب کنید.");
  const params={action:"tree",repo:selectedRepo.full_name,branch:$("branchInput").value.trim()||selectedRepo.default_branch};
- const d=await api(params);files=d.files||[];return d;
+ const d=await api(params);files=d.files||[];$("fileOptions").innerHTML=files.filter(f=>/\\.(html|css|js|jsx|ts|tsx|json|md|py|php|toml|yml|yaml)$/i.test(f.path)).map(f=>'<option value="'+escapeHtml(f.path)+'"></option>').join("");return d;
 }
 async function toggleFiles(){
  const box=$("fileList");if(!box.classList.contains("hidden")){box.classList.add("hidden");return;}
@@ -184,48 +185,120 @@ function renderProposalPreview(d){
  pendingProposalId=d.proposal_id;
  const rows=(d.stats||[]).map(x=>'<tr class="border-t border-ananas-border"><td class="py-2 pr-2 code text-cyan-300">'+escapeHtml(x.path)+'</td><td class="py-2 text-center text-emerald-300">+'+Number(x.added||0)+'</td><td class="py-2 text-center text-red-300">-'+Number(x.deleted||0)+'</td><td class="py-2 text-center">'+(x.high_risk?'<span class="text-red-300">پرریسک</span>':'<span class="text-emerald-300">عادی</span>')+'</td></tr>').join("");
  const snippets=(d.preview||[]).map(file=>'<div class="mt-4"><div class="text-xs font-bold text-cyan-300 mb-2">'+escapeHtml(file.path)+'</div>'+(file.edits||[]).map(edit=>'<div class="grid md:grid-cols-2 gap-2 mb-2"><div class="rounded-lg bg-red-950/30 border border-red-900/40 p-2"><div class="text-[10px] text-red-300 mb-1">قبل</div><pre class="code whitespace-pre-wrap break-all text-[11px] text-gray-300">'+escapeHtml(edit.before)+'</pre></div><div class="rounded-lg bg-emerald-950/20 border border-emerald-900/40 p-2"><div class="text-[10px] text-emerald-300 mb-1">بعد</div><pre class="code whitespace-pre-wrap break-all text-[11px] text-gray-300">'+escapeHtml(edit.after)+'</pre></div></div>').join("")+'</div>').join("");
- status.innerHTML='<div class="font-bold text-amber-300 text-base">پیش‌نمایش تغییرات — هنوز چیزی در GitHub ثبت نشده است</div>'+
+ const isExisting=!!d.existing_pr;
+ status.innerHTML='<div class="font-bold text-amber-300 text-base">'+(isExisting?'پیش‌نمایش اصلاح همان Draft Pull Request':'پیش‌نمایش تغییرات جدید')+'</div>'+
  '<p class="mt-2">'+escapeHtml(d.summary||"")+'</p>'+
  '<p class="mt-2 text-xs text-gray-400">'+escapeHtml(d.message||"")+' این پیش‌نمایش تا '+Number(d.expires_in_minutes||15)+' دقیقه معتبر است.</p>'+
+ (d.pull_request?'<p class="mt-2"><a class="text-cyan-300 underline" target="_blank" rel="noopener" href="'+escapeHtml(d.pull_request)+'">مشاهده Draft Pull Request فعلی</a></p>':'')+
  '<div class="overflow-x-auto mt-3"><table class="w-full text-xs"><thead><tr class="text-gray-400"><th class="text-right py-2">فایل</th><th>افزوده</th><th>حذف</th><th>ریسک</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
  '<div class="mt-4 border-t border-ananas-border pt-3"><div class="font-bold text-sm mb-2">نمونه دقیق اصلاحات (قبل / بعد)</div>'+snippets+'</div>'+
- (d.high_risk?'<div class="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">هشدار: این تغییرات از حد معمول بزرگ‌ترند. قبل از تأیید، فایل‌ها و تعداد خطوط حذف‌شده را بررسی کنید.</div>':'')+
- '<div class="mt-4 flex flex-wrap gap-2"><button onclick="confirmChanges()" class="rounded-xl bg-emerald-400 text-slate-950 font-bold px-5 py-3 text-sm">تأیید تغییرات و ساخت Draft PR</button><button onclick="cancelPreview()" class="rounded-xl border border-ananas-border px-4 py-3 text-sm">لغو پیش‌نمایش</button></div>'+
- '<p class="mt-3 text-[11px] text-gray-500">پس از تأیید نیز فقط Draft Pull Request ساخته می‌شود؛ Merge انجام نمی‌شود.</p>';
+ (d.high_risk?'<div class="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">هشدار: این تغییرات از حد معمول بزرگ‌ترند. پیش از تأیید، فایل‌ها و خطوط حذف‌شده را بررسی کنید.</div>':'')+
+ '<div class="mt-4 flex flex-wrap gap-2"><button onclick="confirmChanges()" class="rounded-xl bg-emerald-400 text-slate-950 font-bold px-5 py-3 text-sm">'+(isExisting?'تأیید و ثبت اصلاحات در همان Draft PR':'تأیید تغییرات و ساخت Draft PR')+'</button><button onclick="cancelPreview()" class="rounded-xl border border-ananas-border px-4 py-3 text-sm">لغو این پیش‌نمایش</button></div>'+
+ '<p class="mt-3 text-[11px] text-gray-500">ثبت تغییرات فقط روی شاخه پیش‌نویس انجام می‌شود؛ هیچ Merge خودکاری صورت نمی‌گیرد.</p>';
 }
 function cancelPreview(){
  pendingProposalId=null;
- $("workStatus").textContent="پیش‌نمایش لغو شد؛ هیچ تغییری در GitHub ثبت نشده است.";
+ $("workStatus").textContent="این پیش‌نمایش کنار گذاشته شد؛ هیچ تغییری در GitHub ثبت نشد.";
+}
+function renderCoderConversation(){
+ const box=$("conversationLog");
+ if(!coderHistory.length){box.innerHTML='<p class="text-xs text-gray-500 text-center py-3">گفتگوی کدنویسی هنوز شروع نشده است.</p>';return;}
+ box.innerHTML=coderHistory.slice(-18).map(item=>'<div class="rounded-lg p-3 '+(item.role==="user"?'bg-cyan-950/30 border border-cyan-900/40':'bg-black/20 border border-ananas-border')+'"><div class="text-[10px] mb-1 '+(item.role==="user"?'text-cyan-300':'text-amber-300')+'">'+(item.role==="user"?'درخواست شما':'پاسخ آناناس')+'</div><div class="whitespace-pre-wrap break-words text-gray-200">'+escapeHtml(item.content)+'</div></div>').join("");
+ box.scrollTop=box.scrollHeight;
+}
+function isMergeDraftCommand(value){
+ const text=String(value||"").toLowerCase();
+ return /(?:ادغام|مرج|merge)/.test(text) && /(?:پیش.?نویس|draft)/.test(text);
+}
+async function listDrafts(fromChat=false){
+ if(!selectedRepo)return showError("ابتدا مخزن را انتخاب کنید.");
+ const status=$("workStatus");status.classList.remove("hidden");status.textContent="در حال دریافت پیش‌نویس‌های عامل آناناس برای شاخه main...";
+ try{
+  const d=await api(null,"POST",{action:"list_drafts",repo:selectedRepo.full_name,base:"main"});
+  activeDrafts=d.drafts||[];
+  if(!activeDrafts.length){
+   const message="هیچ Draft Pull Request متعلق به عامل آناناس برای شاخه main پیدا نشد.";
+   status.textContent=message;if(fromChat){coderHistory.push({role:"assistant",content:message});renderCoderConversation();}return;
+  }
+  status.innerHTML='<div class="font-bold text-amber-300">پیش‌نویس‌های قابل ادغام در main</div><div class="mt-3 space-y-2">'+activeDrafts.map(item=>'<div class="rounded-lg border border-ananas-border p-3"><div class="font-semibold">#'+Number(item.number)+' · '+escapeHtml(item.title||"بدون عنوان")+'</div><div class="code text-xs text-gray-400 mt-1">'+escapeHtml(item.branch)+'</div><a class="text-xs text-cyan-300 underline" target="_blank" rel="noopener" href="'+escapeHtml(item.url)+'">مشاهده در GitHub</a></div>').join("")+'</div>'+
+  '<button onclick="mergeDrafts()" class="mt-4 rounded-xl bg-emerald-400 text-slate-950 font-bold px-5 py-3 text-sm">ادغام همه پیش‌نویس‌ها در main</button>'+
+  '<p class="mt-2 text-[11px] text-gray-500">پیش از ادغام، تأیید جداگانه گرفته می‌شود. GitHub همچنان قوانین محافظت شاخه و بررسی‌های اجباری را اعمال می‌کند.</p>';
+  if(fromChat){coderHistory.push({role:"assistant",content:activeDrafts.length+" پیش‌نویس متعلق به آناناس برای main پیدا شد. فهرست و گزینه ادغام در پنل نمایش داده شده است."});renderCoderConversation();}
+ }catch(e){status.textContent="خطا در دریافت پیش‌نویس‌ها: "+e.message;if(fromChat){coderHistory.push({role:"assistant",content:"خطا: "+e.message});renderCoderConversation();}}
+}
+async function mergeDrafts(){
+ if(!activeDrafts.length)return;
+ const numbers=activeDrafts.map(item=>item.number);
+ if(!confirm("همه "+numbers.length+" پیش‌نویس نمایش‌داده‌شده متعلق به عامل آناناس در شاخه main ادغام شوند؟ ابتدا Draft به حالت Ready تبدیل و سپس با روش Squash ادغام می‌شود. این عملیات پس از موفقیت قابل بازگردانی خودکار نیست."))return;
+ const status=$("workStatus");status.textContent="در حال آماده‌سازی و ادغام پیش‌نویس‌ها در main...";
+ try{
+  const d=await api(null,"POST",{action:"merge_drafts",repo:selectedRepo.full_name,base:"main",pr_numbers:numbers});
+  const merged=(d.merged||[]),failed=(d.failed||[]);
+  status.innerHTML='<div class="font-bold text-emerald-300">ادغام انجام‌شده: '+merged.length+'</div>'+
+   (merged.length?'<ul class="list-disc pr-5 mt-2">'+merged.map(item=>'<li>PR #'+Number(item.number)+' — <a class="text-cyan-300 underline" href="'+escapeHtml(item.url)+'" target="_blank" rel="noopener">GitHub</a></li>').join("")+'</ul>':'')+
+   (failed.length?'<div class="mt-3 text-red-300 font-semibold">مواردی که ادغام نشدند</div><ul class="list-disc pr-5">'+failed.map(item=>'<li>PR #'+Number(item.number)+': '+escapeHtml(item.reason)+'</li>').join("")+'</ul>':'');
+  coderHistory.push({role:"assistant",content:"نتیجه ادغام: "+merged.length+" پیش‌نویس ادغام شد و "+failed.length+" مورد نیازمند بررسی باقی ماند."});renderCoderConversation();
+  activeDrafts=[];
+ }catch(e){status.textContent="خطا: "+e.message;}
 }
 async function applyChanges(){
- const task=$("taskInput").value.trim();if(!task)return showError("شرح تغییرات را بنویسید.");
- if(!confirm("درخواست به Gemini ارسال شود تا ابتدا فقط پیش‌نمایش تغییرات تهیه شود؟ در این مرحله هیچ فایلی در GitHub تغییر نمی‌کند."))return;
- hideError();pendingProposalId=null;$("applyBtn").disabled=true;$("applyBtn").textContent="در حال تهیه پیش‌نمایش...";
- const status=$("workStatus");status.classList.remove("hidden");status.textContent="در حال تحلیل درخواست و تهیه اصلاحات پیشنهادی؛ هنوز هیچ تغییری در GitHub ثبت نمی‌شود...";
+ const task=$("taskInput").value.trim();if(!task)return showError("پیام یا درخواست اصلاح را بنویسید.");
+ if(!selectedRepo)return showError("ابتدا مخزن را انتخاب کنید.");
+ hideError();
+ coderHistory.push({role:"user",content:task});renderCoderConversation();
+ $("taskInput").value="";
+ if(isMergeDraftCommand(task)){await listDrafts(true);return;}
+ $("applyBtn").disabled=true;$("applyBtn").textContent="در حال بررسی درخواست...";
+ const status=$("workStatus");status.classList.remove("hidden");status.textContent="در حال بررسی محدوده و ساخت Patch موضعی؛ هنوز تغییری در GitHub ثبت نمی‌شود...";
  try{
-  const d=await api(null,"POST",{action:"apply",repo:selectedRepo.full_name,branch:$("branchInput").value.trim(),task});
-  if(d.preview_required){renderProposalPreview(d);}
-  else{status.textContent=d.summary||"تغییری پیشنهاد نشد.";}
- }catch(e){status.textContent="خطا: "+e.message;}
- finally{$("applyBtn").disabled=false;$("applyBtn").textContent="تهیه پیش‌نمایش تغییرات";}
+  if(!files.length)await loadTree();
+  const targetPath=$("targetPath").value.trim();
+  const action=pendingProposalId?"refine":"apply";
+  const payload={
+   action,repo:selectedRepo.full_name,branch:$("branchInput").value.trim(),
+   task,message:task,proposal_id:pendingProposalId||undefined,
+   target_paths:targetPath?[targetPath]:[],
+   history:coderHistory.slice(-10).map(item=>({role:item.role,content:item.content}))
+  };
+  const d=await api(null,"POST",payload);
+  if(d.preview_required){
+   renderProposalPreview(d);
+   coderHistory.push({role:"assistant",content:d.assistant_message||d.summary||"پیش‌نمایش اصلاحات آماده است. آن را بررسی کنید یا با پیام بعدی اصلاحش کنید."});
+  }else{
+   status.textContent=d.message||d.summary||"برای این پیام تغییری اعمال نشد.";
+   coderHistory.push({role:"assistant",content:d.message||d.summary||"برای ادامه، جزئیات بیشتری ارائه کنید."});
+  }
+ }catch(e){
+  status.textContent="خطا: "+e.message;
+  coderHistory.push({role:"assistant",content:"خطا در بررسی درخواست: "+e.message});
+ }finally{
+  renderCoderConversation();$("applyBtn").disabled=false;$("applyBtn").textContent="ارسال پیام و تهیه/بازنگری پیش‌نویس";
+ }
 }
 async function confirmChanges(){
  if(!pendingProposalId)return showError("پیش‌نمایش معتبری برای تأیید وجود ندارد.");
- if(!confirm("تأیید نهایی: اصلاحات نمایش‌داده‌شده روی یک شاخه جدید ثبت و به‌صورت Draft Pull Request ارسال شوند؟ شاخه اصلی تغییر نمی‌کند."))return;
+ if(!confirm("این اصلاحات تأیید شوند؟ اگر هنوز Draft PR ساخته نشده باشد، یک پیش‌نویس جدید در GitHub ساخته می‌شود؛ در غیر این صورت همان پیش‌نویس به‌روزرسانی خواهد شد. شاخه main مستقیماً تغییر نمی‌کند."))return;
  const proposalId=pendingProposalId;
- const confirmButton=[...$("workStatus").querySelectorAll("button")].find(button=>button.textContent.includes("تأیید تغییرات"));
- if(confirmButton){confirmButton.disabled=true;confirmButton.textContent="در حال ثبت...";}
+ const confirmButton=[...$("workStatus").querySelectorAll("button")].find(button=>button.textContent.includes("تأیید"));
+ if(confirmButton){confirmButton.disabled=true;confirmButton.textContent="در حال ثبت اتمیک...";}
  $("applyBtn").disabled=true;
- const status=$("workStatus");status.textContent="در حال بررسی مجدد نسخه پایه و ساخت شاخه مستقل و Draft Pull Request...";
+ const status=$("workStatus");status.textContent="در حال بررسی نسخه فایل‌ها و ثبت یک commit اتمیک روی شاخه پیش‌نویس...";
  try{
   const d=await api(null,"POST",{action:"confirm",repo:selectedRepo.full_name,proposal_id:proposalId});
-  pendingProposalId=null;
-  status.innerHTML='<div class="font-bold text-emerald-300">Draft Pull Request با موفقیت ساخته شد</div><p class="mt-2">'+escapeHtml(d.summary||"")+'</p>'+
-   '<p class="mt-2 text-xs text-gray-400">فایل‌های تغییر یافته:</p><ul class="list-disc pr-5">'+(d.files||[]).map(x=>'<li class="code">'+escapeHtml(x)+'</li>').join("")+'</ul>'+
-   '<a class="inline-flex mt-4 rounded-lg bg-emerald-400 text-black px-4 py-2 font-bold" target="_blank" rel="noopener" href="'+escapeHtml(d.pull_request)+'">بررسی Draft Pull Request در GitHub</a>'+
-   '<p class="mt-3 text-xs text-amber-200">این PR هنوز Draft است و هیچ Merge خودکاری انجام نشده است.</p>';
- }catch(e){status.textContent="خطا: "+e.message;}
- finally{$("applyBtn").disabled=false;if(confirmButton && confirmButton.isConnected){confirmButton.disabled=false;confirmButton.textContent="تأیید تغییرات و ساخت Draft PR";}}
+  pendingProposalId=d.proposal_id||proposalId;
+  status.innerHTML='<div class="font-bold text-emerald-300">'+(d.created?'Draft Pull Request ساخته شد':'همان Draft Pull Request به‌روزرسانی شد')+'</div><p class="mt-2">'+escapeHtml(d.summary||"")+'</p>'+
+   '<p class="mt-2 text-xs text-gray-400">فایل‌های این مرحله:</p><ul class="list-disc pr-5">'+(d.files||[]).map(x=>'<li class="code">'+escapeHtml(x)+'</li>').join("")+'</ul>'+
+   '<a class="inline-flex mt-4 rounded-lg bg-emerald-400 text-black px-4 py-2 font-bold" target="_blank" rel="noopener" href="'+escapeHtml(d.pull_request)+'">مشاهده Draft Pull Request در GitHub</a>'+
+   '<p class="mt-3 text-xs text-amber-200">گفتگو باز می‌ماند؛ برای بررسی خطا یا اصلاح بخش دیگری، پیام بعدی را ارسال کنید تا همین Draft PR به‌روزرسانی شود.</p>';
+  coderHistory.push({role:"assistant",content:(d.created?"Draft PR ساخته شد.":"Draft PR قبلی به‌روزرسانی شد.")+" فایل‌ها: "+(d.files||[]).join(", ")+" . می‌توانید گفتگو را ادامه دهید تا همان پیش‌نویس را اصلاح کنیم."});
+  renderCoderConversation();
+ }catch(e){
+  status.textContent="خطا: "+e.message;
+  coderHistory.push({role:"assistant",content:"ثبت تغییرات ناموفق بود: "+e.message});renderCoderConversation();
+ }finally{
+  $("applyBtn").disabled=false;
+  if(confirmButton && confirmButton.isConnected){confirmButton.disabled=false;confirmButton.textContent="تأیید تغییرات";}
+ }
 }
 boot();
 </script>
