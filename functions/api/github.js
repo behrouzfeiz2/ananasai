@@ -375,9 +375,19 @@ async function handlePost({ request, env }) {
       const merged = [], failed = [];
       for (const number of numbers) {
         try {
-          await github(linked.token, "/repos/" + repository + "/pulls/" + number + "/ready_for_review", {
-            method: "POST", headers: { "Content-Type": "application/json" }
+          const pull = await github(linked.token, "/repos/" + repository + "/pulls/" + number);
+          if (!pull.node_id || pull.draft !== true) throw new Error("این پیش‌نویس دیگر در وضعیت Draft نیست؛ برای جلوگیری از ادغام ناخواسته عملیات متوقف شد.");
+          const ready = await github(linked.token, "/graphql", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              query: "mutation($pullRequestId: ID!) { markPullRequestReadyForReview(input: { pullRequestId: $pullRequestId }) { pullRequest { id isDraft } } }",
+              variables: { pullRequestId: pull.node_id }
+            })
           });
+          if (ready.errors?.length || ready.data?.markPullRequestReadyForReview?.pullRequest?.isDraft !== false) {
+            throw new Error(ready.errors?.[0]?.message || "تبدیل پیش‌نویس به Ready for review تأیید نشد.");
+          }
           const result = await github(linked.token, "/repos/" + repository + "/pulls/" + number + "/merge", {
             method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ merge_method: "squash" })
           });
