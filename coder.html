@@ -177,7 +177,7 @@ function renderCoderHistoryList(){
  list.innerHTML=coderConversations.map(item=>{
   const id=escapeHtml(item.id),active=item.id===activeConversationId,menuOpen=coderMenuOpenId===item.id;
   const status=item.status==="merged"?'<span class="text-[9px] text-emerald-300">ادغام‌شده</span>':item.status==="draft"?'<span class="text-[9px] text-cyan-300">دارای PR</span>':item.status==="preview"?'<span class="text-[9px] text-amber-300">پیش‌نمایش</span>':'';
-  return '<div class="chat-history-item group relative flex items-center gap-1 w-full px-2 rounded-lg border '+(active?'bg-[#303030] text-white border-[#505050]':'text-gray-300 hover:bg-[#202020] border-transparent')+'">'+
+  return '<div class="coder-history-item group relative flex items-center gap-1 w-full px-2 rounded-lg border min-h-[54px] '+(active?'bg-[#303030] text-white border-[#505050]':'text-gray-300 hover:bg-[#202020] border-transparent')+'">'+
    '<button type="button" onclick="loadCoderConversation(\''+id+'\')" class="flex-1 min-w-0 text-right py-2.5 overflow-hidden">'+
     '<span class="block truncate text-xs font-medium" dir="auto">'+escapeHtml(item.title||"گفتگوی بدون عنوان")+'</span>'+
     '<span class="mt-1 flex items-center gap-2 min-w-0 text-[9px] text-gray-500"><span class="truncate code" dir="ltr">'+escapeHtml(item.repository||"بدون پروژه")+'</span>'+status+'</span>'+
