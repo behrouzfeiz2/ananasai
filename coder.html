@@ -197,8 +197,7 @@ function renderProposalPreview(d){
  '<p class="mt-3 text-[11px] text-gray-500">ثبت تغییرات فقط روی شاخه پیش‌نویس انجام می‌شود؛ هیچ Merge خودکاری صورت نمی‌گیرد.</p>';
 }
 function cancelPreview(){
- pendingProposalId=null;
- $("workStatus").textContent="این پیش‌نمایش کنار گذاشته شد؛ هیچ تغییری در GitHub ثبت نشد.";
+ $("workStatus").textContent="نمایش این پیش‌نمایش بسته شد؛ نسخه پیش‌نویس و ارتباط گفتگو حفظ شده است. می‌توانید با پیام بعدی اصلاح را ادامه دهید.";
 }
 function renderCoderConversation(){
  const box=$("conversationLog");
