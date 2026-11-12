@@ -375,8 +375,8 @@ async function handlePost({ request, env }) {
       const merged = [], failed = [];
       for (const number of numbers) {
         try {
-          await github(linked.token, "/repos/" + repository + "/pulls/" + number, {
-            method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ draft: false })
+          await github(linked.token, "/repos/" + repository + "/pulls/" + number + "/ready_for_review", {
+            method: "POST", headers: { "Content-Type": "application/json" }
           });
           const result = await github(linked.token, "/repos/" + repository + "/pulls/" + number + "/merge", {
             method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ merge_method: "squash" })
