@@ -372,14 +372,14 @@ function renderSecretaryMessageAction(message, index) {
 async function handleSecretarySubmit() {
   const input = document.getElementById("promptInput");
   const text = String(input && input.value || "").trim();
-  if (!text || isGenerating) return;
+  if (!text || isGenerating || window.secretaryActionExecuting) return;
   if (!userToken) { openSettingsModal("منشی هوشمند برای کاربران Pro و Ultra فعال است."); return; }
   const session = secretaryCurrentSession() || secretaryNewSession();
   input.value = ""; autoResizeTextarea(input);
   const pending = session.secretary ? session.secretary.pendingAction : null;
   secretaryAdd("user", text);
   if (!session.title || session.title === "گفتگوی منشی") secretarySetTitle(text);
-  if (pending && /^(بله|آره|اره|تأیید|تایید|ارسال کن|ثبت کن|اوکی|همین خوبه)[.!؟\s]*$/i.test(text)) {
+  if (pending && /^(بله(?:\s*(?:ارسال کن|ثبت کن|تأیید و ارسال|تایید و ارسال))?|آره|اره|تأیید|تایید|ارسال کن|ارسالش کن|ثبت کن|ثبتش کن|اوکی|همین خوبه|تأیید و ارسال|تایید و ارسال)[.!؟\s]*$/i.test(text)) {
     isGenerating = true; appendLoadingBubble(true, false);
     try { await secretaryExecutePending(); }
     finally { removeLoadingBubble(); isGenerating = false; renderMessages(); }
