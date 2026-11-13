@@ -376,7 +376,7 @@ async function handlePost({ request, env }) {
     if (Number(request.headers.get("Content-Length") || 0) > 180000) return json({ error: "حجم درخواست بیش از حد مجاز است." }, 413);
     let body; try { body = await request.json(); } catch { return json({ error: "بدنه درخواست JSON معتبر نیست." }, 400); }
     if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "ساختار درخواست معتبر نیست." }, 400);
-    if (["history_list", "history_get", "history_save", "history_delete", "history_rename"].includes(body.action)) return handleHistoryAction(env, account, body);
+    if (["history_list", "history_get", "history_save", "history_delete", "history_rename", "history_clear"].includes(body.action)) return handleHistoryAction(env, account, body);
     if (body.action === "disconnect") {
       const stored = await getStoredGoogleLink(env, account.token);
       if (stored.data?.refresh_encrypted) {
