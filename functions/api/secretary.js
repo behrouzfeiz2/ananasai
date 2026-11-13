@@ -270,12 +270,22 @@ async function listCalendarEvents(env, userToken, maxResults) {
 async function handleHistoryAction(env, account, body) {
   const accountHash = await sha256(account.token), indexKey = "secretary_history_index:" + accountHash;
   const recordKey = id => "secretary_history_record:" + accountHash + ":" + id;
+  const deletedPrefix = "secretary_history_deleted:" + accountHash + ":";
+  const clearMarkerKey = "secretary_history_clear:" + accountHash;
   const validId = value => /^sec_[A-Za-z0-9_-]{8,60}$/.test(String(value || ""));
   const rawIndex = await env.ANANAS_KV.get(indexKey);
   let index = []; try { index = rawIndex ? JSON.parse(rawIndex) : []; } catch {}
   if (!Array.isArray(index)) index = [];
   const action = body.action;
   if (action === "history_list") {
+    const deletedIds = [];
+    let deletedCursor;
+    do {
+      const page = await env.ANANAS_KV.list({ prefix: deletedPrefix, limit: 1000, ...(deletedCursor ? { cursor: deletedCursor } : {}) });
+      for (const item of page.keys || []) deletedIds.push(item.name.slice(deletedPrefix.length));
+      deletedCursor = page.list_complete ? null : page.cursor;
+    } while (deletedCursor);
+    const deletedBefore = Number(await env.ANANAS_KV.get(clearMarkerKey)) || 0;
     const retentionKey = "secretary_history_retention_v1:" + accountHash;
     if (!(await env.ANANAS_KV.get(retentionKey))) {
       await Promise.all(index.filter(item => item && validId(item.id)).map(async item => {
@@ -286,14 +296,16 @@ async function handleHistoryAction(env, account, body) {
       await env.ANANAS_KV.put(retentionKey, "1", { expirationTtl: HISTORY_TTL });
     }
     await env.ANANAS_KV.put(indexKey, JSON.stringify(index), { expirationTtl: HISTORY_TTL });
-    return json({ conversations: index.filter(item => item && validId(item.id)).sort((a, b) => Number(b.updated_at || 0) - Number(a.updated_at || 0)) });
+    return json({ conversations: index.filter(item => item && validId(item.id)).sort((a, b) => Number(b.updated_at || 0) - Number(a.updated_at || 0)), deleted_ids: deletedIds, deleted_before: deletedBefore });
   }
   if (action === "history_clear") {
     const ids = index.filter(item => item && validId(item.id)).map(item => item.id);
     await Promise.all(ids.map(id => env.ANANAS_KV.delete(recordKey(id))));
     await env.ANANAS_KV.delete(indexKey);
     await env.ANANAS_KV.delete("secretary_history_retention_v1:" + accountHash);
-    return json({ deleted: true, count: ids.length });
+    const clearedAt = Date.now();
+    await env.ANANAS_KV.put(clearMarkerKey, String(clearedAt), { expirationTtl: HISTORY_TTL });
+    return json({ deleted: true, count: ids.length, deleted_before: clearedAt });
   }
   const id = String(body.id || body.conversation?.id || "");
   if (!validId(id)) return json({ error: "شناسه گفتگوی منشی معتبر نیست." }, 400);
@@ -308,6 +320,7 @@ async function handleHistoryAction(env, account, body) {
   }
   if (action === "history_delete") {
     await env.ANANAS_KV.delete(storageKey);
+    await env.ANANAS_KV.put(deletedPrefix + id, "1", { expirationTtl: HISTORY_TTL });
     index = index.filter(item => item?.id !== id);
     await env.ANANAS_KV.put(indexKey, JSON.stringify(index), { expirationTtl: HISTORY_TTL });
     return json({ deleted: true, id });
@@ -331,6 +344,7 @@ async function handleHistoryAction(env, account, body) {
     id, title, created_at: Number(incoming.created_at) || now, updated_at: now, messages,
     pendingAction: incoming.pendingAction && ["email", "event"].includes(incoming.pendingAction.type) ? incoming.pendingAction : null
   };
+  await env.ANANAS_KV.delete(deletedPrefix + id);
   await env.ANANAS_KV.put(storageKey, JSON.stringify(conversation), { expirationTtl: HISTORY_TTL });
   index = index.filter(item => item?.id !== id);
   index.unshift({ id, title, created_at: conversation.created_at, updated_at: now });
