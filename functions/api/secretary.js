@@ -43,14 +43,15 @@ async function decrypt(value, secret) {
 }
 async function getAccount(request, env) {
   const token = (request.headers.get("X-User-Token") || "").trim();
-  if (!token || token.length > 256 || !env.ANANAS_KV) return { error: "برای استفاده از منشی هوشمند باید با اشتراک Pro یا Ultra وارد شوید.", status: 401 };
+  if (!token || token.length > 256 || !env.ANANAS_KV) return { error: "برای استفاده از منشی هوشمند به اشتراک Ultra نیاز دارید.", status: 401 };
   const raw = await env.ANANAS_KV.get(token);
   if (!raw) return { error: "اشتراک معتبر نیست یا در دسترس نیست.", status: 401 };
   let data;
   try { data = JSON.parse(raw); } catch { return { error: "اطلاعات اشتراک قابل تأیید نیست.", status: 401 }; }
   if (!data || typeof data !== "object" || Array.isArray(data)) return { error: "ساختار اطلاعات اشتراک معتبر نیست.", status: 401 };
-  if (data.tier && !["pro", "ultra"].includes(data.tier)) return { error: "این قابلیت برای اشتراک Pro یا Ultra فعال است.", status: 403 };
-  return { token, tier: data.tier === "ultra" || token.startsWith("ULTRA-") ? "ultra" : "pro" };
+  const isUltra = data.tier === "ultra" || token.startsWith("ULTRA-");
+  if (!isUltra) return { error: "منشی هوشمند فقط برای کاربران دارای اشتراک Ultra فعال است.", status: 403 };
+  return { token, tier: "ultra" };
 }
 function googleConfigured(env) { return Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.GOOGLE_TOKEN_ENCRYPTION_KEY && env.ANANAS_KV); }
 async function googleLinkKey(token) { return "google_link:" + await sha256(token); }
