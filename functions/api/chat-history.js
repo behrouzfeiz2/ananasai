@@ -120,7 +120,6 @@ async function handlePost({ request, env }) {
         return json({ error: "اطلاعات این گفتگو قابل بازیابی نیست." }, 500);
       }
       const now = Date.now();
-      conversation.updated_at = Number(conversation.updated_at) || now;
       conversation.updated_at = now;
       await env.ANANAS_KV.put(storageKey, JSON.stringify(conversation), {
         expirationTtl: HISTORY_TTL,
