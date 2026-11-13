@@ -2800,11 +2800,12 @@ function renderDollarChart(c,i){
       const remoteIds = new Set(remote.map(item => item.id));
       const deletedIds = new Set(Array.isArray(result.deleted_ids) ? result.deleted_ids : []);
       const deletedBefore = Number(result.deleted_before) || 0;
+      const purgedBefore = Number(result.purged_before) || 0;
       sessions = sessions.filter(session => {
         if (session.mode && session.mode !== 'chat') return true;
         if (remoteIds.has(session.id)) return true;
         if (isHistoryExpiredLocally(session)) return false;
-        return !deletedIds.has(session.id) && !(deletedBefore && historyActivityTimestamp(session) <= deletedBefore);
+        return !deletedIds.has(session.id) && !(purgedBefore && Number(session.createdAt || 0) < purgedBefore) && !(deletedBefore && historyActivityTimestamp(session) <= deletedBefore);
       });
       for (const item of remote.slice().reverse()) {
         if (!item.id) continue;
@@ -2893,11 +2894,12 @@ function renderDollarChart(c,i){
         const remoteIds = new Set(remote.map(item => item.id));
         const deletedIds = new Set(Array.isArray(result.deleted_ids) ? result.deleted_ids : []);
         const deletedBefore = Number(result.deleted_before) || 0;
+        const purgedBefore = Number(result.purged_before) || 0;
         sessions = sessions.filter(session => {
           if (session.mode !== 'coder') return true;
           if (remoteIds.has(session.id)) return true;
           if (isHistoryExpiredLocally(session)) return false;
-          return !deletedIds.has(session.id) && !(deletedBefore && historyActivityTimestamp(session) <= deletedBefore);
+          return !deletedIds.has(session.id) && !(purgedBefore && Number(session.createdAt || 0) < purgedBefore) && !(deletedBefore && historyActivityTimestamp(session) <= deletedBefore);
         });
         for (const item of remote.slice().reverse()) {
           if (!item.id) continue;
