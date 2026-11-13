@@ -163,7 +163,7 @@ async function handleGet({ request, env }) {
       oauthUrl.searchParams.set("response_type", "code");
       oauthUrl.searchParams.set("scope", GOOGLE_SCOPES);
       oauthUrl.searchParams.set("access_type", "offline");
-      oauthUrl.searchParams.set("prompt", "consent");
+      oauthUrl.searchParams.set("prompt", "select_account consent");
       oauthUrl.searchParams.set("include_granted_scopes", "true");
       oauthUrl.searchParams.set("state", state);
       return json({ url: oauthUrl.toString() });
