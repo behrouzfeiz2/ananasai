@@ -687,28 +687,16 @@
       overflow: auto;
     }
 
-    body.secretary-mode #messagesContainer { background: #f7f8fa !important; color: #111827 !important; }
-    body.secretary-mode #welcomeTitle { color: #111827 !important; }
-    body.secretary-mode #chatComposerShell { background: #f7f8fa !important; border-top: 1px solid #e5e7eb; }
-    body.secretary-mode #chatComposerForm { background: #ffffff !important; border-color: #d1d5db !important; box-shadow: 0 4px 18px rgba(15,23,42,.06); }
-    body.secretary-mode #chatComposerForm:focus-within { border-color: #64748b !important; box-shadow: 0 0 0 2px rgba(100,116,139,.12); }
-    body.secretary-mode #promptInput { color: #111827 !important; }
-    body.secretary-mode #promptInput::placeholder { color: #64748b !important; }
-    body.secretary-mode #attachmentMenuButton, body.secretary-mode #micBtn { color: #475569 !important; }
-    body.secretary-mode #sendBtn { background: #e2e8f0 !important; color: #0f172a !important; box-shadow: none !important; }
-    body.secretary-mode #sendBtn:hover { background: #cbd5e1 !important; }
-    body.secretary-mode #chatMessages .assistant-tool-btn { color: #64748b; }
-    body.secretary-mode #chatMessages .assistant-tool-btn:hover { background: #f1f5f9; color: #0f172a; }
-    body.secretary-mode #chatMessages .prose-ananas { color: #334155 !important; }
-    body.secretary-mode #chatMessages .prose-ananas code { background: #f1f5f9; color: #334155; }
-    body.secretary-mode #chatMessages .prose-ananas pre { background: #f8fafc; border-color: #e2e8f0; }
-    body.secretary-mode #chatMessages .prose-ananas pre code { color: #334155; }
-    body.secretary-mode #chatMessages a { color: #2563eb; }
-    body.secretary-mode #chatMessages .border-ananas-border { border-color: #e2e8f0 !important; }
-    body.secretary-mode #chatMessages .text-gray-200 { color: #334155 !important; }
-    body.secretary-mode #chatMessages .text-gray-400 { color: #64748b !important; }
-    body.secretary-mode #chatMessages .text-ananas-400 { color: #334155 !important; }
-    body.secretary-mode #headerModeGroup #modeSecretaryBtn { background: #ffffff !important; color: #0f172a !important; border-color: #e2e8f0 !important; }
+    /* منشی: هماهنگ با تم تیره اصلی؛ فقط قاب ورودی چت سفید است. */
+    body.secretary-mode #messagesContainer { background: #0b0b0b !important; color: #f3f4f6 !important; }
+    body.secretary-mode #welcomeTitle { color: #ffffff !important; }
+    body.secretary-mode #chatComposerShell { background: #0b0b0b !important; border-top: 1px solid rgba(255,255,255,.08); }
+    body.secretary-mode #chatComposerForm { background: #171717 !important; border: 1px solid #ffffff !important; box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 8px 24px rgba(0,0,0,.24); }
+    body.secretary-mode #chatComposerForm:focus-within { border-color: #ffffff !important; box-shadow: 0 0 0 2px rgba(255,255,255,.2), 0 8px 24px rgba(0,0,0,.28); }
+    body.secretary-mode #promptInput { color: #ffffff !important; }
+    body.secretary-mode #promptInput::placeholder { color: #9ca3af !important; }
+    body.secretary-mode #attachmentMenuButton, body.secretary-mode #micBtn { color: #e5e7eb !important; }
+    body.secretary-mode #headerModeGroup #modeSecretaryBtn { background: #a3e635 !important; color: #111827 !important; border-color: rgba(163,230,53,.5) !important; }
   </style>
 </head>
 
@@ -905,24 +893,24 @@
           </button>
         </div>
         <div id="secretaryWelcome" class="hidden max-w-3xl mx-auto space-y-4 px-1 pt-2 text-right">
-          <div class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+          <div class="rounded-2xl border border-ananas-border bg-ananas-card p-4 sm:p-5 shadow-lg">
             <div class="flex items-center gap-3">
-              <div class="w-11 h-11 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-xl">✉️</div>
-              <div class="min-w-0 flex-1"><div class="font-bold text-slate-900">منشی هوشمند آناناس</div><button type="button" onclick="secretaryStartNewConversation()" class="mr-auto rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">گفتگوی جدید</button><div class="text-xs text-slate-500 mt-1">ایمیل‌ها و یادآوری‌ها را با گفتگو مدیریت کن.</div></div>
+              <div class="w-11 h-11 rounded-xl bg-ananas-dark text-ananas-400 flex items-center justify-center text-xl">✉️</div>
+              <div class="min-w-0 flex-1"><div class="font-bold text-white">منشی هوشمند آناناس</div><button type="button" onclick="secretaryStartNewConversation()" class="mr-auto rounded-lg border border-ananas-border bg-ananas-dark px-3 py-2 text-xs font-semibold text-gray-200 hover:bg-ananas-card">گفتگوی جدید</button><div class="text-xs text-gray-400 mt-1">ایمیل‌ها و یادآوری‌ها را با گفتگو مدیریت کن.</div></div>
             </div>
-            <div id="secretaryConnectionPanel" class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <div id="secretaryGoogleStatusText" class="text-sm text-slate-700">وضعیت اتصال حساب گوگل در حال بررسی است...</div>
+            <div id="secretaryConnectionPanel" class="mt-4 rounded-xl border border-ananas-border bg-ananas-dark p-3">
+              <div id="secretaryGoogleStatusText" class="text-sm text-gray-300">وضعیت اتصال حساب گوگل در حال بررسی است...</div>
               <div class="flex flex-wrap gap-2 mt-3">
-                <button id="secretaryConnectBtn" type="button" onclick="secretaryConnectGoogle()" class="rounded-lg bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-700">اتصال حساب گوگل</button>
-                <button id="secretaryDisconnectBtn" type="button" onclick="secretaryDisconnectGoogle()" class="hidden rounded-lg border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">قطع اتصال</button>
+                <button id="secretaryConnectBtn" type="button" onclick="secretaryConnectGoogle()" class="rounded-lg bg-ananas-500 px-4 py-2 text-xs font-bold text-ananas-dark hover:bg-ananas-400">اتصال حساب گوگل</button>
+                <button id="secretaryDisconnectBtn" type="button" onclick="secretaryDisconnectGoogle()" class="hidden rounded-lg border border-ananas-border px-4 py-2 text-xs font-semibold text-gray-300 hover:bg-ananas-card">قطع اتصال</button>
               </div>
             </div>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <button type="button" data-prompt="ایمیل‌های مهم امروز را خلاصه کن." onclick="sendSuggestion(this)" class="rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700 text-right hover:border-slate-400">📨 خلاصه ایمیل‌های امروز</button>
-            <button type="button" data-prompt="می‌خواهم یک ایمیل جدید ارسال کنم." onclick="sendSuggestion(this)" class="rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700 text-right hover:border-slate-400">✍️ نوشتن و ارسال ایمیل</button>
-            <button type="button" data-prompt="یک یادآوری برای پرداخت بعدی‌ام در تقویم ثبت کن." onclick="sendSuggestion(this)" class="rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700 text-right hover:border-slate-400">💳 یادآوری پرداخت</button>
-            <button type="button" data-prompt="جلسه‌ای برای من در تقویم ثبت کن." onclick="sendSuggestion(this)" class="rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700 text-right hover:border-slate-400">📅 ثبت جلسه در تقویم</button>
+            <button type="button" data-prompt="ایمیل‌های مهم امروز را خلاصه کن." onclick="sendSuggestion(this)" class="rounded-xl border border-ananas-border bg-ananas-card p-3 text-sm text-gray-200 text-right hover:border-ananas-400/60 hover:bg-ananas-dark">📨 خلاصه ایمیل‌های امروز</button>
+            <button type="button" data-prompt="می‌خواهم یک ایمیل جدید ارسال کنم." onclick="sendSuggestion(this)" class="rounded-xl border border-ananas-border bg-ananas-card p-3 text-sm text-gray-200 text-right hover:border-ananas-400/60 hover:bg-ananas-dark">✍️ نوشتن و ارسال ایمیل</button>
+            <button type="button" data-prompt="یک یادآوری برای پرداخت بعدی‌ام در تقویم ثبت کن." onclick="sendSuggestion(this)" class="rounded-xl border border-ananas-border bg-ananas-card p-3 text-sm text-gray-200 text-right hover:border-ananas-400/60 hover:bg-ananas-dark">💳 یادآوری پرداخت</button>
+            <button type="button" data-prompt="جلسه‌ای برای من در تقویم ثبت کن." onclick="sendSuggestion(this)" class="rounded-xl border border-ananas-border bg-ananas-card p-3 text-sm text-gray-200 text-right hover:border-ananas-400/60 hover:bg-ananas-dark">📅 ثبت جلسه در تقویم</button>
           </div>
         </div>
       </div>

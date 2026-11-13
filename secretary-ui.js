@@ -345,13 +345,13 @@ function renderSecretaryMessageAction(message, index) {
   const action = message.secretaryAction || {};
   const data = action.data || {};
   if (action.type === "connect") {
-    return '<div class="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3"><div class="text-xs text-slate-600 mb-2">برای ادامه، حساب گوگل را متصل کن.</div><button type="button" onclick="secretaryConnectGoogle()" class="rounded-lg bg-slate-900 px-4 py-2 text-xs font-bold text-white">اتصال حساب گوگل</button></div>';
+    return '<div class="mt-3 rounded-xl border border-ananas-border bg-ananas-card p-3"><div class="text-xs text-gray-300 mb-2">برای ادامه، حساب گوگل را متصل کن.</div><button type="button" onclick="secretaryConnectGoogle()" class="rounded-lg bg-ananas-500 px-4 py-2 text-xs font-bold text-ananas-dark hover:bg-ananas-400">اتصال حساب گوگل</button></div>';
   }
   if (action.type === "email_preview") {
-    return '<div class="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-800"><div class="text-xs font-bold mb-2">پیش‌نمایش ایمیل</div>' +
+    return '<div class="mt-3 rounded-xl border border-ananas-border bg-ananas-card p-3 text-gray-200"><div class="text-xs font-bold mb-2">پیش‌نمایش ایمیل</div>' +
       '<div class="text-xs mb-1"><b>گیرنده:</b> <span dir="auto">' + escapeHtml(data.to || "") + '</span></div><div class="text-xs mb-2"><b>موضوع:</b> ' + escapeHtml(data.subject || "") + '</div>' +
-      '<div class="text-sm whitespace-pre-wrap break-words rounded-lg bg-white border border-slate-200 p-3">' + escapeHtml(data.body || "") + '</div>' +
-      '<div class="flex flex-wrap gap-2 mt-3"><button onclick="secretaryConfirmAction(' + index + ')" class="rounded-lg bg-slate-900 px-4 py-2 text-xs font-bold text-white">تأیید و ارسال</button><button onclick="secretaryCancelAction(' + index + ')" class="rounded-lg border border-slate-300 px-4 py-2 text-xs text-slate-700">لغو</button></div></div>';
+      '<div class="text-sm whitespace-pre-wrap break-words rounded-lg bg-ananas-dark border border-ananas-border p-3 text-gray-100">' + escapeHtml(data.body || "") + '</div>' +
+      '<div class="flex flex-wrap gap-2 mt-3"><button onclick="secretaryConfirmAction(' + index + ')" class="rounded-lg bg-ananas-500 px-4 py-2 text-xs font-bold text-ananas-dark hover:bg-ananas-400">تأیید و ارسال</button><button onclick="secretaryCancelAction(' + index + ')" class="rounded-lg border border-ananas-border px-4 py-2 text-xs text-gray-300 hover:bg-ananas-dark">لغو</button></div></div>';
   }
   if (action.type === "event_preview") {
     const start = data.startDateTime || data.startDate || "";
@@ -362,10 +362,10 @@ function renderSecretaryMessageAction(message, index) {
       if (minutes >= 60) return (minutes / 60) + " ساعت قبل";
       return minutes + " دقیقه قبل";
     }).join("، ") || "پیش‌فرض تقویم";
-    return '<div class="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-800"><div class="text-xs font-bold mb-2">پیش‌نمایش یادآوری</div>' +
+    return '<div class="mt-3 rounded-xl border border-ananas-border bg-ananas-card p-3 text-gray-200"><div class="text-xs font-bold mb-2">پیش‌نمایش یادآوری</div>' +
       '<div class="font-semibold text-sm">' + escapeHtml(data.summary || "") + '</div><div class="text-xs mt-2">شروع: ' + escapeHtml(start) + '</div><div class="text-xs mt-1">پایان: ' + escapeHtml(end) + '</div>' +
       '<div class="text-xs mt-2">یادآوری: ' + escapeHtml(reminders) + '</div>' +
-      '<div class="flex flex-wrap gap-2 mt-3"><button onclick="secretaryConfirmAction(' + index + ')" class="rounded-lg bg-slate-900 px-4 py-2 text-xs font-bold text-white">تأیید و ثبت</button><button onclick="secretaryCancelAction(' + index + ')" class="rounded-lg border border-slate-300 px-4 py-2 text-xs text-slate-700">لغو</button></div></div>';
+      '<div class="flex flex-wrap gap-2 mt-3"><button onclick="secretaryConfirmAction(' + index + ')" class="rounded-lg bg-ananas-500 px-4 py-2 text-xs font-bold text-ananas-dark hover:bg-ananas-400">تأیید و ثبت</button><button onclick="secretaryCancelAction(' + index + ')" class="rounded-lg border border-ananas-border px-4 py-2 text-xs text-gray-300 hover:bg-ananas-dark">لغو</button></div></div>';
   }
   return "";
 }
