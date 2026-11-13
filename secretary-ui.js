@@ -322,10 +322,10 @@ async function secretaryExecutePending() {
       if (result.event && result.event.htmlLink) link = "\n[مشاهده در Google Calendar](" + result.event.htmlLink + ")";
       secretaryAdd("model", "یادآوری «" + result.event.summary + "» در تقویم ثبت شد." + link);
     }
-    await secretarySave();
+    await secretarySaveHistory();
   } catch (error) {
     secretaryAdd("model", "عملیات ناموفق بود: " + error.message + "\nپیش‌نویس حفظ شده است؛ پیش از تلاش دوباره، وضعیت ارسال یا ثبت را بررسی کن تا عملیات تکراری انجام نشود.");
-    await secretarySave().catch(function() {});
+    await secretarySaveHistory().catch(function() {});
   } finally {
     window.secretaryActionExecuting = false;
   }
@@ -340,7 +340,7 @@ async function secretaryCancelAction(index) {
   if (!session || !session.secretary || !session.secretary.pendingAction) return;
   session.secretary.pendingAction = null;
   secretaryAdd("model", "پیش‌نویس لغو شد و هیچ ایمیلی ارسال یا رویدادی ثبت نشد.");
-  await secretarySave().catch(function() {});
+  await secretarySaveHistory().catch(function() {});
 }
 function renderSecretaryMessageAction(message, index) {
   const action = message.secretaryAction || {};
@@ -394,7 +394,7 @@ async function handleSecretarySubmit() {
   if (pending && /^(لغو|کنسل|انصراف|بیخیال|بی‌خیال)[.!؟\s]*$/i.test(text)) {
     session.secretary.pendingAction = null;
     secretaryAdd("model", "درخواست لغو شد؛ هیچ اقدامی انجام نشد.");
-    await secretarySave().catch(function() {});
+    await secretarySaveHistory().catch(function() {});
     return;
   }
   if (session.secretary) session.secretary.pendingAction = null;
@@ -402,10 +402,10 @@ async function handleSecretarySubmit() {
   try {
     const result = await secretaryAskModel(session);
     await secretaryRunIntent(result, text);
-    await secretarySave();
+    await secretarySaveHistory();
   } catch (error) {
     secretaryAdd("model", "در انجام درخواست مشکلی پیش آمد: " + error.message + "\nلطفاً دوباره تلاش کن.");
-    await secretarySave().catch(function() {});
+    await secretarySaveHistory().catch(function() {});
   } finally {
     removeLoadingBubble(); isGenerating = false; saveSessions(); renderMessages(); renderHistoryList();
   }
@@ -420,7 +420,7 @@ async function secretaryRestoreUrl() {
   if (params.get("google") === "connected") {
     await secretaryRefreshStatus();
     secretaryAdd("model", "حساب گوگل " + (secretaryGoogleStatus.email || "") + " با موفقیت متصل شد.");
-    await secretarySave();
+    await secretarySaveHistory();
   } else if (params.has("google_error")) {
     secretaryAdd("model", "اتصال گوگل کامل نشد (" + params.get("google_error") + "). تنظیمات OAuth و نشانی بازگشت را بررسی کن.");
   }
