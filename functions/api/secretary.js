@@ -278,6 +278,13 @@ async function handleHistoryAction(env, account, body) {
   if (!Array.isArray(index)) index = [];
   const action = body.action;
   if (action === "history_list") {
+    const cutoff = Date.now() - HISTORY_TTL * 1000;
+    const expiredItems = index.filter(item => item && Number(item.updated_at || item.created_at || 0) > 0 &&
+      Number(item.updated_at || item.created_at || 0) < cutoff);
+    if (expiredItems.length) {
+      await Promise.all(expiredItems.map(item => env.ANANAS_KV.delete(recordKey(item.id))));
+      index = index.filter(item => !expiredItems.includes(item));
+    }
     const deletedIds = [];
     let deletedCursor;
     do {
@@ -291,7 +298,11 @@ async function handleHistoryAction(env, account, body) {
       await Promise.all(index.filter(item => item && validId(item.id)).map(async item => {
         const key = recordKey(item.id);
         const raw = await env.ANANAS_KV.get(key);
-        if (raw) await env.ANANAS_KV.put(key, raw, { expirationTtl: HISTORY_TTL });
+        if (!raw) return;
+        const activity = Number(item.updated_at || item.created_at) || Date.now();
+        const remaining = Math.floor((activity + HISTORY_TTL * 1000 - Date.now()) / 1000);
+        if (remaining > 0) await env.ANANAS_KV.put(key, raw, { expirationTtl: Math.max(60, remaining) });
+        else await env.ANANAS_KV.delete(key);
       }));
       await env.ANANAS_KV.put(retentionKey, "1", { expirationTtl: HISTORY_TTL });
     }
@@ -314,7 +325,9 @@ async function handleHistoryAction(env, account, body) {
     const raw = await env.ANANAS_KV.get(storageKey);
     if (!raw) return json({ error: "گفتگوی منشی پیدا نشد." }, 404);
     const conversation = JSON.parse(raw);
-    await env.ANANAS_KV.put(storageKey, raw, { expirationTtl: HISTORY_TTL });
+    conversation.updated_at = Date.now();
+    await env.ANANAS_KV.put(storageKey, JSON.stringify(conversation), { expirationTtl: HISTORY_TTL });
+    index = index.map(item => item?.id === id ? { ...item, updated_at: conversation.updated_at } : item);
     await env.ANANAS_KV.put(indexKey, JSON.stringify(index), { expirationTtl: HISTORY_TTL });
     return json({ conversation });
   }
