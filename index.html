@@ -1592,10 +1592,29 @@
       }
       const current = sessions.find(s => s.id === activeSessionId);
       if (mode === 'coder') {
-        if (!current || current.mode !== 'coder') activeSessionId = null;
-        currentMode = 'coder'; updateModeUI('coder');
-        if (!sessions.some(s => s.id === activeSessionId && s.mode === 'coder')) startNewCoderConversation();
-        else { renderMessages(); renderHistoryList(); coderInitializeCurrent(); }
+        const alreadyInCoderMode = currentMode === 'coder';
+        if (!alreadyInCoderMode) activeSessionId = null;
+        currentMode = 'coder';
+        updateModeUI('coder');
+        renderMessages();
+        renderHistoryList();
+
+        // ورود به کدنویس فقط محیط را باز می‌کند؛ گفتگوی جدید تا ارسال اولین پیام ساخته نمی‌شود.
+        if (!alreadyInCoderMode) {
+          coderSyncRemoteHistory().then(() => {
+            if (currentMode !== 'coder' || activeSessionId) return;
+            const latest = sessions
+              .filter(session => session.mode === 'coder' &&
+                (session.messages?.length || session.remoteLoaded === false || session.coder?.repository))
+              .sort((a, b) => Number(b.updatedAt || b.createdAt || 0) - Number(a.updatedAt || a.createdAt || 0))[0];
+            if (latest) activeSessionId = latest.id;
+            renderMessages();
+            renderHistoryList();
+            if (coderCurrentSession()) coderInitializeCurrent();
+          }).catch(error => console.warn('Coder history refresh failed:', error));
+        } else if (coderCurrentSession()) {
+          coderInitializeCurrent();
+        }
       } else if (mode === 'secretary') {
         if (!current || current.mode !== 'secretary') activeSessionId = null;
         currentMode = 'secretary'; updateModeUI('secretary');
@@ -1653,6 +1672,7 @@
 
       if (!currentSession || currentSession.messages.length === 0) {
         const container = document.getElementById('chatMessages');
+        if (!container) return;
 
         if (!document.getElementById('coderInfoCard')) {
           const infoDiv = document.createElement('div');
@@ -1664,12 +1684,13 @@
               <span class="text-xl">💻</span>
               <h3 class="font-bold text-cyan-400 text-base">دستیار تخصصی «کد نویس» آناناس</h3>
             </div>
-            <p class="text-gray-300 leading-relaxed">آناناس می‌تونه در این بخش‌ها کمک شما باشه:</p>
+            <p class="text-gray-300 leading-relaxed">کدی را که می‌خواهی بررسی یا بهبود بدهم در پیام بعدی همین‌جا بفرست. می‌توانی کد را مستقیم داخل پیام قرار بدهی؛ من آن را بررسی می‌کنم، ایرادها را توضیح می‌دهم و نسخه پیشنهادی را ارائه می‌کنم.</p>
+            <p class="text-gray-300 leading-relaxed">برای بررسی کد نیازی به اتصال GitHub نیست. اتصال GitHub فقط زمانی لازم است که بخواهی آناناس مستقیماً فایل‌های یک مخزن را بخواند و برای آن پیش‌نویس تغییرات بسازد.</p>
             <ul class="list-disc pr-5 space-y-1.5 text-gray-300">
               <li><b>برنامه‌نویسی وب:</b> HTML, CSS, JavaScript, React, Node.js و...</li>
-              <li><b>زبان‌های همه‌منظوره و اسکریپت‌نویسی:</b> Python, C++, C#, Java, PHP</li>
+              <li><b>زبان‌های همه‌منظوره:</b> Python, C++, C#, Java, PHP</li>
               <li><b>پایگاه داده:</b> SQL, MongoDB</li>
-              <li><b>دیباگ کردن و پیداکردن باگ‌ها و الگوریتم‌نویسی</b></li>
+              <li><b>دیباگ و الگوریتم:</b> پیدا کردن خطا و بهبود کد</li>
             </ul>
           `;
 
@@ -2357,9 +2378,13 @@ function renderDollarChart(c,i){
 
       if (!currentSession || currentSession.messages.length === 0) {
         stopTextToSpeech();
-        welcome.classList.remove('hidden');
         container.innerHTML = '';
-
+        if (currentMode === 'coder') {
+          welcome.classList.add('hidden');
+          showCoderInfoIfNeeded();
+        } else {
+          welcome.classList.remove('hidden');
+        }
         return;
       }
 
@@ -2792,17 +2817,28 @@ function renderDollarChart(c,i){
       if (!force && Date.now() - lastHistorySyncAt < 8000) return;
       chatHistorySyncPromise = (async () => {
       const result = await chatHistoryApiPost({ action: 'history_list' });
-      const remote = Array.isArray(result.conversations) ? result.conversations : [];
-      const remoteById = new Map(remote.map(item => [item.id, item]));
-      const remoteIds = new Set(remote.map(item => item.id));
       const deletedIds = new Set(Array.isArray(result.deleted_ids) ? result.deleted_ids : []);
       const deletedBefore = Number(result.deleted_before) || 0;
       const purgedBefore = Number(result.purged_before) || 0;
+      // حتی اگر KV موقتاً فهرست قدیمی را از کش برگرداند، رکوردهای قبل از پاک‌سازی
+      // یا حذف‌شده نباید دوباره وارد تاریخچه محلی شوند.
+      const remote = (Array.isArray(result.conversations) ? result.conversations : []).filter(item => {
+        const createdAt = Number(item.created_at) || 0;
+        const activity = Number(item.updated_at || createdAt) || 0;
+        return !deletedIds.has(item.id) &&
+          !(purgedBefore && createdAt < purgedBefore) &&
+          !(deletedBefore && activity <= deletedBefore);
+      });
+      const remoteById = new Map(remote.map(item => [item.id, item]));
+      const remoteIds = new Set(remote.map(item => item.id));
       sessions = sessions.filter(session => {
         if (session.mode && session.mode !== 'chat') return true;
-        if (remoteIds.has(session.id)) return true;
         if (isHistoryExpiredLocally(session)) return false;
-        return !deletedIds.has(session.id) && !(purgedBefore && Number(session.createdAt || 0) < purgedBefore) && !(deletedBefore && historyActivityTimestamp(session) <= deletedBefore);
+        const activity = historyActivityTimestamp(session);
+        if (deletedIds.has(session.id) ||
+            (purgedBefore && Number(session.createdAt || 0) < purgedBefore) ||
+            (deletedBefore && activity <= deletedBefore)) return false;
+        return true;
       });
       for (const item of remote.slice().reverse()) {
         if (!item.id) continue;
@@ -2886,17 +2922,26 @@ function renderDollarChart(c,i){
       if (coderHistorySyncPromise) return coderHistorySyncPromise;
       coderHistorySyncPromise = (async () => {
         const result = await coderApiPost({ action: 'history_list' });
-        const remote = Array.isArray(result.conversations) ? result.conversations : [];
-        const remoteById = new Map(remote.map(item => [item.id, item]));
-        const remoteIds = new Set(remote.map(item => item.id));
         const deletedIds = new Set(Array.isArray(result.deleted_ids) ? result.deleted_ids : []);
         const deletedBefore = Number(result.deleted_before) || 0;
         const purgedBefore = Number(result.purged_before) || 0;
+        const remote = (Array.isArray(result.conversations) ? result.conversations : []).filter(item => {
+          const createdAt = Number(item.created_at) || 0;
+          const activity = Number(item.updated_at || createdAt) || 0;
+          return !deletedIds.has(item.id) &&
+            !(purgedBefore && createdAt < purgedBefore) &&
+            !(deletedBefore && activity <= deletedBefore);
+        });
+        const remoteById = new Map(remote.map(item => [item.id, item]));
+        const remoteIds = new Set(remote.map(item => item.id));
         sessions = sessions.filter(session => {
           if (session.mode !== 'coder') return true;
-          if (remoteIds.has(session.id)) return true;
           if (isHistoryExpiredLocally(session)) return false;
-          return !deletedIds.has(session.id) && !(purgedBefore && Number(session.createdAt || 0) < purgedBefore) && !(deletedBefore && historyActivityTimestamp(session) <= deletedBefore);
+          const activity = historyActivityTimestamp(session);
+          if (deletedIds.has(session.id) ||
+              (purgedBefore && Number(session.createdAt || 0) < purgedBefore) ||
+              (deletedBefore && activity <= deletedBefore)) return false;
+          return true;
         });
         for (const item of remote.slice().reverse()) {
           if (!item.id) continue;
@@ -3654,9 +3699,14 @@ function renderDollarChart(c,i){
     }
 
     function startNewCoderConversation() {
-      const session = coderCreateSession();
-      coderInitializeCurrent();
-      return session;
+      // شروع گفتگوی تازه فقط محیط را خالی می‌کند؛ رکورد با اولین پیام کاربر ساخته می‌شود.
+      currentMode = 'coder';
+      activeSessionId = null;
+      coderInitializedSessionId = null;
+      updateModeUI('coder');
+      renderMessages();
+      renderHistoryList();
+      return null;
     }
 
     function coderPush(role, text, extra) {
@@ -3733,7 +3783,8 @@ function renderDollarChart(c,i){
       if (!latest) return;
       if (latest.coder.repository && ['task', 'preview', 'draft'].includes(latest.coder.stage)) return;
 
-      // اتصال GitHub اختیاری است؛ حالت پیش‌فرض، بررسی کد ارسالی در خود گفتگو است.
+      // اتصال GitHub اختیاری است؛ راهنمای شروع به‌صورت کارت ثابت نمایش داده می‌شود
+      // و به‌عنوان پیام یا تاریخچه ذخیره نمی‌شود.
       if (!['connect_pending', 'project'].includes(latest.coder.stage)) {
         latest.coder.stage = 'manual';
         latest.messages.forEach(message => {
@@ -3742,19 +3793,9 @@ function renderDollarChart(c,i){
             message.coderAction.type = 'manual_intro';
           }
         });
-        const hasWelcome = latest.messages.some(message =>
-          message.coderAction && message.coderAction.type === 'manual_intro'
-        );
-        if (!hasWelcome) {
-          coderPush('model',
-            'کدی را که می‌خواهی بررسی یا بهبود بدهم در پیام بعدی همین‌جا بفرست. می‌توانی کد را مستقیم داخل پیام قرار بدهی؛ من آن را بررسی می‌کنم، ایرادها را توضیح می‌دهم و نسخه پیشنهادی را ارائه می‌کنم. برای این کار نیازی به اتصال GitHub نیست. اگر بخواهی آناناس مستقیماً فایل‌های یک مخزن را بخواند و برای آن پیش‌نویس تغییرات بسازد، اتصال GitHub اختیاری است.',
-            { coderAction: { type: 'manual_intro' } }
-          );
-        } else {
-          saveSessions();
-          renderMessages();
-          renderHistoryList();
-        }
+        saveSessions();
+        renderMessages();
+        renderHistoryList();
         return;
       }
 
