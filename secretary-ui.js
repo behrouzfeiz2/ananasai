@@ -305,16 +305,36 @@ async function secretaryInit() {
   try {
     await secretaryRefreshStatus();
     const result = await secretaryApi("history_list", { action: "history_list" });
-    (result.conversations || []).forEach(function(item) {
-      const exists = sessions.some(function(session) { return session.id === item.id; });
-      if (!item.id || exists) return;
-      sessions.push({
-        id: item.id, title: item.title || "گفتگوی منشی", mode: "secretary",
-        isPinned: false, createdAt: item.created_at || Date.now(),
-        updatedAt: item.updated_at || Date.now(), remoteLoaded: false,
-        secretary: { pendingAction: null }, messages: []
-      });
+    const remote = Array.isArray(result.conversations) ? result.conversations : [];
+    const remoteById = new Map(remote.map(function(item) { return [item.id, item]; }));
+    remote.forEach(function(item) {
+      if (!item.id) return;
+      const local = sessions.find(function(session) { return session.id === item.id && session.mode === "secretary"; });
+      if (!local) {
+        sessions.push({
+          id: item.id, title: item.title || "گفتگوی منشی", mode: "secretary",
+          isPinned: false, createdAt: item.created_at || Date.now(),
+          updatedAt: item.updated_at || Date.now(), remoteLoaded: false,
+          secretary: { pendingAction: null }, messages: []
+        });
+      } else if (Number(item.updated_at || 0) > Number(local.updatedAt || 0)) {
+        local.remoteLoaded = false;
+        local.updatedAt = Number(item.updated_at) || local.updatedAt || 0;
+      }
     });
+    // انتقال تاریخچه‌های محلی قدیمی این حساب به فضای ابری؛ فایل‌های رسانه‌ای در payload نیستند.
+    for (const local of sessions.filter(function(session) {
+      return session.mode === "secretary" && session.messages && session.messages.length && session.remoteLoaded !== false;
+    })) {
+      const item = remoteById.get(local.id);
+      if (!item || Number(local.updatedAt || 0) > Number(item.updated_at || 0)) {
+        await secretaryApi("history_save", {
+          action: "history_save",
+          conversation: secretaryConversationPayload(local)
+        });
+        local.remoteLoaded = true;
+      }
+    }
     let session = secretaryCurrentSession();
     if (!session) {
       session = secretaryFindRememberedSession();
