@@ -2478,6 +2478,8 @@ function renderDollarChart(c,i){
         const nextSession = sessions.find(s => s.id === activeSessionId);
         currentMode = nextSession && ['coder', 'secretary'].includes(nextSession.mode) ? nextSession.mode : 'chat';
         updateModeUI(currentMode); renderMessages();
+        if (currentMode === 'coder') coderInitializeCurrent();
+        if (currentMode === 'secretary' && nextSession && nextSession.remoteLoaded === false) await secretaryLoadConversation(nextSession);
       }
       saveSessions(); renderHistoryList();
     }
