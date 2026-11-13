@@ -1145,6 +1145,33 @@
 
     const chatModel = 'gemini-3.5-flash-lite';
     let userToken = localStorage.getItem('ananas_user_token') || '';
+    let sessionsOwnerHash = localStorage.getItem('ananas_sessions_owner_hash') || '';
+    let isApplyingCloudHistory = false;
+    const chatHistorySaveTimers = new Map();
+    const coderHistorySaveTimers = new Map();
+    let coderHistorySyncPromise = null;
+    let chatHistorySyncPromise = null;
+    let lastHistorySyncAt = 0;
+
+    async function ensureSessionsAccountScope() {
+      if (!userToken || !crypto || !crypto.subtle) return false;
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(userToken));
+      const nextOwner = Array.from(new Uint8Array(digest)).map(v => v.toString(16).padStart(2, '0')).join('');
+      if (sessionsOwnerHash && sessionsOwnerHash !== nextOwner) {
+        try { localStorage.setItem('ananas_sessions_' + sessionsOwnerHash, JSON.stringify(sessions)); } catch (error) {}
+        try {
+          const saved = localStorage.getItem('ananas_sessions_' + nextOwner);
+          const parsed = saved ? JSON.parse(saved) : [];
+          sessions = Array.isArray(parsed) ? parsed : [];
+        } catch (error) { sessions = []; }
+        activeSessionId = null;
+      }
+      sessionsOwnerHash = nextOwner;
+      localStorage.setItem('ananas_sessions_owner_hash', nextOwner);
+      try { localStorage.setItem('ananas_sessions_' + nextOwner, JSON.stringify(sessions)); } catch (error) {}
+      try { localStorage.setItem('ananas_sessions', JSON.stringify(sessions)); } catch (error) {}
+      return true;
+    }
 
     let deviceUUID = localStorage.getItem('ananas_device_uuid') || '';
     if (!deviceUUID) {
@@ -1331,8 +1358,38 @@
       activeSessionId = null;
       renderMessages();
 
-      fetchQuotaFromServer();
+      fetchQuotaFromServer().then(async () => {
+        if (!userToken) return;
+        try {
+          await ensureSessionsAccountScope();
+          await syncChatHistoryFromCloud();
+        } catch (error) {
+          console.warn('Cloud chat history sync unavailable:', error);
+        }
+      });
     });
+
+    async function refreshHistoryForCurrentWorkspace() {
+      if (!userToken || document.visibilityState === 'hidden') return;
+      try {
+        await ensureSessionsAccountScope();
+        if (currentMode === 'coder') await coderSyncRemoteHistory();
+        else if (currentMode === 'secretary' && typeof secretaryInitializeWorkspace === 'function') await secretaryInitializeWorkspace();
+        else await syncChatHistoryFromCloud(true);
+      } catch (error) {
+        console.warn('Cross-device history refresh failed:', error);
+      }
+    }
+    let lastVisibilityHistoryRefresh = 0;
+    function scheduleVisibleHistoryRefresh() {
+      if (!userToken || document.visibilityState === 'hidden') return;
+      if (Date.now() - lastVisibilityHistoryRefresh < 8000) return;
+      lastVisibilityHistoryRefresh = Date.now();
+      refreshHistoryForCurrentWorkspace();
+    }
+    window.addEventListener('focus', scheduleVisibleHistoryRefresh);
+    window.addEventListener('online', scheduleVisibleHistoryRefresh);
+    document.addEventListener('visibilitychange', scheduleVisibleHistoryRefresh);
 
     async function fetchImageQuotaFromServer() {
       if (!userToken || !(quotaState.isUltra || quotaState.tier === 'ultra' || userToken.startsWith('ULTRA-'))) return;
@@ -1546,6 +1603,7 @@
         if (current && current.mode !== 'chat') activeSessionId = null;
         currentMode = 'chat'; updateModeUI('chat');
         renderMessages(); renderHistoryList();
+        if (userToken) syncChatHistoryFromCloud(true).catch(error => console.warn('Cloud chat history refresh failed:', error));
       }
     }
 
@@ -2577,6 +2635,8 @@ function renderDollarChart(c,i){
       currentMode = selected && ['coder', 'secretary'].includes(selected.mode) ? selected.mode : 'chat';
       updateModeUI(currentMode);
       renderMessages(); renderHistoryList();
+      if (currentMode === 'chat' && selected && selected.remoteLoaded === false) await chatLoadRemote(selected);
+      if (currentMode === 'coder' && selected && selected.remoteLoaded === false) await coderLoadRemote(selected);
       if (currentMode === 'coder') coderInitializeCurrent();
       if (currentMode === 'secretary' && selected && selected.remoteLoaded === false) await secretaryLoadConversation(selected);
       if (window.innerWidth < 1024) toggleSidebar(false);
@@ -2585,9 +2645,15 @@ function renderDollarChart(c,i){
     async function deleteSession(id) {
       if (!confirm('آیا از حذف این گفتگو مطمئن هستید؟')) return;
       const deletedSession = sessions.find(s => s.id === id);
+      try {
+        if (userToken && deletedSession && (deletedSession.mode || 'chat') === 'chat') await chatHistoryApiPost({ action: 'history_delete', id });
+        if (deletedSession && deletedSession.mode === 'secretary' && userToken) await secretaryApiPost({ action: 'history_delete', id });
+        if (deletedSession && deletedSession.mode === 'coder' && userToken) await coderApiPost({ action: 'history_delete', id });
+      } catch (error) {
+        alert('حذف گفتگو از فضای ابری انجام نشد؛ برای جلوگیری از بازگشت گفتگو، آن را فعلاً از دستگاه حذف نکردم.\n' + (error.message || 'خطای ارتباط'));
+        return;
+      }
       sessions = sessions.filter(s => s.id !== id);
-      if (deletedSession && deletedSession.mode === 'secretary' && userToken) await secretaryApiPost({ action: 'history_delete', id }).catch(error => console.warn('Secretary history delete failed:', error));
-      if (deletedSession && deletedSession.mode === 'coder' && userToken) await coderApiPost({ action: 'history_delete', id }).catch(error => console.warn('Coder history delete failed:', error));
       if (chatMenuOpenId === id) chatMenuOpenId = null;
       if (activeSessionId === id) {
         stopTextToSpeech();
@@ -2621,10 +2687,16 @@ function renderDollarChart(c,i){
 
       stopTextToSpeech();
       if (userToken) {
-        await Promise.all([
-          secretaryApiPost({ action: 'history_clear' }).catch(() => null),
-          coderApiPost({ action: 'history_clear' }).catch(() => null)
-        ]);
+        try {
+          await Promise.all([
+            chatHistoryApiPost({ action: 'history_clear' }),
+            secretaryApiPost({ action: 'history_clear' }),
+            coderApiPost({ action: 'history_clear' })
+          ]);
+        } catch (error) {
+          alert('پاک‌سازی تاریخچه در فضای ابری کامل نشد؛ تاریخچه محلی را هم حذف نکردم تا همگام‌سازی به‌هم نخورد.\n' + (error.message || 'خطای ارتباط'));
+          return;
+        }
       }
       sessions = [];
       activeSessionId = null;
@@ -2634,8 +2706,276 @@ function renderDollarChart(c,i){
       renderHistoryList();
     }
 
+    async function chatHistoryApiPost(body) {
+      const response = await fetch('/api/chat-history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-User-Token': userToken, 'X-Device-UUID': deviceUUID },
+        body: JSON.stringify(body || {}),
+        cache: 'no-store',
+        credentials: 'same-origin'
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'همگام‌سازی گفتگو ناموفق بود (' + response.status + ')');
+      return data;
+    }
+
+    function historyActivityTimestamp(session) {
+      const explicit = Number(session?.updatedAt || session?.createdAt || session?.created_at || 0);
+      if (explicit > 0) return explicit;
+      const legacyChatId = String(session?.id || '').match(/^sess_(\d{10,})$/);
+      return legacyChatId ? Number(legacyChatId[1]) : 0;
+    }
+
+    function isHistoryExpiredLocally(session) {
+      const activity = historyActivityTimestamp(session);
+      return activity > 0 && Date.now() - activity > 180 * 24 * 60 * 60 * 1000;
+    }
+
+    function chatHistoryPayload(session) {
+      const messages = (session.messages || [])
+        .filter(message => message && typeof message.text === 'string' && message.text.trim() &&
+          ['user', 'model', 'assistant'].includes(message.role))
+        .slice(-180)
+        .map(message => ({ role: message.role === 'user' ? 'user' : 'assistant', text: message.text.slice(0, 7000) }));
+      return {
+        id: session.id,
+        title: session.title || 'گفتگوی جدید',
+        created_at: session.createdAt || session.created_at || Date.now(),
+        messages
+      };
+    }
+
+    function scheduleChatHistorySave(id) {
+      if (!userToken || isApplyingCloudHistory) return;
+      const session = sessions.find(item => item.id === id);
+      if (!session || (session.mode && session.mode !== 'chat') || session.remoteLoaded === false || !session.messages?.length) return;
+      const oldTimer = chatHistorySaveTimers.get(id);
+      if (oldTimer) clearTimeout(oldTimer);
+      const timer = setTimeout(async () => {
+        chatHistorySaveTimers.delete(id);
+        if (isGenerating) return; // Save once the complete response is available.
+        try {
+          const result = await chatHistoryApiPost({ action: 'history_save', conversation: chatHistoryPayload(session) });
+          session.remoteLoaded = true;
+          if (result.conversation?.updated_at) session.updatedAt = result.conversation.updated_at;
+        } catch (error) {
+          console.warn('Chat history save failed:', error);
+        }
+      }, 650);
+      chatHistorySaveTimers.set(id, timer);
+    }
+
+    async function chatLoadRemote(session) {
+      if (!session || !userToken || session.remoteLoaded !== false) return;
+      const result = await chatHistoryApiPost({ action: 'history_get', id: session.id });
+      const conversation = result.conversation;
+      if (!conversation || !Array.isArray(conversation.messages)) throw new Error('ساختار تاریخچه گفتگو قابل بازیابی نیست.');
+      isApplyingCloudHistory = true;
+      try {
+        session.title = conversation.title || session.title;
+        session.createdAt = conversation.created_at || session.createdAt || Date.now();
+        session.updatedAt = conversation.updated_at || Date.now();
+        session.mode = 'chat';
+        session.messages = conversation.messages.map(message => ({
+          role: message.role === 'user' ? 'user' : 'model',
+          text: String(message.text || '')
+        }));
+        session.remoteLoaded = true;
+        saveSessions();
+      } finally {
+        isApplyingCloudHistory = false;
+      }
+      renderMessages();
+      renderHistoryList();
+    }
+
+    async function syncChatHistoryFromCloud(force = false) {
+      if (!userToken) return;
+      if (chatHistorySyncPromise) return chatHistorySyncPromise;
+      if (!force && Date.now() - lastHistorySyncAt < 8000) return;
+      chatHistorySyncPromise = (async () => {
+      const result = await chatHistoryApiPost({ action: 'history_list' });
+      const remote = Array.isArray(result.conversations) ? result.conversations : [];
+      const remoteById = new Map(remote.map(item => [item.id, item]));
+      const remoteIds = new Set(remote.map(item => item.id));
+      const deletedIds = new Set(Array.isArray(result.deleted_ids) ? result.deleted_ids : []);
+      const deletedBefore = Number(result.deleted_before) || 0;
+      sessions = sessions.filter(session => {
+        if (session.mode && session.mode !== 'chat') return true;
+        if (remoteIds.has(session.id)) return true;
+        if (isHistoryExpiredLocally(session)) return false;
+        return !deletedIds.has(session.id) && !(deletedBefore && historyActivityTimestamp(session) <= deletedBefore);
+      });
+      for (const item of remote.slice().reverse()) {
+        if (!item.id) continue;
+        let local = sessions.find(session => session.id === item.id && (!session.mode || session.mode === 'chat'));
+        if (!local) {
+          local = {
+            id: item.id, title: item.title || 'گفتگوی بدون عنوان', mode: 'chat',
+            isPinned: false, createdAt: item.created_at || Date.now(),
+            updatedAt: item.updated_at || 0, remoteLoaded: false, messages: []
+          };
+          sessions.push(local);
+        } else if (Number(item.updated_at || 0) > Number(local.updatedAt || 0)) {
+          local.remoteLoaded = false;
+          local.updatedAt = Number(item.updated_at) || local.updatedAt || 0;
+        }
+      }
+      for (const local of sessions.filter(session => (!session.mode || session.mode === 'chat') && session.messages?.length && session.remoteLoaded !== false)) {
+        const item = remoteById.get(local.id);
+        if (!item || Number(local.updatedAt || 0) > Number(item.updated_at || 0)) {
+          const saved = await chatHistoryApiPost({ action: 'history_save', conversation: chatHistoryPayload(local) });
+          local.remoteLoaded = true;
+          if (saved.conversation?.updated_at) local.updatedAt = saved.conversation.updated_at;
+        }
+      }
+      const active = sessions.find(session => session.id === activeSessionId);
+      if (active && (!active.mode || active.mode === 'chat') && active.remoteLoaded === false) {
+        await chatLoadRemote(active);
+      }
+      isApplyingCloudHistory = true;
+      try { saveSessions(); } finally { isApplyingCloudHistory = false; }
+      renderHistoryList();
+      lastHistorySyncAt = Date.now();
+      })();
+      try { await chatHistorySyncPromise; }
+      finally { chatHistorySyncPromise = null; }
+    }
+
+    function coderHistoryPayload(session) {
+      const meta = session.coder || {};
+      const messages = (session.messages || [])
+        .filter(message => message && typeof message.text === 'string' && message.text.trim() && ['user', 'model', 'assistant'].includes(message.role))
+        .slice(-160)
+        .map(message => ({ role: message.role === 'user' ? 'user' : 'assistant', content: message.text.slice(0, 7000) }));
+      return {
+        id: session.id,
+        title: session.title || 'گفتگوی کدنویسی',
+        repository: meta.repository || '',
+        branch: meta.branch || '',
+        proposal_id: meta.proposal_id || null,
+        status: ['chat', 'preview', 'draft', 'merged', 'closed'].includes(meta.status) ? meta.status : 'chat',
+        pull_request_number: meta.pull_request_number || null,
+        pull_request_url: meta.pull_request_url || null,
+        pull_request_branch: meta.pull_request_branch || null,
+        created_at: session.createdAt || Date.now(),
+        messages
+      };
+    }
+
+    function scheduleCoderHistorySave(id) {
+      if (!userToken || isApplyingCloudHistory) return;
+      const session = sessions.find(item => item.id === id && item.mode === 'coder');
+      if (!session || session.remoteLoaded === false || !session.messages?.length) return;
+      const oldTimer = coderHistorySaveTimers.get(id);
+      if (oldTimer) clearTimeout(oldTimer);
+      const timer = setTimeout(async () => {
+        coderHistorySaveTimers.delete(id);
+        if (isGenerating) return; // The final save runs after generation completes.
+        try {
+          const result = await coderApiPost({ action: 'history_save', id: session.id, conversation: coderHistoryPayload(session) });
+          session.remoteLoaded = true;
+          if (result.conversation?.updated_at) session.updatedAt = result.conversation.updated_at;
+        } catch (error) {
+          console.warn('Coder history save failed:', error);
+        }
+      }, 650);
+      coderHistorySaveTimers.set(id, timer);
+    }
+
+    async function coderSyncRemoteHistory() {
+      if (!userToken) return;
+      if (coderHistorySyncPromise) return coderHistorySyncPromise;
+      coderHistorySyncPromise = (async () => {
+        const result = await coderApiPost({ action: 'history_list' });
+        const remote = Array.isArray(result.conversations) ? result.conversations : [];
+        const remoteById = new Map(remote.map(item => [item.id, item]));
+        const remoteIds = new Set(remote.map(item => item.id));
+        const deletedIds = new Set(Array.isArray(result.deleted_ids) ? result.deleted_ids : []);
+        const deletedBefore = Number(result.deleted_before) || 0;
+        sessions = sessions.filter(session => {
+          if (session.mode !== 'coder') return true;
+          if (remoteIds.has(session.id)) return true;
+          if (isHistoryExpiredLocally(session)) return false;
+          return !deletedIds.has(session.id) && !(deletedBefore && historyActivityTimestamp(session) <= deletedBefore);
+        });
+        for (const item of remote.slice().reverse()) {
+          if (!item.id) continue;
+          let local = sessions.find(session => session.id === item.id && session.mode === 'coder');
+          if (!local) {
+            local = {
+              id: item.id, title: item.title || 'گفتگوی کدنویسی', mode: 'coder',
+              isPinned: false, createdAt: item.created_at || Date.now(),
+              updatedAt: item.updated_at || 0, remoteLoaded: false,
+              coder: {
+                stage: item.status === 'preview' ? 'preview' : (item.repository ? 'task' : 'manual'),
+                repository: item.repository || '', branch: item.branch || '',
+                proposal_id: item.proposal_id || null, status: item.status || 'chat',
+                pull_request_number: item.pull_request_number || null,
+                pull_request_url: item.pull_request_url || null,
+                pull_request_branch: item.pull_request_branch || null
+              },
+              messages: []
+            };
+            sessions.push(local);
+          } else if (Number(item.updated_at || 0) > Number(local.updatedAt || 0)) {
+            local.remoteLoaded = false;
+            local.updatedAt = Number(item.updated_at) || local.updatedAt || 0;
+          }
+        }
+        for (const local of sessions.filter(session => session.mode === 'coder' && session.messages?.length && session.remoteLoaded !== false)) {
+          const item = remoteById.get(local.id);
+          if (!item || Number(local.updatedAt || 0) > Number(item.updated_at || 0)) {
+            const saved = await coderApiPost({ action: 'history_save', id: local.id, conversation: coderHistoryPayload(local) });
+            if (saved.conversation?.updated_at) local.updatedAt = saved.conversation.updated_at;
+          }
+        }
+        isApplyingCloudHistory = true;
+        try { saveSessions(); } finally { isApplyingCloudHistory = false; }
+        const active = coderCurrentSession();
+        if (active && active.remoteLoaded === false && !isGenerating) await coderLoadRemote(active);
+        renderHistoryList();
+      })();
+      try { await coderHistorySyncPromise; }
+      finally { coderHistorySyncPromise = null; }
+    }
+
+    async function coderLoadRemote(session) {
+      if (!session || !userToken || session.remoteLoaded !== false) return;
+      const result = await coderApiPost({ action: 'history_get', id: session.id });
+      const conversation = result.conversation;
+      if (!conversation || !Array.isArray(conversation.messages)) throw new Error('تاریخچه کدنویس قابل بازیابی نیست.');
+      isApplyingCloudHistory = true;
+      try {
+        session.title = conversation.title || session.title;
+        session.createdAt = conversation.created_at || session.createdAt || Date.now();
+        session.updatedAt = conversation.updated_at || Date.now();
+        session.mode = 'coder';
+        session.coder = {
+          stage: conversation.status === 'preview' ? 'preview' : (conversation.repository ? 'task' : 'manual'),
+          repository: conversation.repository || '', branch: conversation.branch || '',
+          proposal_id: conversation.proposal_id || null, status: conversation.status || 'chat',
+          pull_request_number: conversation.pull_request_number || null,
+          pull_request_url: conversation.pull_request_url || null,
+          pull_request_branch: conversation.pull_request_branch || null
+        };
+        session.messages = conversation.messages.map(message => ({
+          role: message.role === 'user' ? 'user' : 'model',
+          text: String(message.content || '')
+        }));
+        session.remoteLoaded = true;
+        saveSessions();
+      } finally {
+        isApplyingCloudHistory = false;
+      }
+      renderMessages();
+      renderHistoryList();
+    }
+
     function saveSessions() {
       try {
+        const active = sessions.find(session => session.id === activeSessionId);
+        if (active && active.messages?.length) active.updatedAt = Date.now();
         const lightSessions = sessions.map(s => ({
           ...s,
           messages: s.messages.map(m => ({
@@ -2656,9 +2996,15 @@ function renderDollarChart(c,i){
             ...(m.secretaryAction ? { secretaryAction: m.secretaryAction } : {})
           }))
         }));
-
-        localStorage.setItem('ananas_sessions', JSON.stringify(lightSessions));
+        const serialized = JSON.stringify(lightSessions);
+        localStorage.setItem('ananas_sessions', serialized);
+        if (sessionsOwnerHash) localStorage.setItem('ananas_sessions_' + sessionsOwnerHash, serialized);
       } catch (e) {}
+      if (!isApplyingCloudHistory && userToken) {
+        const active = sessions.find(session => session.id === activeSessionId);
+        if (active && (!active.mode || active.mode === 'chat')) scheduleChatHistorySave(active.id);
+        else if (active && active.mode === 'coder') scheduleCoderHistorySave(active.id);
+      }
     }
 
     function renderHistoryList() {
@@ -3239,6 +3585,8 @@ function renderDollarChart(c,i){
         return;
       }
 
+      await ensureSessionsAccountScope();
+      await syncChatHistoryFromCloud(true).catch(error => console.warn('Cloud chat history sync failed:', error));
       const activatedUltra = Boolean(quotaState.isUltra || quotaState.tier === 'ultra' || userToken.startsWith('ULTRA-'));
       updateAccountStatusBadge();
       closeSettingsModal();
@@ -3357,55 +3705,7 @@ function renderDollarChart(c,i){
     }
 
     async function coderMigrateLegacyHistory() {
-      if (!userToken) return;
-      let migrationKey = 'ananas_coder_history_imported_v1';
-      try {
-        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(userToken));
-        const suffix = Array.from(new Uint8Array(digest)).slice(0, 10)
-          .map(v => v.toString(16).padStart(2, '0')).join('');
-        migrationKey += '_' + suffix;
-      } catch (error) {}
-      if (localStorage.getItem(migrationKey) === '1') return;
-      try {
-        const list = await coderApiPost({ action: 'history_list' });
-        const legacy = Array.isArray(list.conversations) ? list.conversations.slice(0, 30) : [];
-        for (const item of legacy) {
-          const legacyId = String(item.id || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 55);
-          const id = 'legacy_coder_' + legacyId;
-          if (!legacyId || sessions.some(s => s.id === id)) continue;
-          try {
-            const result = await coderApiPost({ action: 'history_get', id: item.id });
-            const conversation = result.conversation;
-            if (!conversation || !Array.isArray(conversation.messages)) continue;
-            const messages = conversation.messages.map(message => ({
-              role: message.role === 'user' ? 'user' : 'model',
-              text: String(message.content || '').slice(0, 7000)
-            }));
-            sessions.push({
-              id: id, title: conversation.title || item.title || 'گفتگوی کدنویسی',
-              mode: 'coder', isPinned: false,
-              createdAt: conversation.created_at || Date.now(),
-              updatedAt: conversation.updated_at || Date.now(),
-              coder: {
-                stage: conversation.status === 'preview' ? 'preview' : (conversation.repository ? 'task' : 'project'),
-                repository: conversation.repository || '',
-                branch: conversation.branch || '',
-                proposal_id: conversation.proposal_id || null,
-                status: conversation.status || 'chat',
-                pull_request_number: conversation.pull_request_number || null,
-                pull_request_url: conversation.pull_request_url || null,
-                pull_request_branch: conversation.pull_request_branch || null
-              },
-              messages: messages
-            });
-          } catch (error) {}
-        }
-        saveSessions();
-        localStorage.setItem(migrationKey, '1');
-        renderHistoryList();
-      } catch (error) {
-        console.warn('Legacy coder history migration will retry later:', error);
-      }
+      return coderSyncRemoteHistory();
     }
 
     function coderShowUsageGuide() {
@@ -3418,6 +3718,7 @@ function renderDollarChart(c,i){
     async function coderInitializeCurrent(force) {
       const session = coderCurrentSession();
       if (!session || !userToken || isGenerating) return;
+      await coderSyncRemoteHistory();
       if (!session.coder) {
         session.coder = {
           stage: 'manual', repository: '', branch: '', proposal_id: null,
