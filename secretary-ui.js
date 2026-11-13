@@ -1,0 +1,1 @@
+/* AnanasAI Secretary UI */\n(function(){\n  function secretaryPing(){ return 'ok'; }\n  window.secretaryPing = secretaryPing;\n})();\n
