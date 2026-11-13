@@ -1150,7 +1150,8 @@
     const chatHistorySaveTimers = new Map();
     const coderHistorySaveTimers = new Map();
     let coderHistorySyncPromise = null;
-    let coderHistorySyncedToken = '';
+    let chatHistorySyncPromise = null;
+    let lastHistorySyncAt = 0;
 
     async function ensureSessionsAccountScope() {
       if (!userToken || !crypto || !crypto.subtle) return false;
@@ -1580,6 +1581,7 @@
         if (current && current.mode !== 'chat') activeSessionId = null;
         currentMode = 'chat'; updateModeUI('chat');
         renderMessages(); renderHistoryList();
+        if (userToken) syncChatHistoryFromCloud(true).catch(error => console.warn('Cloud chat history refresh failed:', error));
       }
     }
 
@@ -2742,8 +2744,11 @@ function renderDollarChart(c,i){
       renderHistoryList();
     }
 
-    async function syncChatHistoryFromCloud() {
+    async function syncChatHistoryFromCloud(force = false) {
       if (!userToken) return;
+      if (chatHistorySyncPromise) return chatHistorySyncPromise;
+      if (!force && Date.now() - lastHistorySyncAt < 8000) return;
+      chatHistorySyncPromise = (async () => {
       const result = await chatHistoryApiPost({ action: 'history_list' });
       const remote = Array.isArray(result.conversations) ? result.conversations : [];
       const remoteById = new Map(remote.map(item => [item.id, item]));
@@ -2784,6 +2789,10 @@ function renderDollarChart(c,i){
       isApplyingCloudHistory = true;
       try { saveSessions(); } finally { isApplyingCloudHistory = false; }
       renderHistoryList();
+      lastHistorySyncAt = Date.now();
+      })();
+      try { await chatHistorySyncPromise; }
+      finally { chatHistorySyncPromise = null; }
     }
 
     function coderHistoryPayload(session) {
@@ -2827,7 +2836,7 @@ function renderDollarChart(c,i){
     }
 
     async function coderSyncRemoteHistory() {
-      if (!userToken || coderHistorySyncedToken === userToken) return;
+      if (!userToken) return;
       if (coderHistorySyncPromise) return coderHistorySyncPromise;
       const tokenSnapshot = userToken;
       coderHistorySyncPromise = (async () => {
@@ -2872,9 +2881,10 @@ function renderDollarChart(c,i){
             await coderApiPost({ action: 'history_save', id: local.id, conversation: coderHistoryPayload(local) });
           }
         }
-        coderHistorySyncedToken = tokenSnapshot;
         isApplyingCloudHistory = true;
         try { saveSessions(); } finally { isApplyingCloudHistory = false; }
+        const active = coderCurrentSession();
+        if (active && active.remoteLoaded === false && !isGenerating) await coderLoadRemote(active);
         renderHistoryList();
       })();
       try { await coderHistorySyncPromise; }
@@ -3527,8 +3537,7 @@ function renderDollarChart(c,i){
       }
 
       await ensureSessionsAccountScope();
-      await syncChatHistoryFromCloud().catch(error => console.warn('Cloud chat history sync failed:', error));
-      coderHistorySyncedToken = '';
+      await syncChatHistoryFromCloud(true).catch(error => console.warn('Cloud chat history sync failed:', error));
       const activatedUltra = Boolean(quotaState.isUltra || quotaState.tier === 'ultra' || userToken.startsWith('ULTRA-'));
       updateAccountStatusBadge();
       closeSettingsModal();
