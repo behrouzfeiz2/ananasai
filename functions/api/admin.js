@@ -157,6 +157,38 @@ export async function onRequest(context) {
       });
     }
 
+    // پاک‌سازی مرحله‌ای تاریخچه متنی چت همه حساب‌ها؛ داده‌های پرداخت، اشتراک، تصاویر و اتصال سرویس‌ها خارج از این محدوده‌اند.
+    if (body.action === 'purgeChatHistoryKv') {
+      const prefixes = [
+        'ananas_chat_history:', 'ananas_chat_history_deleted:', 'ananas_chat_history_clear:',
+        'coder_history_index:', 'coder_history_record:', 'coder_history_deleted:', 'coder_history_clear:', 'coder_history_retention_v1:',
+        'secretary_history_index:', 'secretary_history_record:', 'secretary_history_deleted:', 'secretary_history_clear:', 'secretary_history_retention_v1:'
+      ];
+      const prefixIndex = Number.isInteger(body.prefixIndex) ? body.prefixIndex : 0;
+      if (prefixIndex < 0 || prefixIndex > prefixes.length) {
+        return new Response(JSON.stringify({ error: 'مرحله پاک‌سازی تاریخچه معتبر نیست.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (prefixIndex === prefixes.length) {
+        return new Response(JSON.stringify({ ok: true, deleted: 0, prefixIndex, cursor: null, done: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      // نشانگر سراسری مانع بازگشت تاریخچه‌های قدیمی از دستگاه‌های دیگر می‌شود.
+      if (prefixIndex === 0 && !body.cursor) {
+        await kv.put('admin_chat_history_purge_at', String(Date.now()), { expirationTtl: 180 * 24 * 60 * 60 });
+      }
+      const options = { prefix: prefixes[prefixIndex], limit: 100 };
+      if (typeof body.cursor === 'string' && body.cursor) options.cursor = body.cursor;
+      const page = await kv.list(options);
+      const keys = Array.isArray(page.keys) ? page.keys : [];
+      await Promise.all(keys.map(key => kv.delete(key.name)));
+      const doneForPrefix = Boolean(page.list_complete);
+      const nextPrefixIndex = doneForPrefix ? prefixIndex + 1 : prefixIndex;
+      const nextCursor = doneForPrefix ? null : (page.cursor || null);
+      return new Response(JSON.stringify({
+        ok: true, deleted: keys.length, prefix: prefixes[prefixIndex],
+        prefixIndex: nextPrefixIndex, cursor: nextCursor, done: nextPrefixIndex >= prefixes.length
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+
     // حذف مرحله‌ای فقط فایل‌های تصویری ذخیره‌شده در KV؛ هر درخواست حداکثر ۱۰۰ کلید را پاک می‌کند.
     if (body.action === 'purgeImageKv') {
       const prefixes = ['imgdata_', 'imgmeta_', 'imgref_'];

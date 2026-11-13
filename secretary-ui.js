@@ -311,6 +311,7 @@ async function secretaryInit() {
     const remoteIds = new Set(remote.map(function(item) { return item.id; }));
     const deletedIds = new Set(Array.isArray(result.deleted_ids) ? result.deleted_ids : []);
     const deletedBefore = Number(result.deleted_before) || 0;
+    const purgedBefore = Number(result.purged_before) || 0;
     sessions = sessions.filter(function(session) {
       if (session.mode !== "secretary") return true;
       if (remoteIds.has(session.id)) return true;
@@ -318,7 +319,7 @@ async function secretaryInit() {
       const activity = typeof historyActivityTimestamp === "function"
         ? historyActivityTimestamp(session)
         : Number(session.createdAt || session.updatedAt || 0);
-      return !deletedIds.has(session.id) && !(deletedBefore && activity <= deletedBefore);
+      return !deletedIds.has(session.id) && !(purgedBefore && Number(session.createdAt || 0) < purgedBefore) && !(deletedBefore && activity <= deletedBefore);
     });
     remote.forEach(function(item) {
       if (!item.id) return;
