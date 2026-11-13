@@ -2743,6 +2743,7 @@ function renderDollarChart(c,i){
       if (oldTimer) clearTimeout(oldTimer);
       const timer = setTimeout(async () => {
         chatHistorySaveTimers.delete(id);
+        if (isGenerating) return; // Save once the complete response is available.
         try {
           const result = await chatHistoryApiPost({ action: 'history_save', conversation: chatHistoryPayload(session) });
           session.remoteLoaded = true;
@@ -2859,6 +2860,7 @@ function renderDollarChart(c,i){
       if (oldTimer) clearTimeout(oldTimer);
       const timer = setTimeout(async () => {
         coderHistorySaveTimers.delete(id);
+        if (isGenerating) return; // The final save runs after generation completes.
         try {
           const result = await coderApiPost({ action: 'history_save', id: session.id, conversation: coderHistoryPayload(session) });
           session.remoteLoaded = true;
@@ -2873,7 +2875,6 @@ function renderDollarChart(c,i){
     async function coderSyncRemoteHistory() {
       if (!userToken) return;
       if (coderHistorySyncPromise) return coderHistorySyncPromise;
-      const tokenSnapshot = userToken;
       coderHistorySyncPromise = (async () => {
         const result = await coderApiPost({ action: 'history_list' });
         const remote = Array.isArray(result.conversations) ? result.conversations : [];
