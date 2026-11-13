@@ -1,5 +1,7 @@
 const SITE_ORIGIN = "https://ananasai.ir";
 const HISTORY_TTL = 180 * 24 * 60 * 60;
+const FREE_HISTORY_TTL = 5 * 24 * 60 * 60;
+const FREE_DEVICE_UUID_PATTERN = /^dev_[a-z0-9]{6,80}$/i;
 const headers = {
   "Access-Control-Allow-Origin": SITE_ORIGIN,
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -17,10 +19,16 @@ async function sha256Hex(value) {
 }
 
 async function getAccount(request, env) {
+  if (!env.ANANAS_KV) return { error: "سرویس ذخیره تاریخچه در دسترس نیست.", status: 503 };
   const token = (request.headers.get("X-User-Token") || "").trim();
-  if (!token || token.length > 256 || !env.ANANAS_KV) {
-    return { error: "برای همگام‌سازی تاریخچه، ابتدا اشتراک Pro یا Ultra را فعال کنید.", status: 401 };
+  if (!token) {
+    const uuid = (request.headers.get("X-Device-UUID") || "").trim();
+    if (!FREE_DEVICE_UUID_PATTERN.test(uuid)) {
+      return { error: "شناسه UUID دستگاه برای حساب رایگان معتبر نیست.", status: 401 };
+    }
+    return { uuid, tier: "free" };
   }
+  if (token.length > 256) return { error: "کد اشتراک معتبر نیست.", status: 401 };
   const raw = await env.ANANAS_KV.get(token);
   if (!raw) return { error: "کد اشتراک معتبر نیست یا منقضی شده است.", status: 401 };
   let data;
@@ -32,6 +40,23 @@ async function getAccount(request, env) {
     return { error: "ساختار اطلاعات اشتراک معتبر نیست.", status: 401 };
   }
   return { token, tier: data.tier === "ultra" || token.startsWith("ULTRA-") ? "ultra" : "pro" };
+}
+
+async function touchFreeUser(env, account) {
+  if (account.tier !== "free") return;
+  const key = "free_user:" + await sha256Hex("free:" + account.uuid);
+  const now = Date.now();
+  let previous = null;
+  try {
+    const raw = await env.ANANAS_KV.get(key);
+    previous = raw ? JSON.parse(raw) : null;
+  } catch {}
+  if (previous && now - (Number(previous.last_seen) || 0) < 60 * 60 * 1000) return;
+  await env.ANANAS_KV.put(key, JSON.stringify({
+    uuid: account.uuid,
+    created_at: Number(previous?.created_at) || now,
+    last_seen: now
+  }), { expirationTtl: FREE_HISTORY_TTL });
 }
 
 function validId(value) {
@@ -71,13 +96,16 @@ async function handlePost({ request, env }) {
     try { body = await request.json(); } catch { return json({ error: "بدنه درخواست معتبر نیست." }, 400); }
     if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "ساختار درخواست معتبر نیست." }, 400);
 
-    const accountHash = await sha256Hex(account.token);
+    const accountHash = await sha256Hex(account.tier === "free" ? "free:" + account.uuid : account.token);
+    const historyTtl = account.tier === "free" ? FREE_HISTORY_TTL : HISTORY_TTL;
+    await touchFreeUser(env, account);
     const prefix = "ananas_chat_history:" + accountHash + ":";
     const action = String(body.action || "");
     const globalPurgedAt = Number(await env.ANANAS_KV.get("admin_chat_history_purge_at")) || 0;
 
     if (action === "history_list") {
       const conversations = (await listAccountRecords(env.ANANAS_KV, prefix))
+        .filter(item => Number(item.updated_at || item.created_at || 0) >= Date.now() - historyTtl * 1000)
         .filter(item => !globalPurgedAt || Number(item.created_at || 0) >= globalPurgedAt);
       const deletedPrefix = "ananas_chat_history_deleted:" + accountHash + ":";
       const deletedIds = [];
@@ -106,7 +134,7 @@ async function handlePost({ request, env }) {
         deleted += batch.length;
       }
       const clearedAt = Date.now();
-      await env.ANANAS_KV.put("ananas_chat_history_clear:" + accountHash, String(clearedAt), { expirationTtl: HISTORY_TTL });
+      await env.ANANAS_KV.put("ananas_chat_history_clear:" + accountHash, String(clearedAt), { expirationTtl: historyTtl });
       return json({ deleted: true, count: deleted, deleted_before: clearedAt });
     }
 
@@ -116,7 +144,7 @@ async function handlePost({ request, env }) {
 
     if (action === "history_get") {
       const raw = await env.ANANAS_KV.get(storageKey);
-      if (!raw) return json({ error: "این گفتگو پیدا نشد یا پس از شش ماه عدم فعالیت منقضی شده است." }, 404);
+      if (!raw) return json({ error: "این گفتگو پیدا نشد یا پس از پایان مهلت نگهداری تاریخچه منقضی شده است." }, 404);
       let conversation;
       try { conversation = JSON.parse(raw); } catch {
         return json({ error: "اطلاعات این گفتگو قابل بازیابی نیست." }, 500);
@@ -139,7 +167,7 @@ async function handlePost({ request, env }) {
 
     if (action === "history_delete") {
       await env.ANANAS_KV.delete(storageKey);
-      await env.ANANAS_KV.put("ananas_chat_history_deleted:" + accountHash + ":" + id, "1", { expirationTtl: HISTORY_TTL });
+      await env.ANANAS_KV.put("ananas_chat_history_deleted:" + accountHash + ":" + id, "1", { expirationTtl: historyTtl });
       return json({ deleted: true, id });
     }
 
