@@ -897,7 +897,7 @@
           <span>گفتگو</span>
         </button>
 
-        <button id="modeSecretaryBtn" onclick="openSecretaryWorkspace()" class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white"><span>✉️</span><span>منشی</span></button>
+        <button id="modeSecretaryBtn" onclick="openSecretaryWorkspace()" class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white"><span>✉️</span><span>منشی</span><span id="secretaryLockIcon" class="text-[10px]">🔒</span></button>
 
         <button id="modeCoderBtn" onclick="openCoderWorkspace()" class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white">
           <span>💻</span>
@@ -1484,11 +1484,14 @@
       const imageQuotaSharedNote = document.getElementById('imageQuotaSharedNote');
       const quotaProgressBar = document.getElementById('quotaProgressBar');
       const coderLockIcon = document.getElementById('coderLockIcon');
+      const secretaryLockIcon = document.getElementById('secretaryLockIcon');
       const upgradeBtn = document.getElementById('upgradeProLinkBtn');
       const imageLibraryBtn = document.getElementById('imageLibrarySidebarBtn');
 
       const isProActive = Boolean(userToken) && quotaState.isPro !== false;
       const isUltraActive = isProActive && (quotaState.isUltra || quotaState.tier === 'ultra');
+      // منشی فقط برای Ultra باز است؛ کاربران Free و Pro باید قفل را ببینند.
+      if (secretaryLockIcon) secretaryLockIcon.classList.toggle('hidden', isUltraActive);
       const timeLabel = document.getElementById('proTimeRemainingLabel');
       if (timeLabel) timeLabel.textContent = isUltraActive ? '⏳ اعتبار حالت الترا:' : '⏳ اعتبار پرو:';
       if (imageLibraryBtn) imageLibraryBtn.classList.toggle('hidden', !isUltraActive && !userToken.startsWith('ULTRA-'));
