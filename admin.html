@@ -81,6 +81,19 @@
       </div>
     </div>
 
+    <section class="space-y-3 border-t border-[#232f46] pt-5">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="space-y-1">
+          <h3 class="text-sm font-extrabold text-white">👥 کاربران رایگان</h3>
+          <p class="text-[11px] text-gray-400 leading-6">شناسه هر کاربر بر اساس UUID دستگاه ثبت می‌شود. فهرست و تاریخچه متنی این کاربران پس از ۵ روز عدم فعالیت خودکار منقضی می‌شود.</p>
+        </div>
+        <span id="freeUserCount" class="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[11px]">۰ کاربر</span>
+      </div>
+      <div id="freeUserList" class="max-h-96 overflow-y-auto border border-[#232f46] rounded-2xl p-3 space-y-2 bg-[#0b0f17]/60">
+        <p class="text-xs text-gray-500 text-center py-4">در حال دریافت فهرست کاربران رایگان...</p>
+      </div>
+    </section>
+
     <!-- فهرست مستقل کدهای Pro و Ultra -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <section class="space-y-2 min-w-0">
@@ -201,6 +214,7 @@
         const data = await res.json();
         renderPayments(data.payments || []);
         renderTokens(data.tokens || []);
+          renderFreeUsers(data.freeUsers || [], data.totalFreeUsers || 0);
       } catch (e) { console.error(e); }
     }
 
@@ -214,6 +228,7 @@
           const data = await res.json();
           renderPayments(data.payments || []);
           renderTokens(data.tokens || []);
+          renderFreeUsers(data.freeUsers || [], data.totalFreeUsers || 0);
         }
       } catch (e) { console.warn('Admin session check failed', e); }
     });
@@ -299,6 +314,33 @@
       renderList(proTokens, 'proTokenList', 'proTokenCount', 'هنوز کد Pro ساخته نشده است');
       renderList(ultraTokens, 'ultraTokenList', 'ultraTokenCount', 'هنوز کد Ultra ساخته نشده است');
     }
+
+    function renderFreeUsers(users, total = users.length) {
+      const list = document.getElementById('freeUserList');
+      const count = document.getElementById('freeUserCount');
+      if (!list || !count) return;
+      count.textContent = Number(total || 0).toLocaleString('fa-IR') + ' کاربر';
+      if (!users.length) {
+        list.innerHTML = '<p class="text-xs text-gray-500 text-center py-6">در پنج روز اخیر کاربر رایگانی ثبت نشده است.</p>';
+        return;
+      }
+      list.innerHTML = users.map((user, index) => {
+        const uuid = String(user.uuid || '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+        const lastSeen = Number(user.last_seen) > 0 ? new Date(Number(user.last_seen)).toLocaleString('fa-IR') : 'نامشخص';
+        const firstSeen = Number(user.created_at) > 0 ? new Date(Number(user.created_at)).toLocaleDateString('fa-IR') : 'نامشخص';
+        return `<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-[#151c28] border border-[#232f46] px-3 py-2.5 rounded-xl text-xs">
+          <div class="min-w-0 space-y-1">
+            <div class="flex items-center gap-2"><span class="text-emerald-300 font-bold">کاربر رایگان ${(index + 1).toLocaleString('fa-IR')}</span><span class="text-[10px] text-gray-500">UUID دستگاه</span></div>
+            <div class="font-mono text-gray-200 break-all select-all" dir="ltr">${uuid}</div>
+          </div>
+          <div class="shrink-0 text-[10px] text-gray-400 sm:text-left space-y-1">
+            <p>آخرین فعالیت: <span class="text-gray-200">${lastSeen}</span></p>
+            <p>اولین ثبت: ${firstSeen}</p>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
     async function issueCodeForPayment(paymentId, fullName, phone, tier = 'pro') {
       const newCode = makeRandomCodeString(tier);
       const createRes = await fetch('/api/admin', {

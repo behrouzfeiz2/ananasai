@@ -139,7 +139,33 @@ export async function onRequest(context) {
     payments.sort((a, b) => (b.created || 0) - (a.created || 0));
     tokens.sort((a, b) => (b.data?.created || 0) - (a.data?.created || 0));
 
-    return new Response(JSON.stringify({ tokens, payments }), {
+    // فهرست کاربران رایگان بر اساس UUID دستگاه؛ رکوردها پس از ۵ روز عدم فعالیت منقضی می‌شوند.
+    const freeUsers = [];
+    let freeCursor;
+    do {
+      const page = await kv.list({ prefix: 'free_user:', limit: 1000, ...(freeCursor ? { cursor: freeCursor } : {}) });
+      const keys = Array.isArray(page.keys) ? page.keys : [];
+      for (let i = 0; i < keys.length; i += 50) {
+        const records = await Promise.all(keys.slice(i, i + 50).map(async key => {
+          const raw = await kv.get(key.name);
+          if (!raw) return null;
+          try { return JSON.parse(raw); } catch { return null; }
+        }));
+        for (const record of records) {
+          if (!record || !/^dev_[a-z0-9]{6,80}$/i.test(String(record.uuid || ""))) continue;
+          freeUsers.push({
+            uuid: String(record.uuid),
+            created_at: Number(record.created_at) || 0,
+            last_seen: Number(record.last_seen) || 0
+          });
+        }
+      }
+      freeCursor = page.list_complete ? null : page.cursor;
+    } while (freeCursor);
+    freeUsers.sort((a, b) => b.last_seen - a.last_seen);
+    const totalFreeUsers = freeUsers.length;
+
+    return new Response(JSON.stringify({ tokens, payments, freeUsers, totalFreeUsers }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
     });
@@ -160,6 +186,7 @@ export async function onRequest(context) {
     // پاک‌سازی مرحله‌ای تاریخچه متنی چت همه حساب‌ها؛ داده‌های پرداخت، اشتراک، تصاویر و اتصال سرویس‌ها خارج از این محدوده‌اند.
     if (body.action === 'purgeChatHistoryKv') {
       const prefixes = [
+        'free_user:',
         'ananas_chat_history:', 'ananas_chat_history_deleted:', 'ananas_chat_history_clear:',
         'coder_history_index:', 'coder_history_record:', 'coder_history_deleted:', 'coder_history_clear:', 'coder_history_retention_v1:',
         'secretary_history_index:', 'secretary_history_record:', 'secretary_history_deleted:', 'secretary_history_clear:', 'secretary_history_retention_v1:'

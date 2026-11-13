@@ -1154,8 +1154,10 @@
     let lastHistorySyncAt = 0;
 
     async function ensureSessionsAccountScope() {
-      if (!userToken || !crypto || !crypto.subtle) return false;
-      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(userToken));
+      if (!crypto || !crypto.subtle) return false;
+      // کاربران پولی بر اساس کد اشتراک و کاربران رایگان بر اساس UUID همین دستگاه تفکیک می‌شوند.
+      const ownerIdentity = userToken || ('free-device:' + deviceUUID);
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ownerIdentity));
       const nextOwner = Array.from(new Uint8Array(digest)).map(v => v.toString(16).padStart(2, '0')).join('');
       if (sessionsOwnerHash && sessionsOwnerHash !== nextOwner) {
         try { localStorage.setItem('ananas_sessions_' + sessionsOwnerHash, JSON.stringify(sessions)); } catch (error) {}
@@ -1359,7 +1361,6 @@
       renderMessages();
 
       fetchQuotaFromServer().then(async () => {
-        if (!userToken) return;
         try {
           await ensureSessionsAccountScope();
           await syncChatHistoryFromCloud();
@@ -1370,19 +1371,19 @@
     });
 
     async function refreshHistoryForCurrentWorkspace() {
-      if (!userToken || document.visibilityState === 'hidden') return;
+      if (document.visibilityState === 'hidden') return;
       try {
         await ensureSessionsAccountScope();
-        if (currentMode === 'coder') await coderSyncRemoteHistory();
-        else if (currentMode === 'secretary' && typeof secretaryInitializeWorkspace === 'function') await secretaryInitializeWorkspace();
-        else await syncChatHistoryFromCloud(true);
+        if (userToken && currentMode === 'coder') await coderSyncRemoteHistory();
+        else if (userToken && currentMode === 'secretary' && typeof secretaryInitializeWorkspace === 'function') await secretaryInitializeWorkspace();
+        else if (currentMode === 'chat') await syncChatHistoryFromCloud(true);
       } catch (error) {
         console.warn('Cross-device history refresh failed:', error);
       }
     }
     let lastVisibilityHistoryRefresh = 0;
     function scheduleVisibleHistoryRefresh() {
-      if (!userToken || document.visibilityState === 'hidden') return;
+      if (document.visibilityState === 'hidden') return;
       if (Date.now() - lastVisibilityHistoryRefresh < 8000) return;
       lastVisibilityHistoryRefresh = Date.now();
       refreshHistoryForCurrentWorkspace();
@@ -1603,7 +1604,7 @@
         if (current && current.mode !== 'chat') activeSessionId = null;
         currentMode = 'chat'; updateModeUI('chat');
         renderMessages(); renderHistoryList();
-        if (userToken) syncChatHistoryFromCloud(true).catch(error => console.warn('Cloud chat history refresh failed:', error));
+        syncChatHistoryFromCloud(true).catch(error => console.warn('Cloud chat history refresh failed:', error));
       }
     }
 
@@ -2646,7 +2647,7 @@ function renderDollarChart(c,i){
       if (!confirm('آیا از حذف این گفتگو مطمئن هستید؟')) return;
       const deletedSession = sessions.find(s => s.id === id);
       try {
-        if (userToken && deletedSession && (deletedSession.mode || 'chat') === 'chat') await chatHistoryApiPost({ action: 'history_delete', id });
+        if (deletedSession && (deletedSession.mode || 'chat') === 'chat') await chatHistoryApiPost({ action: 'history_delete', id });
         if (deletedSession && deletedSession.mode === 'secretary' && userToken) await secretaryApiPost({ action: 'history_delete', id });
         if (deletedSession && deletedSession.mode === 'coder' && userToken) await coderApiPost({ action: 'history_delete', id });
       } catch (error) {
@@ -2686,17 +2687,13 @@ function renderDollarChart(c,i){
       if (!confirm('آیا تمام تاریخچه گفتگوها پاک شود؟')) return;
 
       stopTextToSpeech();
-      if (userToken) {
-        try {
-          await Promise.all([
-            chatHistoryApiPost({ action: 'history_clear' }),
-            secretaryApiPost({ action: 'history_clear' }),
-            coderApiPost({ action: 'history_clear' })
-          ]);
-        } catch (error) {
-          alert('پاک‌سازی تاریخچه در فضای ابری کامل نشد؛ تاریخچه محلی را هم حذف نکردم تا همگام‌سازی به‌هم نخورد.\n' + (error.message || 'خطای ارتباط'));
-          return;
-        }
+      try {
+        const cloudClearTasks = [chatHistoryApiPost({ action: 'history_clear' })];
+        if (userToken) cloudClearTasks.push(secretaryApiPost({ action: 'history_clear' }), coderApiPost({ action: 'history_clear' }));
+        await Promise.all(cloudClearTasks);
+      } catch (error) {
+        alert('پاک‌سازی تاریخچه در فضای ابری کامل نشد؛ تاریخچه محلی را هم حذف نکردم تا همگام‌سازی به‌هم نخورد.\n' + (error.message || 'خطای ارتباط'));
+        return;
       }
       sessions = [];
       activeSessionId = null;
@@ -2728,7 +2725,8 @@ function renderDollarChart(c,i){
 
     function isHistoryExpiredLocally(session) {
       const activity = historyActivityTimestamp(session);
-      return activity > 0 && Date.now() - activity > 180 * 24 * 60 * 60 * 1000;
+      const retentionMs = userToken ? 180 * 24 * 60 * 60 * 1000 : 5 * 24 * 60 * 60 * 1000;
+      return activity > 0 && Date.now() - activity > retentionMs;
     }
 
     function chatHistoryPayload(session) {
@@ -2746,7 +2744,7 @@ function renderDollarChart(c,i){
     }
 
     function scheduleChatHistorySave(id) {
-      if (!userToken || isApplyingCloudHistory) return;
+      if (isApplyingCloudHistory) return;
       const session = sessions.find(item => item.id === id);
       if (!session || (session.mode && session.mode !== 'chat') || session.remoteLoaded === false || !session.messages?.length) return;
       const oldTimer = chatHistorySaveTimers.get(id);
@@ -2766,7 +2764,7 @@ function renderDollarChart(c,i){
     }
 
     async function chatLoadRemote(session) {
-      if (!session || !userToken || session.remoteLoaded !== false) return;
+      if (!session || session.remoteLoaded !== false) return;
       const result = await chatHistoryApiPost({ action: 'history_get', id: session.id });
       const conversation = result.conversation;
       if (!conversation || !Array.isArray(conversation.messages)) throw new Error('ساختار تاریخچه گفتگو قابل بازیابی نیست.');
@@ -2790,7 +2788,6 @@ function renderDollarChart(c,i){
     }
 
     async function syncChatHistoryFromCloud(force = false) {
-      if (!userToken) return;
       if (chatHistorySyncPromise) return chatHistorySyncPromise;
       if (!force && Date.now() - lastHistorySyncAt < 8000) return;
       chatHistorySyncPromise = (async () => {
@@ -3002,10 +2999,10 @@ function renderDollarChart(c,i){
         localStorage.setItem('ananas_sessions', serialized);
         if (sessionsOwnerHash) localStorage.setItem('ananas_sessions_' + sessionsOwnerHash, serialized);
       } catch (e) {}
-      if (!isApplyingCloudHistory && userToken) {
+      if (!isApplyingCloudHistory) {
         const active = sessions.find(session => session.id === activeSessionId);
         if (active && (!active.mode || active.mode === 'chat')) scheduleChatHistorySave(active.id);
-        else if (active && active.mode === 'coder') scheduleCoderHistorySave(active.id);
+        else if (userToken && active && active.mode === 'coder') scheduleCoderHistorySave(active.id);
       }
     }
 
@@ -3613,6 +3610,7 @@ function renderDollarChart(c,i){
 
       updateAccountStatusBadge();
       fetchQuotaFromServer();
+      ensureSessionsAccountScope().then(() => syncChatHistoryFromCloud(true)).catch(error => console.warn('Free account history sync failed:', error));
       closeSettingsModal();
 
       alert('اشتراک پرو غیرفعال شد و حساب به حالت رایگان بازگشت.');
