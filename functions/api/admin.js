@@ -122,6 +122,7 @@ export async function onRequest(context) {
     do {
       const page = await kv.list({ cursor, limit: 1000 });
       for (const key of page.keys) {
+        if (!key.name.startsWith('PAY-') && !key.name.startsWith('PRO-') && !key.name.startsWith('ULTRA-')) continue;
         const rawVal = await kv.get(key.name);
         if (!rawVal) continue;
         let parsed = {};
@@ -154,6 +155,34 @@ export async function onRequest(context) {
         status: 200,
         headers: { 'Content-Type': 'application/json', 'Set-Cookie': sessionCookie('', 0) }
       });
+    }
+
+    // حذف مرحله‌ای فقط فایل‌های تصویری ذخیره‌شده در KV؛ هر درخواست حداکثر ۱۰۰ کلید را پاک می‌کند.
+    if (body.action === 'purgeImageKv') {
+      const prefixes = ['imgdata_', 'imgmeta_', 'imgref_'];
+      let prefixIndex = Number.isInteger(body.prefixIndex) ? body.prefixIndex : 0;
+      if (prefixIndex < 0 || prefixIndex > prefixes.length) {
+        return new Response(JSON.stringify({ error: 'مرحله پاک‌سازی معتبر نیست.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (prefixIndex === prefixes.length) {
+        return new Response(JSON.stringify({ ok: true, deleted: 0, prefixIndex, cursor: null, done: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      const options = { prefix: prefixes[prefixIndex], limit: 100 };
+      if (typeof body.cursor === 'string' && body.cursor) options.cursor = body.cursor;
+      const page = await kv.list(options);
+      const keys = Array.isArray(page.keys) ? page.keys : [];
+      await Promise.all(keys.map(key => kv.delete(key.name)));
+      const doneForPrefix = Boolean(page.list_complete);
+      const nextPrefixIndex = doneForPrefix ? prefixIndex + 1 : prefixIndex;
+      const nextCursor = doneForPrefix ? null : (page.cursor || null);
+      return new Response(JSON.stringify({
+        ok: true,
+        deleted: keys.length,
+        prefix: prefixes[prefixIndex],
+        prefixIndex: nextPrefixIndex,
+        cursor: nextCursor,
+        done: nextPrefixIndex >= prefixes.length
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
 
     // --- لایه امنیتی ۲: بررسی لاگین اولیه و ریکپچا ---
