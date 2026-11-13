@@ -307,6 +307,14 @@ async function secretaryInit() {
     const result = await secretaryApi("history_list", { action: "history_list" });
     const remote = Array.isArray(result.conversations) ? result.conversations : [];
     const remoteById = new Map(remote.map(function(item) { return [item.id, item]; }));
+    const remoteIds = new Set(remote.map(function(item) { return item.id; }));
+    const deletedIds = new Set(Array.isArray(result.deleted_ids) ? result.deleted_ids : []);
+    const deletedBefore = Number(result.deleted_before) || 0;
+    sessions = sessions.filter(function(session) {
+      if (session.mode !== "secretary") return true;
+      if (remoteIds.has(session.id)) return true;
+      return !deletedIds.has(session.id) && !(deletedBefore && Number(session.createdAt || session.updatedAt || 0) <= deletedBefore);
+    });
     remote.forEach(function(item) {
       if (!item.id) return;
       const local = sessions.find(function(session) { return session.id === item.id && session.mode === "secretary"; });
