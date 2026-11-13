@@ -109,6 +109,8 @@ async function openSmtpSocket() {
       if (greeting.code !== 220) throw new Error("سرور SMTP آماده دریافت اتصال نیست.");
       await smtpCommand(writer, reader, "EHLO ananasai.ir", [250]);
       await smtpCommand(writer, reader, "STARTTLS", [220]);
+      reader.releaseLock();
+      writer.releaseLock();
       const secureSocket = socket.startTls();
       return { socket: secureSocket, reader: secureSocket.readable.getReader(), writer: secureSocket.writable.getWriter(), startTlsUpgraded: true };
     } catch (startTlsError) {
