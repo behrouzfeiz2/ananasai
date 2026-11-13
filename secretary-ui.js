@@ -181,6 +181,9 @@ function secretaryModelHistory(session) {
     return message.role === "user" || message.role === "model";
   }).slice(-16).map(function(message, index, list) {
     let text = String(message.text || "").slice(0, 6000);
+    if (message.secretaryAction && message.secretaryAction.data) {
+      text += "\nاطلاعات پیش‌نویس قبلی: " + JSON.stringify(message.secretaryAction.data).slice(0, 4000);
+    }
     if (index === list.length - 1 && message.role === "user") {
       text = "زمان فعلی UTC: " + new Date().toISOString() + "\nمنطقه زمانی کاربر: " + timezone + "\nپیام کاربر:\n" + text;
     }
@@ -300,9 +303,11 @@ async function secretaryRunIntent(result, originalText) {
 }
 
 async function secretaryExecutePending() {
+  if (window.secretaryActionExecuting) return;
   const session = secretaryCurrentSession();
   const pending = session && session.secretary ? session.secretary.pendingAction : null;
   if (!pending) return;
+  window.secretaryActionExecuting = true;
   try {
     if (!await secretaryRequireGoogle()) return;
     if (pending.type === "email") {
@@ -318,8 +323,10 @@ async function secretaryExecutePending() {
     }
     await secretarySave();
   } catch (error) {
-    secretaryAdd("model", "عملیات ناموفق بود: " + error.message + "\nپیش‌نویس حفظ شده است؛ پس از رفع مشکل دوباره تلاش کن.");
+    secretaryAdd("model", "عملیات ناموفق بود: " + error.message + "\nپیش‌نویس حفظ شده است؛ پیش از تلاش دوباره، وضعیت ارسال یا ثبت را بررسی کن تا عملیات تکراری انجام نشود.");
     await secretarySave().catch(function() {});
+  } finally {
+    window.secretaryActionExecuting = false;
   }
 }
 async function secretaryConfirmAction(index) {
