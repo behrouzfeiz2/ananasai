@@ -373,7 +373,12 @@ async function handleSecretarySubmit() {
   const input = document.getElementById("promptInput");
   const text = String(input && input.value || "").trim();
   if (!text || isGenerating || window.secretaryActionExecuting) return;
-  if (!userToken) { openSettingsModal("منشی هوشمند برای کاربران Pro و Ultra فعال است."); return; }
+  if (typeof secretaryHasUltraAccess !== "function" || !secretaryHasUltraAccess()) {
+    openSettingsModal(userToken
+      ? "منشی هوشمند فقط برای کاربران Ultra فعال است. برای استفاده، اشتراک خود را به Ultra ارتقا دهید."
+      : "منشی هوشمند ویژه کاربران Ultra است. ابتدا اشتراک Ultra خود را فعال کنید.");
+    return;
+  }
   const session = secretaryCurrentSession() || secretaryNewSession();
   input.value = ""; autoResizeTextarea(input);
   const pending = session.secretary ? session.secretary.pendingAction : null;
