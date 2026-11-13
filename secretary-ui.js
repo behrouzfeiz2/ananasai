@@ -260,6 +260,17 @@ function secretarySetTitle(text) {
     session.title = String(text || "").replace(/\s+/g, " ").slice(0, 52);
   }
 }
+function secretaryEffectiveHistoryPurgeTimestamp(serverValue) {
+  const storageKey = "ananas_global_chat_history_purge_at_v1";
+  const received = Number(serverValue) || 0;
+  let stored = 0;
+  try { stored = Number(localStorage.getItem(storageKey)) || 0; } catch (_) {}
+  const effective = Math.max(received, stored);
+  if (effective > stored) {
+    try { localStorage.setItem(storageKey, String(effective)); } catch (_) {}
+  }
+  return effective;
+}
 function secretaryConversationPayload(session) {
   const messages = session.messages.slice(-120).map(function(message) {
     const item = {
@@ -308,7 +319,7 @@ async function secretaryInit() {
     const result = await secretaryApi("history_list", { action: "history_list" });
     const deletedIds = new Set(Array.isArray(result.deleted_ids) ? result.deleted_ids : []);
     const deletedBefore = Number(result.deleted_before) || 0;
-    const purgedBefore = Number(result.purged_before) || 0;
+    const purgedBefore = secretaryEffectiveHistoryPurgeTimestamp(result.purged_before);
     // فهرست‌های قدیمی KV ممکن است موقتاً در کش دیده شوند؛ در سمت مرورگر هم
     // آن‌ها را با نشانگر پاک‌سازی و حذف فیلتر می‌کنیم تا تاریخچه برنگردد.
     const remote = (Array.isArray(result.conversations) ? result.conversations : []).filter(function(item) {
