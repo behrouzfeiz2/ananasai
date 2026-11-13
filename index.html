@@ -1415,12 +1415,24 @@
       }
     }
     function openCoderWorkspace() { setMode('coder'); }
-    function openSecretaryWorkspace() { setMode('secretary'); }
+    function secretaryHasUltraAccess() {
+      const token = String(userToken || '');
+      return Boolean(token) && Boolean(quotaState && (quotaState.isUltra || quotaState.tier === 'ultra' || token.startsWith('ULTRA-')));
+    }
+    async function openSecretaryWorkspace() {
+      // اگر وضعیت اشتراک هنوز از سرور نیامده باشد، پیش از تصمیم‌گیری آن را تازه‌سازی کن.
+      if (userToken && !secretaryHasUltraAccess()) await fetchQuotaFromServer();
+      setMode('secretary');
+    }
     function setMode(mode) {
-      if ((mode === 'coder' || mode === 'secretary') && !userToken) {
-        openSettingsModal(mode === 'coder'
-          ? '🔒 بخش کدنویس ویژه کاربران Pro و Ultra است. ابتدا اشتراک خود را فعال کنید.'
-          : '🔒 منشی هوشمند برای کاربران Pro و Ultra فعال است. ابتدا اشتراک خود را فعال کنید.');
+      if (mode === 'coder' && !userToken) {
+        openSettingsModal('🔒 بخش کدنویس ویژه کاربران Pro و Ultra است. ابتدا اشتراک خود را فعال کنید.');
+        return;
+      }
+      if (mode === 'secretary' && !secretaryHasUltraAccess()) {
+        openSettingsModal(userToken
+          ? '🔒 منشی هوشمند فقط برای کاربران Ultra فعال است. برای استفاده، اشتراک خود را به Ultra ارتقا دهید.'
+          : '🔒 منشی هوشمند ویژه کاربران Ultra است. ابتدا اشتراک Ultra خود را فعال کنید.');
         return;
       }
       const current = sessions.find(s => s.id === activeSessionId);
