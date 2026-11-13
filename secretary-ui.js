@@ -354,7 +354,7 @@ function secretaryModelHistory(session) {
 async function secretaryAskModel(session) {
   const result = await callGeminiAPI(chatModel, {
     contents: secretaryModelHistory(session),
-    generationConfig: { temperature: 0.15, responseMimeType: "application/json", maxOutputTokens: 1800 }
+    generationConfig: { temperature: 0.05, responseMimeType: "application/json", maxOutputTokens: 1800 }
   });
   const candidate = result && result.candidates && result.candidates[0];
   let text = "";
@@ -411,20 +411,73 @@ function secretaryPreviewEmail(email, provider) {
     secretaryAction: { type: "email_preview", data: data }
   });
 }
-function secretaryPreviewEvent(event) {
+function secretaryNormalizeCalendarDigits(value) {
+  return String(value || "").replace(/[۰-۹٠-٩]/g, function(digit) {
+    return String("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩".indexOf(digit) % 10);
+  });
+}
+function secretaryApplyDefaultCalendarYear(event, originalText) {
+  const text = secretaryNormalizeCalendarDigits(originalText);
+  if (/(?:^|\D)\d{4}(?:\D|$)/.test(text)) return event;
+  const year = new Date().getFullYear();
+  ["startDate", "endDate"].forEach(function(key) {
+    if (event[key] && /^\d{4}-\d{2}-\d{2}$/.test(String(event[key]))) event[key] = year + String(event[key]).slice(4);
+  });
+  ["startDateTime", "endDateTime"].forEach(function(key) {
+    if (event[key] && /^\d{4}-\d{2}-\d{2}/.test(String(event[key]))) event[key] = year + String(event[key]).slice(4);
+  });
+  return event;
+}
+function secretaryCalendarEventDate(event) {
+  const value = event.startDate || event.startDateTime || "";
+  const match = String(value).match(/^(\d{4}-\d{2}-\d{2})/);
+  return match ? match[1] : "";
+}
+function secretaryIsPastCalendarDate(event) {
+  const eventDate = secretaryCalendarEventDate(event);
+  if (!eventDate) return false;
+  const now = new Date();
+  const today = [now.getFullYear(), String(now.getMonth() + 1).padStart(2, "0"), String(now.getDate()).padStart(2, "0")].join("-");
+  return eventDate < today;
+}
+function secretaryLooksLikeCalendarRequest(text) {
+  const value = String(text || "").replace(/\s+/g, " ");
+  const action = /ثبت|تنظیم|ست کن|بذار|بگذار|قرار بده|اضافه کن|ایجاد کن|بساز|یاد(?:آ|ا)وری کن|یادم بنداز/;
+  const calendar = /یاد(?:آ|ا)ور(?:ی)?|تقویم|قرار ملاقات|رویداد/;
+  return calendar.test(value) && (action.test(value) || /برایم یادآور|برام یادآور|یادآوری می.?خواهم/.test(value));
+}
+async function secretaryAskCalendarEvent(originalText) {
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Amsterdam";
+  const now = new Date();
+  const localDate = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
+  const result = await callGeminiAPI(chatModel, {
+    contents: [{ role: "user", parts: [{ text: "درخواست کاربر برای ایجاد رویداد در تقویم را به JSON تبدیل کن. اگر اطلاعات کافی نیست event را با مقادیر موجود برگردان و در reply فقط سؤال تکمیلی لازم را بپرس. هرگز ادعای ثبت موفق نکن. سال ذکرنشده برابر سال جاری باشد. زمان فعلی: " + now.toISOString() + "؛ تاریخ محلی: " + localDate + "؛ منطقه زمانی: " + timezone + "؛ درخواست: " + originalText + "\nخروجی فقط JSON: {\"intent\":\"calendar_preview\",\"reply\":\"\",\"event\":{\"summary\":\"\",\"description\":\"\",\"startDateTime\":\"YYYY-MM-DDTHH:mm:ss\",\"endDateTime\":\"YYYY-MM-DDTHH:mm:ss\",\"timeZone\":\"\",\"remindersMinutes\":[]}}" }] }],
+    generationConfig: { temperature: 0, responseMimeType: "application/json", maxOutputTokens: 900 }
+  });
+  const candidate = result && result.candidates && result.candidates[0];
+  const raw = candidate && candidate.content && candidate.content.parts ? candidate.content.parts.map(function(part) { return part.text || ""; }).join("\n") : "";
+  return secretaryParseJson(raw);
+}
+function secretaryPreviewEvent(event, originalText) {
+  const source = Object.assign({}, event || {});
+  secretaryApplyDefaultCalendarYear(source, originalText);
   const data = {
-    summary: String(event.summary || "").trim(),
-    description: String(event.description || "").trim(),
-    startDate: event.startDate || "",
-    endDate: event.endDate || "",
-    startDateTime: event.startDateTime || "",
-    endDateTime: event.endDateTime || "",
-    timeZone: event.timeZone || (Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Amsterdam"),
-    remindersMinutes: Array.isArray(event.remindersMinutes) ? event.remindersMinutes : []
+    summary: String(source.summary || "").trim(),
+    description: String(source.description || "").trim(),
+    startDate: source.startDate || "",
+    endDate: source.endDate || "",
+    startDateTime: source.startDateTime || "",
+    endDateTime: source.endDateTime || "",
+    timeZone: source.timeZone || (Intl.DateTimeFormat().resolvedOptions().timeZone || "Europe/Amsterdam"),
+    remindersMinutes: Array.isArray(source.remindersMinutes) ? source.remindersMinutes : []
   };
   if (!data.summary || ((!data.startDate || !data.endDate) && (!data.startDateTime || !data.endDateTime))) {
-    secretaryAdd("model", "عنوان یادآوری و تاریخ یا ساعت دقیق آن کامل نیست. لطفاً زمان موردنظر را مشخص کن.");
-    return;
+    secretaryAdd("model", "برای ثبت یادآوری، عنوان، تاریخ و ساعت شروع و پایان لازم است. لطفاً اطلاعات ناقص را مشخص کن.");
+    return false;
+  }
+  if (secretaryIsPastCalendarDate(data)) {
+    secretaryAdd("model", "این تاریخ در گذشته قرار دارد و نمی‌توانم برای روزهای گذشته یادآوری ثبت کنم. لطفاً تاریخ امروز یا یک روز آینده را انتخاب کن.");
+    return false;
   }
   const session = secretaryCurrentSession();
   session.secretary = session.secretary || {};
@@ -432,9 +485,25 @@ function secretaryPreviewEvent(event) {
   secretaryAdd("model", "پیش‌نمایش یادآوری آماده ثبت در Google Calendar است. جزئیات را بررسی و تأیید کن.", {
     secretaryAction: { type: "event_preview", data: data }
   });
+  return true;
 }
 async function secretaryRunIntent(result, originalText) {
-  const intent = String(result.intent || "general").toLowerCase();
+  let intent = String(result.intent || "general").toLowerCase();
+  if (secretaryLooksLikeCalendarRequest(originalText) && intent !== "calendar_preview") {
+    if (!await secretaryRequireGoogle()) return;
+    const extracted = await secretaryAskCalendarEvent(originalText);
+    if (extracted && extracted.event) {
+      const event = extracted.event;
+      if (!event.summary || !(event.startDateTime && event.endDateTime) && !(event.startDate && event.endDate)) {
+        secretaryAdd("model", extracted.reply || "برای ثبت یادآوری، لطفاً عنوان، تاریخ و ساعت دقیق را مشخص کن.");
+        return;
+      }
+      secretaryPreviewEvent(event, originalText);
+      return;
+    }
+    secretaryAdd("model", extracted && extracted.reply ? extracted.reply : "برای آماده‌سازی یادآوری، لطفاً عنوان، تاریخ و ساعت دقیق را مشخص کن.");
+    return;
+  }
   if (intent === "connect_google") {
     secretaryAdd("model", result.reply || "برای شروع حساب گوگل را متصل کن.", { secretaryAction: { type: "connect" } });
     return;
@@ -445,7 +514,13 @@ async function secretaryRunIntent(result, originalText) {
     return;
   }
   if (intent === "calendar_preview") {
-    if (await secretaryRequireGoogle()) secretaryPreviewEvent(result.event || {});
+    if (!await secretaryRequireGoogle()) return;
+    const event = result.event || {};
+    if (!event.summary || !(event.startDateTime && event.endDateTime) && !(event.startDate && event.endDate)) {
+      secretaryAdd("model", result.reply || "برای ثبت یادآوری، لطفاً عنوان، تاریخ و ساعت دقیق را مشخص کن.");
+      return;
+    }
+    secretaryPreviewEvent(event, originalText);
     return;
   }
   if (intent === "summarize_emails") {
@@ -504,9 +579,12 @@ async function secretaryExecutePending() {
     } else if (pending.type === "event") {
       if (!await secretaryRequireGoogle()) return;
       const result = await secretaryApi("create_event", { action: "create_event", event: pending.data });
+      if (!result || result.created !== true || !result.event || !result.event.id || !result.event.summary) {
+        throw new Error("پاسخ Google Calendar ثبت موفق رویداد را تأیید نکرد.");
+      }
       session.secretary.pendingAction = null;
       let link = "";
-      if (result.event && result.event.htmlLink) link = "\n[مشاهده در Google Calendar](" + result.event.htmlLink + ")";
+      if (result.event.htmlLink) link = "\n[مشاهده در Google Calendar](" + result.event.htmlLink + ")";
       secretaryAdd("model", "یادآوری «" + result.event.summary + "» در تقویم ثبت شد." + link);
     }
     await secretarySaveHistory();
