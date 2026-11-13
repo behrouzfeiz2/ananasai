@@ -1,4 +1,5 @@
 const SITE_ORIGIN = "https://ananasai.ir";
+const HISTORY_TTL = 180 * 24 * 60 * 60;
 const GOOGLE_REDIRECT_URI = SITE_ORIGIN + "/api/secretary?action=callback";
 const GOOGLE_SCOPES = [
   "openid",
@@ -274,11 +275,24 @@ async function handleHistoryAction(env, account, body) {
   let index = []; try { index = rawIndex ? JSON.parse(rawIndex) : []; } catch {}
   if (!Array.isArray(index)) index = [];
   const action = body.action;
-  if (action === "history_list") return json({ conversations: index.filter(item => item && validId(item.id)).sort((a, b) => Number(b.updated_at || 0) - Number(a.updated_at || 0)).slice(0, 50) });
+  if (action === "history_list") {
+    const retentionKey = "secretary_history_retention_v1:" + accountHash;
+    if (!(await env.ANANAS_KV.get(retentionKey))) {
+      await Promise.all(index.filter(item => item && validId(item.id)).map(async item => {
+        const key = recordKey(item.id);
+        const raw = await env.ANANAS_KV.get(key);
+        if (raw) await env.ANANAS_KV.put(key, raw, { expirationTtl: HISTORY_TTL });
+      }));
+      await env.ANANAS_KV.put(retentionKey, "1", { expirationTtl: HISTORY_TTL });
+    }
+    await env.ANANAS_KV.put(indexKey, JSON.stringify(index), { expirationTtl: HISTORY_TTL });
+    return json({ conversations: index.filter(item => item && validId(item.id)).sort((a, b) => Number(b.updated_at || 0) - Number(a.updated_at || 0)) });
+  }
   if (action === "history_clear") {
     const ids = index.filter(item => item && validId(item.id)).map(item => item.id);
     await Promise.all(ids.map(id => env.ANANAS_KV.delete(recordKey(id))));
     await env.ANANAS_KV.delete(indexKey);
+    await env.ANANAS_KV.delete("secretary_history_retention_v1:" + accountHash);
     return json({ deleted: true, count: ids.length });
   }
   const id = String(body.id || body.conversation?.id || "");
@@ -287,12 +301,15 @@ async function handleHistoryAction(env, account, body) {
   if (action === "history_get") {
     const raw = await env.ANANAS_KV.get(storageKey);
     if (!raw) return json({ error: "گفتگوی منشی پیدا نشد." }, 404);
-    return json({ conversation: JSON.parse(raw) });
+    const conversation = JSON.parse(raw);
+    await env.ANANAS_KV.put(storageKey, raw, { expirationTtl: HISTORY_TTL });
+    await env.ANANAS_KV.put(indexKey, JSON.stringify(index), { expirationTtl: HISTORY_TTL });
+    return json({ conversation });
   }
   if (action === "history_delete") {
     await env.ANANAS_KV.delete(storageKey);
     index = index.filter(item => item?.id !== id);
-    await env.ANANAS_KV.put(indexKey, JSON.stringify(index));
+    await env.ANANAS_KV.put(indexKey, JSON.stringify(index), { expirationTtl: HISTORY_TTL });
     return json({ deleted: true, id });
   }
   const incoming = body.conversation;
@@ -314,10 +331,10 @@ async function handleHistoryAction(env, account, body) {
     id, title, created_at: Number(incoming.created_at) || now, updated_at: now, messages,
     pendingAction: incoming.pendingAction && ["email", "event"].includes(incoming.pendingAction.type) ? incoming.pendingAction : null
   };
-  await env.ANANAS_KV.put(storageKey, JSON.stringify(conversation));
+  await env.ANANAS_KV.put(storageKey, JSON.stringify(conversation), { expirationTtl: HISTORY_TTL });
   index = index.filter(item => item?.id !== id);
   index.unshift({ id, title, created_at: conversation.created_at, updated_at: now });
-  await env.ANANAS_KV.put(indexKey, JSON.stringify(index.slice(0, 60)));
+  await env.ANANAS_KV.put(indexKey, JSON.stringify(index), { expirationTtl: HISTORY_TTL });
   return json({ saved: true, conversation: { id, title, updated_at: now } });
 }
 async function handlePost({ request, env }) {
