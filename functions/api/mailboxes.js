@@ -327,21 +327,22 @@ async function sendMailboxMessage(email, password, input) {
 async function accountHash(token) {
   return bytesToBase64(new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(token))));
 }
-async function encryptionKey(env) {
-  const secret = env.MAILBOX_ENCRYPTION_KEY || env.GOOGLE_TOKEN_ENCRYPTION_KEY;
-  if (!secret || String(secret).length < 32) throw new Error("کلید رمزنگاری سرور تنظیم نشده است. MAILBOX_ENCRYPTION_KEY یا GOOGLE_TOKEN_ENCRYPTION_KEY را در Cloudflare تنظیم کنید.");
+async function encryptionKey(env, source) {
+  const keySource = source || (env.MAILBOX_ENCRYPTION_KEY ? "mailbox" : "google");
+  const secret = keySource === "mailbox" ? env.MAILBOX_ENCRYPTION_KEY : env.GOOGLE_TOKEN_ENCRYPTION_KEY;
+  if (!secret || String(secret).length < 32) throw new Error("کلید رمزنگاری سرور تنظیم نشده است. کلید MAILBOX_ENCRYPTION_KEY یا GOOGLE_TOKEN_ENCRYPTION_KEY را در Cloudflare تنظیم کنید.");
   const raw = await crypto.subtle.digest("SHA-256", encoder.encode(secret));
-  return crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
+  return { key: await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]), source: keySource };
 }
 async function encryptPassword(password, env) {
-  const key = await encryptionKey(env);
+  const material = await encryptionKey(env);
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const data = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoder.encode(password));
-  return { iv: bytesToBase64(iv), data: bytesToBase64(new Uint8Array(data)) };
+  const data = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, material.key, encoder.encode(password));
+  return { iv: bytesToBase64(iv), data: bytesToBase64(new Uint8Array(data)), key_source: material.source };
 }
 async function decryptPassword(encrypted, env) {
-  const key = await encryptionKey(env);
-  const clear = await crypto.subtle.decrypt({ name: "AES-GCM", iv: base64ToBytes(encrypted.iv) }, key, base64ToBytes(encrypted.data));
+  const material = await encryptionKey(env, encrypted.key_source || "google");
+  const clear = await crypto.subtle.decrypt({ name: "AES-GCM", iv: base64ToBytes(encrypted.iv) }, material.key, base64ToBytes(encrypted.data));
   return decoder.decode(clear);
 }
 async function getAccount(request, env) {
