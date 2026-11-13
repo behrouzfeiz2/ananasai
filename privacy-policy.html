@@ -12,16 +12,30 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100..900&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { darkMode:'class', theme:{ extend:{
+      fontFamily:{sans:['Vazirmatn','system-ui','sans-serif']},
+      colors:{ananas:{50:'#fffbeb',100:'#fef3c7',400:'#fbbf24',500:'#f59e0b',600:'#d97706',leaf:'#10b981',dark:'#0b0f17',card:'#151c28',border:'#232f46'}}
+    }}};
+  </script>
   <style>
     :root{color-scheme:dark;--bg:#0b0f17;--panel:#151c28;--line:#29364d;--text:#e5e7eb;--muted:#a1a1aa;--amber:#fbbf24;--green:#34d399}
     *{box-sizing:border-box}
-    body{margin:0;background:radial-gradient(ellipse at 12% 0%,rgba(245,158,11,.10),transparent 35%),radial-gradient(ellipse at 90% 25%,rgba(16,185,129,.08),transparent 32%),var(--bg);color:var(--text);font-family:Vazirmatn,system-ui,sans-serif;line-height:2}
-    a{color:var(--amber);text-decoration:none}a:hover{text-decoration:underline}
-    .wrap{width:min(920px,calc(100% - 32px));margin:0 auto;padding:30px 0 64px}
-    header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0 26px;border-bottom:1px solid var(--line);margin-bottom:28px}
-    .brand{display:flex;align-items:center;gap:12px;color:#fff;font-weight:900;font-size:19px}
-    .pineapple{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:#222b39;border:1px solid #66501e;font-size:24px}
-    .back{font-size:13px;border:1px solid var(--line);border-radius:12px;padding:7px 13px;color:#e5e7eb}
+    body{margin:0;background:#0b0f17;color:#f3f4f6;font-family:Vazirmatn,system-ui,sans-serif;line-height:2;overflow-x:hidden}
+    .wrap{width:min(920px,100%);margin:0 auto;padding:30px 16px 64px}
+    .policy-content a{color:#fbbf24;text-decoration:none}.policy-content a:hover{text-decoration:underline}
+    .policy-content{line-height:2}
+    .policy-content h1{font-size:clamp(25px,4vw,36px);line-height:1.5;color:#fff;margin:0 0 8px}
+    .policy-content h2{font-size:19px;color:#fff;margin:0 0 12px}
+    .policy-content h3{font-size:15px;color:#fcd34d;margin:18px 0 6px}
+    .policy-content p{margin:8px 0}.policy-content ul,.policy-content ol{padding-right:22px;margin:8px 0}.policy-content li{padding:3px 0}
+    .policy-content .hero,.policy-content .section{background:rgba(21,28,40,.92);border:1px solid #29364d;border-radius:20px;padding:22px 24px;margin:16px 0}
+    .policy-content .hero{background:linear-gradient(125deg,rgba(245,158,11,.10),rgba(16,185,129,.06)),#151c28}
+    .policy-content .muted{color:#a1a1aa;font-size:13px}.policy-content .updated{color:#34d399;font-size:12px}
+    .policy-content .scope{direction:ltr;text-align:left;display:inline-block;background:#0b1220;border:1px solid #34445d;border-radius:7px;padding:1px 7px;font:12px ui-monospace,monospace;overflow-wrap:anywhere}
+    .policy-content .notice{border-right:3px solid #fbbf24;padding:10px 14px;background:rgba(245,158,11,.07);border-radius:10px;color:#fef3c7}
+    .policy-content .steps{counter-reset:step;list-style:none;padding:0}.policy-content .steps li{counter-increment:step;position:relative;padding:4px 42px 8px 0}.policy-content .steps li:before{content:counter(step);position:absolute;right:0;top:5px;width:27px;height:27px;border-radius:9px;background:#3a2d12;color:#fcd34d;text-align:center;line-height:27px;font-weight:800}
     .hero,.section{background:rgba(21,28,40,.92);border:1px solid var(--line);border-radius:20px;padding:22px 24px;margin:16px 0}
     .hero{background:linear-gradient(125deg,rgba(245,158,11,.10),rgba(16,185,129,.06)),var(--panel)}
     h1{font-size:clamp(25px,4vw,36px);line-height:1.5;color:#fff;margin:0 0 8px}
@@ -32,17 +46,42 @@
     .scope{direction:ltr;text-align:left;display:inline-block;background:#0b1220;border:1px solid #34445d;border-radius:7px;padding:1px 7px;font:12px ui-monospace,monospace;overflow-wrap:anywhere}
     .notice{border-right:3px solid var(--amber);padding:10px 14px;background:rgba(245,158,11,.07);border-radius:10px;color:#fef3c7}
     .steps{counter-reset:step;list-style:none;padding:0}.steps li{counter-increment:step;position:relative;padding:4px 42px 8px 0}.steps li:before{content:counter(step);position:absolute;right:0;top:5px;width:27px;height:27px;border-radius:9px;background:#3a2d12;color:#fcd34d;text-align:center;line-height:27px;font-weight:800}
-    footer{border-top:1px solid var(--line);margin-top:28px;padding-top:18px;text-align:center;color:var(--muted);font-size:12px}
-    @media(max-width:600px){.wrap{width:min(100% - 22px,920px);padding-top:16px}.hero,.section{padding:17px 15px;border-radius:16px}header{align-items:flex-start}.brand{font-size:16px}.back{white-space:nowrap}}
+    @media(max-width:600px){.wrap{padding:22px 12px 40px}.policy-content .hero,.policy-content .section{padding:17px 15px;border-radius:16px}}
   </style>
 </head>
-<body>
-  <div class="wrap">
-    <header>
-      <a class="brand" href="/home"><span class="pineapple" aria-hidden="true">🍍</span><span>آناناس AI <span class="muted">| AnanasAI</span></span></a>
-      <a class="back" href="/home">بازگشت به سایت</a>
-    </header>
-
+<body class="min-h-screen flex flex-col justify-between relative">
+  <div class="fixed top-0 left-1/2 -translate-x-1/2 w-[550px] h-[300px] bg-ananas-500/10 blur-[130px] pointer-events-none -z-10"></div>
+  <div id="menuOverlay" onclick="toggleMobileMenu(false)" class="fixed inset-0 bg-black/70 backdrop-blur-xs z-40 hidden transition-opacity"></div>
+  <aside id="mobileDrawer" class="fixed top-0 right-0 bottom-0 w-72 bg-ananas-card border-l border-ananas-border z-50 transform translate-x-full transition-transform duration-300 flex flex-col justify-between p-5">
+    <div class="space-y-6">
+      <div class="flex items-center justify-between border-b border-ananas-border pb-4">
+        <div class="flex items-center gap-2.5"><div class="w-9 h-9 rounded-xl bg-ananas-dark border border-ananas-500/40 flex items-center justify-center text-xl">🍍</div><div><span class="font-extrabold text-white text-base">آناناس</span><span class="text-[10px] px-2 py-0.5 rounded-full bg-ananas-500/15 text-ananas-400 border border-ananas-500/30 font-bold mr-1">AnanasAI</span></div></div>
+        <button onclick="toggleMobileMenu(false)" aria-label="بستن منو" class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-ananas-dark"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+      </div>
+      <nav class="space-y-2 text-sm font-medium" aria-label="منوی اصلی">
+        <a href="home.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-300 hover:bg-ananas-dark hover:text-white transition"><span>🏠</span><span>صفحه اصلی (Home)</span></a>
+        <a href="index.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-300 hover:bg-ananas-dark hover:text-white transition"><span>💬</span><span>ورود به محیط چت و کدنویس</span></a>
+        <a href="pro.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-amber-400 hover:bg-ananas-dark transition font-bold"><span>🚀</span><span>خرید اکانت پرو و دانلود اپ</span></a>
+        <a href="about.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-300 hover:bg-ananas-dark hover:text-white transition"><span>ℹ️</span><span>درباره آناناس AI</span></a>
+        <a href="/privacy-policy" aria-current="page" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-ananas-500/15 text-ananas-400 border border-ananas-500/30 font-bold"><span>🔒</span><span>حریم خصوصی</span></a>
+      </nav>
+    </div>
+    <div class="space-y-3 pt-4 border-t border-ananas-border">
+      <a href="index.html" class="w-full py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs flex items-center justify-center gap-2 transition"><span>رایگان شروع کنید</span></a>
+      <a href="home.html" class="w-full py-2.5 px-4 rounded-xl bg-ananas-card border border-ananas-border text-gray-300 text-xs flex items-center justify-center gap-2 transition"><span>بازگشت به خانه</span></a>
+    </div>
+  </aside>
+  <header class="h-16 border-b border-ananas-border px-4 lg:px-12 flex items-center justify-between bg-ananas-dark/80 backdrop-blur-md sticky top-0 z-30">
+    <div class="flex items-center gap-3">
+      <button onclick="toggleMobileMenu(true)" aria-label="منو" aria-controls="mobileDrawer" aria-expanded="false" class="p-2 rounded-xl bg-ananas-card hover:bg-ananas-border/70 border border-ananas-border text-gray-200 transition flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <a href="home.html" class="flex items-center gap-2.5" aria-label="صفحه اصلی آناناس AI"><div class="w-9 h-9 rounded-xl bg-ananas-card border border-ananas-500/40 flex items-center justify-center text-xl shadow">🍍</div><div><span class="font-bold text-white text-base">آناناس</span><span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-ananas-500/15 text-ananas-400 border border-ananas-500/30 mr-1">AnanasAI</span></div></a>
+    </div>
+    <nav class="hidden md:flex items-center gap-6 text-xs font-bold text-gray-300" aria-label="منوی دسکتاپ">
+      <a href="home.html" class="hover:text-white transition">صفحه اصلی</a><a href="index.html" class="hover:text-white transition">محیط چت</a><a href="pro.html" class="hover:text-white transition">نسخه پرو</a><a href="about.html" class="hover:text-white transition">درباره ما</a><a href="/privacy-policy" class="text-ananas-400" aria-current="page">حریم خصوصی</a>
+    </nav>
+    <div class="flex items-center gap-2"><a href="pro.html" class="hidden sm:inline-flex px-3.5 py-2 rounded-xl bg-ananas-500/15 hover:bg-ananas-500/25 border border-ananas-500/30 text-xs font-bold text-ananas-400 transition">اشتراک پرو 🚀</a><a href="index.html" class="px-4 py-2 rounded-xl bg-ananas-card hover:bg-ananas-border/60 border border-ananas-border text-xs font-bold text-gray-200 flex items-center gap-2 transition">محیط چت</a></div>
+  </header>
+  <main class="wrap flex-1 policy-content">
     <section class="hero">
       <h1>سیاست حفظ حریم خصوصی</h1>
       <p>در AnanasAI حریم خصوصی و کنترل کاربر بر اطلاعات شخصی اهمیت دارد. این سند توضیح می‌دهد هنگام استفاده از وب‌سایت و قابلیت‌های هوش مصنوعی آناناس، چه اطلاعاتی پردازش می‌شود، اتصال Google و GitHub چه دسترسی‌هایی ایجاد می‌کند و چگونه می‌توانید داده‌ها یا مجوزهای خود را حذف یا لغو کنید.</p>
@@ -151,10 +190,22 @@
       <p>ممکن است این سیاست در صورت اضافه‌شدن قابلیت‌ها، تغییر شیوه پردازش داده یا تغییر الزامات قانونی به‌روزرسانی شود. نسخه جدید از همین نشانی منتشر می‌شود و تاریخ آخرین به‌روزرسانی در ابتدای صفحه درج خواهد شد.</p>
     </section>
 
-    <footer>
-      <p>© AnanasAI — طراحی و توسعه توسط تیم Branex</p>
-      <p><a href="/home">صفحه اصلی</a> · <a href="https://t.me/ananasai" target="_blank" rel="noopener noreferrer">پشتیبانی</a></p>
-    </footer>
-  </div>
+  </main>
+  <footer class="py-3.5 px-4 border-t border-ananas-border bg-ananas-dark text-center text-xs text-gray-400 shrink-0">
+    <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div class="flex items-center justify-center gap-1"><span>طراحی و پیاده‌سازی توسط</span><a href="https://branex.ir" target="_blank" rel="noopener noreferrer" class="text-ananas-400 font-bold hover:underline transition">Branex</a></div>
+      <nav class="flex items-center gap-4 text-[11px] text-gray-400" aria-label="پیوندهای پایین صفحه">
+        <a href="home.html" class="hover:text-white transition">صفحه اصلی</a><span>•</span><a href="index.html" class="hover:text-white transition">محیط چت</a><span>•</span><a href="pro.html" class="hover:text-white transition">نسخه پرو</a><span>•</span><a href="about.html" class="hover:text-white transition">درباره ما</a><span>•</span><a href="/privacy-policy" class="text-ananas-400">حریم خصوصی</a>
+      </nav>
+    </div>
+  </footer>
+  <script>
+    function toggleMobileMenu(show) {
+      const drawer=document.getElementById('mobileDrawer'), overlay=document.getElementById('menuOverlay');
+      const menuButton=document.querySelector('button[aria-controls="mobileDrawer"]');
+      if(show){drawer.classList.remove('translate-x-full');overlay.classList.remove('hidden');if(menuButton)menuButton.setAttribute('aria-expanded','true');}
+      else{drawer.classList.add('translate-x-full');overlay.classList.add('hidden');if(menuButton)menuButton.setAttribute('aria-expanded','false');}
+    }
+  </script>
 </body>
 </html>
