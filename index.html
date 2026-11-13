@@ -1342,6 +1342,7 @@
       document.body.classList.toggle('coder-mode', mode === 'coder');
       if (suggestions) suggestions.classList.toggle('hidden', mode !== 'chat');
       if (mode === 'coder') {
+        if (attachedFile) removeAttachment();
         coderBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-cyan-500 text-white';
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
         input.placeholder = 'درخواستت درباره پروژه را بنویس؛ آناناس ابتدا کد را بررسی می‌کند...';
@@ -3386,7 +3387,7 @@ function renderDollarChart(c,i){
 
     function coderWantsCommit(text) {
       const value = String(text || '').replace(/[\u200c\u200f]/g, ' ').toLowerCase();
-      return /(?:در\s*(?:مخزن|گیت\s*هاب)|روی\s*گیت\s*هاب)?\s*(?:اعمالش\s*کن|اعمال\s*کن|ثبتش\s*کن|ثبت\s*کن|تایید\s*میکنم|تایید\s*می\s*کنم|تأیید|تایید|اوکیه|برو\s*جلو)/i.test(value);
+      return /(?:در\s*(?:مخزن(?:\s*اصلی)?|main|گیت\s*هاب)|روی\s*(?:گیت\s*هاب|مخزن(?:\s*اصلی)?))?\s*(?:پیاده\s*سازی\s*(?:اش|ش)?\s*کن|پیاده\s*اش\s*کن|اعمالش\s*کن|اعمال\s*کن|ثبتش\s*کن|ثبت\s*کن|تایید\s*میکنم|تایید\s*می\s*کنم|تأیید|تایید|اوکیه|برو\s*جلو)/i.test(value);
     }
 
     function coderCancelPreview(session) {
