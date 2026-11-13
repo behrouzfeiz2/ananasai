@@ -85,8 +85,38 @@ async function readUntil(reader, detect, maxBytes = 180000, timeoutMs = 15000) {
 }
 async function openSecureSocket(hostname, port) {
   const socket = connect({ hostname, port }, { secureTransport: "on" });
-  await withTimeout(socket.opened, 15000, "اتصال امن به سرور ایمیل برقرار نشد.");
-  return { socket, reader: socket.readable.getReader(), writer: socket.writable.getWriter() };
+  try {
+    await withTimeout(socket.opened, 15000, "اتصال امن به سرور ایمیل برقرار نشد.");
+    return { socket, reader: socket.readable.getReader(), writer: socket.writable.getWriter() };
+  } catch (error) {
+    try { await socket.close(); } catch {}
+    throw error;
+  }
+}
+async function openSmtpSocket() {
+  try {
+    return await openSecureSocket(SMTP_HOST, SMTP_PORT);
+  } catch (sslError) {
+    let socket;
+    let reader;
+    let writer;
+    try {
+      socket = connect({ hostname: SMTP_HOST, port: 587 }, { secureTransport: "starttls" });
+      await withTimeout(socket.opened, 15000, "اتصال SMTP برقرار نشد.");
+      reader = socket.readable.getReader();
+      writer = socket.writable.getWriter();
+      const greeting = await smtpRead(reader);
+      if (greeting.code !== 220) throw new Error("سرور SMTP آماده دریافت اتصال نیست.");
+      await smtpCommand(writer, reader, "EHLO ananasai.ir", [250]);
+      await smtpCommand(writer, reader, "STARTTLS", [220]);
+      const secureSocket = socket.startTls();
+      return { socket: secureSocket, reader: secureSocket.readable.getReader(), writer: secureSocket.writable.getWriter() };
+    } catch (startTlsError) {
+      try { if (writer) await writer.close(); } catch {}
+      try { if (socket) await socket.close(); } catch {}
+      throw new Error("اتصال SMTP با پورت‌های 465 و 587 برقرار نشد. تنظیمات سرور ایمیل را بررسی کنید.");
+    }
+  }
 }
 async function writeText(writer, value) { await writer.write(encoder.encode(value)); }
 function smtpFinalLine(text) { return /(?:^|\r\n)\d{3} [^\r\n]*(?:\r\n)?$/.test(text); }
@@ -110,7 +140,7 @@ async function smtpCommand(writer, reader, command, accepted) {
 async function authenticateSmtp(email, password) {
   let connection;
   try {
-    connection = await openSecureSocket(SMTP_HOST, SMTP_PORT);
+    connection = await openSmtpSocket();
     const greeting = await smtpRead(connection.reader);
     if (greeting.code !== 220) throw new Error("سرور SMTP آماده دریافت اتصال نیست.");
     await smtpCommand(connection.writer, connection.reader, "EHLO ananasai.ir", [250]);
@@ -302,7 +332,7 @@ async function sendMailboxMessage(email, password, input) {
   ].join("\r\n");
   let connection;
   try {
-    connection = await openSecureSocket(SMTP_HOST, SMTP_PORT);
+    connection = await openSmtpSocket();
     const greeting = await smtpRead(connection.reader);
     if (greeting.code !== 220) throw new Error("سرور SMTP آماده ارسال نیست.");
     await smtpCommand(connection.writer, connection.reader, "EHLO ananasai.ir", [250]);
