@@ -91,7 +91,10 @@
     ::-webkit-scrollbar-thumb{background:#29364d;border-radius:99px}
     ::-webkit-scrollbar-thumb:hover{background:#f59e0b}
     .ambient{position:fixed;pointer-events:none;z-index:-1;border-radius:50%;filter:blur(120px)}
-    .guide-layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:24px;align-items:start}
+    .guide-layout{display:grid;grid-template-columns:260px minmax(0,1fr);gap:24px;align-items:start;min-width:0}
+    .guide-layout>*,#guideContent,.guide-section{min-width:0}
+    #guideContent{width:100%}
+    .guide-section pre,.guide-section pre code{max-width:100%;overflow-x:auto}
     .guide-aside{position:sticky;top:88px;max-height:calc(100vh - 108px);overflow:auto}
     .guide-nav a{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:11px;color:#aeb8c8;font-size:13px;transition:.18s}
     .guide-nav a:hover,.guide-nav a.active{background:rgba(245,158,11,.10);color:#fcd34d}
@@ -136,8 +139,8 @@
     .hidden-by-search{display:none!important}
     .breadcrumb{font-size:12px;color:#94a3b8}
     .breadcrumb a{color:#fbbf24}
-    @media(max-width:900px){.guide-layout{grid-template-columns:1fr}.guide-aside{position:relative;top:auto;max-height:none}.guide-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.guide-nav a{font-size:12px}}
-    @media(max-width:560px){.guide-grid{grid-template-columns:1fr}.guide-section{border-radius:17px;padding:17px 14px}.guide-table{display:block;overflow-x:auto;white-space:nowrap}.guide-nav{grid-template-columns:1fr 1fr}.quick-link{padding:11px}}
+    @media(max-width:900px){.guide-layout{grid-template-columns:minmax(0,1fr);gap:18px}.guide-aside{position:relative;top:auto;max-height:none;width:100%;min-width:0}.guide-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.guide-nav a{font-size:12px;min-width:0;overflow-wrap:anywhere}}
+    @media(max-width:560px){.guide-grid{grid-template-columns:1fr}.guide-section{border-radius:17px;padding:17px 14px}.guide-table{display:block;max-width:100%;overflow-x:auto;white-space:nowrap}.guide-nav{grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}.guide-nav a{padding:9px 7px;line-height:1.7}.quick-link{padding:11px}#guideContent{min-width:0;width:100%}.guide-section pre{white-space:pre;max-width:100%;overflow-x:auto}.guide-section img,.guide-section iframe{max-width:100%}}
     @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.quick-link:hover{transform:none}}
   </style>
 </head>
@@ -580,6 +583,7 @@
       const drawer = document.getElementById('mobileDrawer');
       const overlay = document.getElementById('menuOverlay');
       const button = document.querySelector('button[aria-controls="mobileDrawer"]');
+      if (!drawer || !overlay) return;
       if (show) {
         drawer.classList.remove('translate-x-full');
         overlay.classList.remove('hidden');
@@ -599,40 +603,45 @@
       const normalize = value => (value || '').toString().toLocaleLowerCase('fa')
         .replace(/[ي]/g, 'ی').replace(/[ك]/g, 'ک').replace(/\s+/g, ' ').trim();
 
-      search.addEventListener('input', function () {
-        const query = normalize(search.value);
-        let visibleCount = 0;
-        sections.forEach(section => {
-          const match = !query || normalize(section.innerText).includes(query);
-          section.classList.toggle('hidden-by-search', !match);
-          if (match) visibleCount++;
-        });
-        links.forEach(link => {
-          const target = document.querySelector(link.getAttribute('href'));
-          link.classList.toggle('hidden-by-search', Boolean(query) && (!target || target.classList.contains('hidden-by-search')));
-        });
-        if (!query) status.textContent = 'برای پیدا کردن آموزش یا پاسخ یک سؤال، واژه موردنظر را وارد کنید.';
-        else if (visibleCount) status.textContent = visibleCount + ' بخش مرتبط پیدا شد. برای مشاهده، از فهرست یا نتایج صفحه استفاده کنید.';
-        else status.textContent = 'نتیجه‌ای پیدا نشد؛ عبارت دیگری را امتحان کنید.';
-      });
-
-      const observer = new IntersectionObserver(entries => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            links.forEach(link => link.classList.toggle('active', link.getAttribute('href') === '#' + entry.target.id));
+      if (search) {
+        search.addEventListener('input', function () {
+          const query = normalize(search.value);
+          let visibleCount = 0;
+          sections.forEach(section => {
+            const match = !query || normalize(section.innerText || section.textContent).includes(query);
+            section.classList.toggle('hidden-by-search', !match);
+            if (match) visibleCount++;
+          });
+          links.forEach(link => {
+            const target = document.querySelector(link.getAttribute('href'));
+            link.classList.toggle('hidden-by-search', Boolean(query) && (!target || target.classList.contains('hidden-by-search')));
+          });
+          if (status) {
+            if (!query) status.textContent = 'برای پیدا کردن آموزش یا پاسخ یک سؤال، واژه موردنظر را وارد کنید.';
+            else if (visibleCount) status.textContent = visibleCount + ' بخش مرتبط پیدا شد. برای مشاهده، از فهرست یا نتایج صفحه استفاده کنید.';
+            else status.textContent = 'نتیجه‌ای پیدا نشد؛ عبارت دیگری را امتحان کنید.';
           }
         });
-      }, { rootMargin: '-20% 0px -70% 0px' });
-      sections.forEach(section => observer.observe(section));
+      }
+
+      // IntersectionObserver در بعضی WebViewهای قدیمی در دسترس نیست؛ نبود آن نباید کل اسکریپت راهنما را متوقف کند.
+      if (typeof IntersectionObserver === 'function') {
+        const observer = new IntersectionObserver(entries => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              links.forEach(link => link.classList.toggle('active', link.getAttribute('href') === '#' + entry.target.id));
+            }
+          });
+        }, { rootMargin: '-20% 0px -70% 0px' });
+        sections.forEach(section => observer.observe(section));
+      }
 
       links.forEach(link => link.addEventListener('click', () => {
-        if (search.value) {
+        if (search && search.value) {
           search.value = '';
           search.dispatchEvent(new Event('input'));
         }
-        if (window.innerWidth < 900) {
-          link.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
+        // پیمایش را به لینک لنگر خود مرورگر می‌سپاریم تا در موبایل صفحه به خودِ آیتم فهرست برنگردد.
       }));
     })();
   </script>
