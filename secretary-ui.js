@@ -279,8 +279,9 @@ function secretaryConversationPayload(session) {
 async function secretarySaveHistory() {
   const session = secretaryCurrentSession();
   if (!session || !userToken) return;
-  await secretaryApi("history_save", { action: "history_save", conversation: secretaryConversationPayload(session) });
+  const saved = await secretaryApi("history_save", { action: "history_save", conversation: secretaryConversationPayload(session) });
   session.remoteLoaded = true;
+  if (saved.conversation && saved.conversation.updated_at) session.updatedAt = saved.conversation.updated_at;
 }
 async function secretaryLoadRemote(session) {
   if (!session || !userToken || session.remoteLoaded !== false) return;
