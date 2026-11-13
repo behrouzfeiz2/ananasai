@@ -419,7 +419,7 @@ function secretaryNormalizeCalendarDigits(value) {
 }
 function secretaryApplyDefaultCalendarYear(event, originalText) {
   const text = secretaryNormalizeCalendarDigits(originalText);
-  if (/(?:^|\D)(?:19|20)\d{2}(?:\D|$)/.test(text)) return event;
+  if (/(?:^|\D)\d{4}(?:\D|$)/.test(text)) return event;
   const year = new Date().getFullYear();
   ["startDate", "endDate"].forEach(function(key) {
     if (event[key] && /^\d{4}-\d{2}-\d{2}$/.test(String(event[key]))) event[key] = year + String(event[key]).slice(4);
@@ -443,8 +443,8 @@ function secretaryIsPastCalendarDate(event) {
 }
 function secretaryLooksLikeCalendarRequest(text) {
   const value = String(text || "").replace(/\s+/g, " ");
-  const action = /ثبت|تنظیم|ست کن|بذار|بگذار|قرار بده|اضافه کن|ایجاد کن|بساز|یادآوری کن|یادم بنداز/;
-  const calendar = /یادآور(?:ی)?|تقویم|قرار ملاقات|رویداد/;
+  const action = /ثبت|تنظیم|ست کن|بذار|بگذار|قرار بده|اضافه کن|ایجاد کن|بساز|یاد(?:آ|ا)وری کن|یادم بنداز/;
+  const calendar = /یاد(?:آ|ا)ور(?:ی)?|تقویم|قرار ملاقات|رویداد/;
   return calendar.test(value) && (action.test(value) || /برایم یادآور|برام یادآور|یادآوری می.?خواهم/.test(value));
 }
 async function secretaryAskCalendarEvent(originalText) {
@@ -496,7 +496,7 @@ async function secretaryRunIntent(result, originalText) {
     const extracted = await secretaryAskCalendarEvent(originalText);
     if (extracted && extracted.event) {
       const event = extracted.event;
-      if (!event.summary || !(event.startDate || event.startDateTime) || !event.startDateTime) {
+      if (!event.summary || !(event.startDateTime && event.endDateTime) && !(event.startDate && event.endDate)) {
         secretaryAdd("model", extracted.reply || "برای ثبت یادآوری، لطفاً عنوان، تاریخ و ساعت دقیق را مشخص کن.");
         return;
       }
@@ -518,7 +518,7 @@ async function secretaryRunIntent(result, originalText) {
   if (intent === "calendar_preview") {
     if (!await secretaryRequireGoogle()) return;
     const event = result.event || {};
-    if (!event.summary || !(event.startDate || event.startDateTime) || !event.startDateTime) {
+    if (!event.summary || !(event.startDateTime && event.endDateTime) && !(event.startDate && event.endDate)) {
       secretaryAdd("model", result.reply || "برای ثبت یادآوری، لطفاً عنوان، تاریخ و ساعت دقیق را مشخص کن.");
       return;
     }
