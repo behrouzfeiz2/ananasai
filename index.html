@@ -1345,7 +1345,7 @@
         if (attachedFile) removeAttachment();
         coderBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-cyan-500 text-white';
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
-        input.placeholder = 'درخواستت درباره پروژه را بنویس؛ آناناس ابتدا کد را بررسی می‌کند...';
+        input.placeholder = 'کدی را که می‌خواهی بررسی یا بهبود بدهم بفرست یا سؤال برنامه‌نویسی‌ات را بنویس...';
         const infoCard = document.getElementById('coderInfoCard');
         if (infoCard) infoCard.remove();
       } else {
@@ -1594,7 +1594,7 @@
 
       if (inputEl) {
         inputEl.placeholder = currentMode === 'coder'
-          ? 'کد یا سوال برنامه‌نویسی خود را بنویسید یا فایل کد را ضمیمه کنید...'
+          ? 'کد یا درخواست برنامه‌نویسی خود را اینجا بنویسید...'
           : 'از آناناس بپرس ...';
       }
     }
@@ -3095,7 +3095,7 @@ function renderDollarChart(c,i){
         id: id, title: 'گفتگوی کدنویسی', mode: 'coder', isPinned: false,
         createdAt: Date.now(), updatedAt: Date.now(),
         coder: {
-          stage: 'connect', repository: '', branch: '', proposal_id: null,
+          stage: 'manual', repository: '', branch: '', proposal_id: null,
           status: 'chat', pull_request_number: null, pull_request_url: null,
           pull_request_branch: null
         },
@@ -3218,34 +3218,66 @@ function renderDollarChart(c,i){
       if (!session || !userToken || isGenerating) return;
       if (!session.coder) {
         session.coder = {
-          stage: 'connect', repository: '', branch: '', proposal_id: null,
+          stage: 'manual', repository: '', branch: '', proposal_id: null,
           status: 'chat', pull_request_number: null, pull_request_url: null,
           pull_request_branch: null
         };
       }
       if (!force && coderInitializedSessionId === session.id) return;
       coderInitializedSessionId = session.id;
+
+      const latest = coderCurrentSession();
+      if (!latest) return;
+      if (latest.coder.repository && ['task', 'preview', 'draft'].includes(latest.coder.stage)) return;
+
+      // اتصال GitHub اختیاری است؛ حالت پیش‌فرض، بررسی کد ارسالی در خود گفتگو است.
+      if (!['connect_pending', 'project'].includes(latest.coder.stage)) {
+        latest.coder.stage = 'manual';
+        latest.messages.forEach(message => {
+          if (message.coderAction && message.coderAction.type === 'connect') {
+            message.text = 'می‌توانی بدون اتصال GitHub کدت را همین‌جا بفرستی؛ اتصال GitHub فقط برای کار مستقیم روی مخزن لازم است.';
+            message.coderAction.type = 'manual_intro';
+          }
+        });
+        const hasWelcome = latest.messages.some(message =>
+          message.coderAction && message.coderAction.type === 'manual_intro'
+        );
+        if (!hasWelcome) {
+          coderPush('model',
+            'کدی را که می‌خواهی بررسی یا بهبود بدهم در پیام بعدی همین‌جا بفرست. می‌توانی کد را مستقیم داخل پیام قرار بدهی؛ من آن را بررسی می‌کنم، ایرادها را توضیح می‌دهم و نسخه پیشنهادی را ارائه می‌کنم. برای این کار نیازی به اتصال GitHub نیست. اگر بخواهی آناناس مستقیماً فایل‌های یک مخزن را بخواند و برای آن پیش‌نویس تغییرات بسازد، اتصال GitHub اختیاری است.',
+            { coderAction: { type: 'manual_intro' } }
+          );
+        } else {
+          saveSessions();
+          renderMessages();
+          renderHistoryList();
+        }
+        return;
+      }
+
       try {
         await coderMigrateLegacyHistory();
-        const latest = coderCurrentSession();
-        if (!latest) return;
-        if (latest.coder.repository && ['task', 'preview', 'draft'].includes(latest.coder.stage)) return;
+        const current = coderCurrentSession();
+        if (!current) return;
+        if (current.coder.repository && ['task', 'preview', 'draft'].includes(current.coder.stage)) return;
+
         const status = await coderApiGet({ action: 'status' });
         if (!status.connected) {
-          latest.coder.stage = 'connect';
-          const hasCard = latest.messages.some(m => m.coderAction && m.coderAction.type === 'connect');
-          if (!hasCard) {
-            coderPush('model', 'برای شروع، حساب GitHub خودت را به آناناس متصل کن. بعد از اتصال، پروژه را انتخاب می‌کنیم و وارد گفتگوی کدنویسی می‌شویم.', {
-              coderAction: { type: 'connect' }
-            });
-          }
+          current.coder.stage = 'manual';
+          coderPush('model',
+            'اتصال GitHub برقرار نشد؛ اما می‌توانی بدون GitHub هم کدنویسی را ادامه بدهی. کدی را که می‌خواهی بررسی یا بهبود بدهم همین‌جا بفرست. برای کار مستقیم روی مخزن، اتصال GitHub را دوباره امتحان کن.',
+            { coderAction: { type: 'manual_intro' } }
+          );
           return;
         }
         await coderLoadProjectsAndAsk();
       } catch (error) {
-        coderPush('model', 'برای ادامه گفتگو نتوانستم وضعیت GitHub را بررسی کنم. ' + error.message + '\nلطفاً دوباره تلاش کن.', {
-          coderAction: { type: 'retry_status' }
-        });
+        const current = coderCurrentSession();
+        if (current && current.coder && !current.coder.repository) current.coder.stage = 'manual';
+        coderPush('model',
+          'بررسی اتصال GitHub با مشکل روبه‌رو شد: ' + error.message + '\nمی‌توانی فعلاً بدون اتصال، کد را مستقیماً در همین گفتگو بفرستی.',
+          { coderAction: { type: 'manual_intro' } }
+        );
       }
     }
 
@@ -3253,14 +3285,22 @@ function renderDollarChart(c,i){
       const session = coderCurrentSession();
       if (!session) return;
       try {
+        if (!session.coder) {
+          session.coder = { stage: 'manual', repository: '', branch: '', proposal_id: null, status: 'chat' };
+        }
+        session.coder.stage = 'connect_pending';
+        saveSessions();
+        renderHistoryList();
         localStorage.setItem('ananas_pending_coder_session', session.id);
         const result = await coderApiGet({ action: 'connect' });
         if (!result.url) throw new Error('لینک اتصال GitHub دریافت نشد.');
         location.href = result.url;
       } catch (error) {
-        coderPush('model', 'اتصال GitHub آماده نشد: ' + error.message + '\nدوباره تلاش کن.', {
-          coderAction: { type: 'connect' }
-        });
+        session.coder.stage = 'manual';
+        coderPush('model',
+          'اتصال GitHub آماده نشد: ' + error.message + '\nمی‌توانی بدون اتصال هم کدت را همین‌جا بفرستی و بررسی را ادامه بدهی.',
+          { coderAction: { type: 'manual_intro' } }
+        );
       }
     }
 
@@ -3336,8 +3376,11 @@ function renderDollarChart(c,i){
 
     function renderCoderMessageAction(message, index) {
       const action = message.coderAction || {};
+      if (action.type === 'manual_intro') {
+        return '<div class="coder-inline-card"><p class="text-sm text-blue-100">برای بررسی کد ارسالی، نیازی به GitHub نیست. کد را در کادر گفتگو بفرست. اتصال GitHub فقط برای دسترسی مستقیم به مخزن و ساخت پیش‌نویس تغییرات لازم است.</p><button type="button" class="coder-inline-primary" onclick="coderConnectGitHub()">اتصال GitHub (اختیاری)</button></div>';
+      }
       if (action.type === 'connect') {
-        return '<div class="coder-inline-card"><p class="text-sm text-blue-100">برای دسترسی به پروژه‌ها و بررسی فایل‌ها، ابتدا GitHub را وصل کن.</p><button type="button" class="coder-inline-primary" onclick="coderConnectGitHub()">اتصال به حساب GitHub</button></div>';
+        return '<div class="coder-inline-card"><p class="text-sm text-blue-100">می‌توانی کد را بدون GitHub در گفتگو بفرستی یا برای دسترسی مستقیم به پروژه‌ها، حساب GitHub را متصل کنی.</p><button type="button" class="coder-inline-primary" onclick="coderConnectGitHub()">اتصال GitHub (اختیاری)</button></div>';
       }
       if (action.type === 'projects') {
         const projects = Array.isArray(action.projects) ? action.projects : [];
@@ -3486,27 +3529,72 @@ function renderDollarChart(c,i){
       }
     }
 
+    async function coderSendManualToGemini() {
+      const session = coderCurrentSession();
+      if (!session) throw new Error('گفتگوی کدنویسی فعال نیست.');
+
+      // تاریخچه را با سقف مشخص می‌فرستیم، اما متن کد کاربر را تا حد امکان کامل نگه می‌داریم.
+      const sourceMessages = session.messages
+        .filter(message => typeof message.text === 'string' && !message.isError)
+        .slice(-12);
+      const contents = [];
+      let remaining = 64000;
+
+      for (let i = sourceMessages.length - 1; i >= 0; i--) {
+        const message = sourceMessages[i];
+        let content = String(message.text || '');
+        const perMessageLimit = message.role === 'user' ? 52000 : 6000;
+        if (content.length > perMessageLimit) content = content.slice(0, perMessageLimit);
+        if (content.length > remaining) content = content.slice(0, remaining);
+        if (!content.trim()) continue;
+
+        contents.unshift({
+          role: message.role === 'user' ? 'user' : 'model',
+          parts: [{ text: content }]
+        });
+        remaining -= content.length;
+        if (remaining <= 0) break;
+      }
+
+      if (!contents.length) throw new Error('متن کد یا درخواست برای ارسال پیدا نشد.');
+      const result = await callGeminiAPI(chatModel, { contents });
+      const replyText = result?.candidates?.[0]?.content?.parts
+        ?.map(part => part.text || '').join('\n').trim() || 'پاسخی دریافت نشد.';
+      coderPush('model', replyText);
+    }
+
     async function handleCoderSubmit() {
       const input = document.getElementById('promptInput');
       const text = String(input && input.value || '').trim();
-      if (!text) return;
+      if (!text || isGenerating) return;
       const session = coderCurrentSession() || coderCreateSession();
       input.value = '';
       autoResizeTextarea(input);
 
       if (!session.coder) {
-        session.coder = { stage: 'connect', repository: '', branch: '', proposal_id: null, status: 'chat' };
+        session.coder = { stage: 'manual', repository: '', branch: '', proposal_id: null, status: 'chat' };
       }
-      if (session.coder.stage === 'connect') {
+
+      // بدون انتخاب مخزن، پیام‌ها مستقیماً به مدل تخصصی کدنویس ارسال می‌شوند.
+      if (!session.coder.repository) {
+        session.coder.stage = 'manual';
         coderPush('user', text);
-        coderPush('model', 'برای بررسی پروژه باید اول حساب GitHub متصل باشد. از دکمه زیر اتصال را انجام بده؛ بعد از بازگشت، فهرست پروژه‌ها را خودکار نمایش می‌دهم.', {
-          coderAction: { type: 'connect' }
-        });
-        return;
-      }
-      if (session.coder.stage === 'project' || !session.coder.repository) {
-        coderPush('user', text);
-        await coderReloadProjects();
+        coderSetTitleFromRequest(text);
+        saveSessions();
+        renderHistoryList();
+        isGenerating = true;
+        appendLoadingBubble(true, false);
+        try {
+          await coderSendManualToGemini();
+        } catch (error) {
+          coderPush('model', 'در بررسی کدی که فرستادی مشکلی پیش آمد: ' + error.message + '\nلطفاً دوباره تلاش کن یا کد را در چند بخش کوتاه‌تر بفرست.');
+        } finally {
+          removeLoadingBubble();
+          isGenerating = false;
+          saveSessions();
+          renderHistoryList();
+          renderMessages();
+        }
         return;
       }
 
@@ -3545,10 +3633,16 @@ function renderDollarChart(c,i){
       }
       updateModeUI('coder');
       const error = params.get('github_error');
+      const hasGithubCallback = params.has('github') || params.has('github_error');
+      const restoredSession = coderCurrentSession();
+      if (hasGithubCallback && restoredSession && restoredSession.coder && !restoredSession.coder.repository) {
+        restoredSession.coder.stage = 'connect_pending';
+      }
       history.replaceState({}, '', location.pathname);
       if (error) {
-        coderPush('model', 'اتصال GitHub کامل نشد (' + error + '). دوباره تلاش کن.', {
-          coderAction: { type: 'connect' }
+        if (restoredSession && restoredSession.coder) restoredSession.coder.stage = 'manual';
+        coderPush('model', 'اتصال GitHub کامل نشد (' + error + '). با این حال می‌توانی بدون GitHub کد را همین‌جا بفرستی و بررسی را ادامه بدهی.', {
+          coderAction: { type: 'manual_intro' }
         });
       } else {
         await coderInitializeCurrent(true);
