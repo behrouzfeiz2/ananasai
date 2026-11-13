@@ -298,3 +298,121 @@ async function secretaryRunIntent(result, originalText) {
   }
   secretaryAdd("model", result.reply || "متوجه شدم. کمی بیشتر توضیح می‌دهی تا دقیق‌تر راهنمایی‌ات کنم؟");
 }
+
+async function secretaryExecutePending() {
+  const session = secretaryCurrentSession();
+  const pending = session && session.secretary ? session.secretary.pendingAction : null;
+  if (!pending) return;
+  try {
+    if (!await secretaryRequireGoogle()) return;
+    if (pending.type === "email") {
+      const result = await secretaryApi("send_email", { action: "send_email", email: pending.data });
+      session.secretary.pendingAction = null;
+      secretaryAdd("model", "ایمیل با موفقیت ارسال شد." + (result.id ? "\nشناسه پیام: " + result.id : ""));
+    } else if (pending.type === "event") {
+      const result = await secretaryApi("create_event", { action: "create_event", event: pending.data });
+      session.secretary.pendingAction = null;
+      let link = "";
+      if (result.event && result.event.htmlLink) link = "\n[مشاهده در Google Calendar](" + result.event.htmlLink + ")";
+      secretaryAdd("model", "یادآوری «" + result.event.summary + "» در تقویم ثبت شد." + link);
+    }
+    await secretarySave();
+  } catch (error) {
+    secretaryAdd("model", "عملیات ناموفق بود: " + error.message + "\nپیش‌نویس حفظ شده است؛ پس از رفع مشکل دوباره تلاش کن.");
+    await secretarySave().catch(function() {});
+  }
+}
+async function secretaryConfirmAction(index) {
+  const session = secretaryCurrentSession();
+  if (!session || !session.messages[index] || !session.secretary || !session.secretary.pendingAction) return;
+  await secretaryExecutePending();
+}
+async function secretaryCancelAction(index) {
+  const session = secretaryCurrentSession();
+  if (!session || !session.secretary || !session.secretary.pendingAction) return;
+  session.secretary.pendingAction = null;
+  secretaryAdd("model", "پیش‌نویس لغو شد و هیچ ایمیلی ارسال یا رویدادی ثبت نشد.");
+  await secretarySave().catch(function() {});
+}
+function renderSecretaryMessageAction(message, index) {
+  const action = message.secretaryAction || {};
+  const data = action.data || {};
+  if (action.type === "connect") {
+    return '<div class="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3"><div class="text-xs text-slate-600 mb-2">برای ادامه، حساب گوگل را متصل کن.</div><button type="button" onclick="secretaryConnectGoogle()" class="rounded-lg bg-slate-900 px-4 py-2 text-xs font-bold text-white">اتصال حساب گوگل</button></div>';
+  }
+  if (action.type === "email_preview") {
+    return '<div class="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-800"><div class="text-xs font-bold mb-2">پیش‌نمایش ایمیل</div>' +
+      '<div class="text-xs mb-1"><b>گیرنده:</b> <span dir="auto">' + escapeHtml(data.to || "") + '</span></div><div class="text-xs mb-2"><b>موضوع:</b> ' + escapeHtml(data.subject || "") + '</div>' +
+      '<div class="text-sm whitespace-pre-wrap break-words rounded-lg bg-white border border-slate-200 p-3">' + escapeHtml(data.body || "") + '</div>' +
+      '<div class="flex flex-wrap gap-2 mt-3"><button onclick="secretaryConfirmAction(' + index + ')" class="rounded-lg bg-slate-900 px-4 py-2 text-xs font-bold text-white">تأیید و ارسال</button><button onclick="secretaryCancelAction(' + index + ')" class="rounded-lg border border-slate-300 px-4 py-2 text-xs text-slate-700">لغو</button></div></div>';
+  }
+  if (action.type === "event_preview") {
+    const start = data.startDateTime || data.startDate || "";
+    const end = data.endDateTime || data.endDate || "";
+    const reminders = (data.remindersMinutes || []).map(function(value) {
+      const minutes = Number(value);
+      if (minutes >= 1440) return (minutes / 1440) + " روز قبل";
+      if (minutes >= 60) return (minutes / 60) + " ساعت قبل";
+      return minutes + " دقیقه قبل";
+    }).join("، ") || "پیش‌فرض تقویم";
+    return '<div class="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-slate-800"><div class="text-xs font-bold mb-2">پیش‌نمایش یادآوری</div>' +
+      '<div class="font-semibold text-sm">' + escapeHtml(data.summary || "") + '</div><div class="text-xs mt-2">شروع: ' + escapeHtml(start) + '</div><div class="text-xs mt-1">پایان: ' + escapeHtml(end) + '</div>' +
+      '<div class="text-xs mt-2">یادآوری: ' + escapeHtml(reminders) + '</div>' +
+      '<div class="flex flex-wrap gap-2 mt-3"><button onclick="secretaryConfirmAction(' + index + ')" class="rounded-lg bg-slate-900 px-4 py-2 text-xs font-bold text-white">تأیید و ثبت</button><button onclick="secretaryCancelAction(' + index + ')" class="rounded-lg border border-slate-300 px-4 py-2 text-xs text-slate-700">لغو</button></div></div>';
+  }
+  return "";
+}
+async function handleSecretarySubmit() {
+  const input = document.getElementById("promptInput");
+  const text = String(input && input.value || "").trim();
+  if (!text || isGenerating) return;
+  if (!userToken) { openSettingsModal("منشی هوشمند برای کاربران Pro و Ultra فعال است."); return; }
+  const session = secretaryCurrentSession() || secretaryNewSession();
+  input.value = ""; autoResizeTextarea(input);
+  const pending = session.secretary ? session.secretary.pendingAction : null;
+  secretaryAdd("user", text);
+  if (!session.title || session.title === "گفتگوی منشی") secretarySetTitle(text);
+  if (pending && /^(بله|آره|اره|تأیید|تایید|ارسال کن|ثبت کن|اوکی|همین خوبه)[.!؟\s]*$/i.test(text)) {
+    isGenerating = true; appendLoadingBubble(true, false);
+    try { await secretaryExecutePending(); }
+    finally { removeLoadingBubble(); isGenerating = false; renderMessages(); }
+    return;
+  }
+  if (pending && /^(لغو|کنسل|انصراف|بیخیال|بی‌خیال)[.!؟\s]*$/i.test(text)) {
+    session.secretary.pendingAction = null;
+    secretaryAdd("model", "درخواست لغو شد؛ هیچ اقدامی انجام نشد.");
+    await secretarySave().catch(function() {});
+    return;
+  }
+  if (session.secretary) session.secretary.pendingAction = null;
+  isGenerating = true; appendLoadingBubble(true, false);
+  try {
+    const result = await secretaryAskModel(session);
+    await secretaryRunIntent(result, text);
+    await secretarySave();
+  } catch (error) {
+    secretaryAdd("model", "در انجام درخواست مشکلی پیش آمد: " + error.message + "\nلطفاً دوباره تلاش کن.");
+    await secretarySave().catch(function() {});
+  } finally {
+    removeLoadingBubble(); isGenerating = false; saveSessions(); renderMessages(); renderHistoryList();
+  }
+}
+async function secretaryRestoreUrl() {
+  const params = new URLSearchParams(location.search);
+  const shouldRestore = params.get("mode") === "secretary" || params.has("google") || params.has("google_error");
+  if (!shouldRestore) return;
+  currentMode = "secretary"; activeSessionId = null; updateModeUI("secretary");
+  history.replaceState({}, "", location.pathname);
+  await secretaryInit();
+  if (params.get("google") === "connected") {
+    await secretaryRefreshStatus();
+    secretaryAdd("model", "حساب گوگل " + (secretaryGoogleStatus.email || "") + " با موفقیت متصل شد.");
+    await secretarySave();
+  } else if (params.has("google_error")) {
+    secretaryAdd("model", "اتصال گوگل کامل نشد (" + params.get("google_error") + "). تنظیمات OAuth و نشانی بازگشت را بررسی کن.");
+  }
+}
+window.secretaryConfirmAction = secretaryConfirmAction;
+window.secretaryCancelAction = secretaryCancelAction;
+window.secretaryStartNewConversation = secretaryStartNewConversation;
+secretaryRestoreUrl();
