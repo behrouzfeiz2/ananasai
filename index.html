@@ -2645,10 +2645,15 @@ function renderDollarChart(c,i){
     async function deleteSession(id) {
       if (!confirm('آیا از حذف این گفتگو مطمئن هستید؟')) return;
       const deletedSession = sessions.find(s => s.id === id);
+      try {
+        if (userToken && deletedSession && (deletedSession.mode || 'chat') === 'chat') await chatHistoryApiPost({ action: 'history_delete', id });
+        if (deletedSession && deletedSession.mode === 'secretary' && userToken) await secretaryApiPost({ action: 'history_delete', id });
+        if (deletedSession && deletedSession.mode === 'coder' && userToken) await coderApiPost({ action: 'history_delete', id });
+      } catch (error) {
+        alert('حذف گفتگو از فضای ابری انجام نشد؛ برای جلوگیری از بازگشت گفتگو، آن را فعلاً از دستگاه حذف نکردم.\n' + (error.message || 'خطای ارتباط'));
+        return;
+      }
       sessions = sessions.filter(s => s.id !== id);
-      if (userToken && deletedSession && (deletedSession.mode || 'chat') === 'chat') await chatHistoryApiPost({ action: 'history_delete', id }).catch(error => console.warn('Chat history delete failed:', error));
-      if (deletedSession && deletedSession.mode === 'secretary' && userToken) await secretaryApiPost({ action: 'history_delete', id }).catch(error => console.warn('Secretary history delete failed:', error));
-      if (deletedSession && deletedSession.mode === 'coder' && userToken) await coderApiPost({ action: 'history_delete', id }).catch(error => console.warn('Coder history delete failed:', error));
       if (chatMenuOpenId === id) chatMenuOpenId = null;
       if (activeSessionId === id) {
         stopTextToSpeech();
@@ -2682,11 +2687,16 @@ function renderDollarChart(c,i){
 
       stopTextToSpeech();
       if (userToken) {
-        await Promise.all([
-          chatHistoryApiPost({ action: 'history_clear' }).catch(() => null),
-          secretaryApiPost({ action: 'history_clear' }).catch(() => null),
-          coderApiPost({ action: 'history_clear' }).catch(() => null)
-        ]);
+        try {
+          await Promise.all([
+            chatHistoryApiPost({ action: 'history_clear' }),
+            secretaryApiPost({ action: 'history_clear' }),
+            coderApiPost({ action: 'history_clear' })
+          ]);
+        } catch (error) {
+          alert('پاک‌سازی تاریخچه در فضای ابری کامل نشد؛ تاریخچه محلی را هم حذف نکردم تا همگام‌سازی به‌هم نخورد.\n' + (error.message || 'خطای ارتباط'));
+          return;
+        }
       }
       sessions = [];
       activeSessionId = null;
