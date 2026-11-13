@@ -686,6 +686,29 @@
       max-height: 210px;
       overflow: auto;
     }
+
+    body.secretary-mode #messagesContainer { background: #f7f8fa !important; color: #111827 !important; }
+    body.secretary-mode #welcomeTitle { color: #111827 !important; }
+    body.secretary-mode #chatComposerShell { background: #f7f8fa !important; border-top: 1px solid #e5e7eb; }
+    body.secretary-mode #chatComposerForm { background: #ffffff !important; border-color: #d1d5db !important; box-shadow: 0 4px 18px rgba(15,23,42,.06); }
+    body.secretary-mode #chatComposerForm:focus-within { border-color: #64748b !important; box-shadow: 0 0 0 2px rgba(100,116,139,.12); }
+    body.secretary-mode #promptInput { color: #111827 !important; }
+    body.secretary-mode #promptInput::placeholder { color: #64748b !important; }
+    body.secretary-mode #attachmentMenuButton, body.secretary-mode #micBtn { color: #475569 !important; }
+    body.secretary-mode #sendBtn { background: #e2e8f0 !important; color: #0f172a !important; box-shadow: none !important; }
+    body.secretary-mode #sendBtn:hover { background: #cbd5e1 !important; }
+    body.secretary-mode #chatMessages .assistant-tool-btn { color: #64748b; }
+    body.secretary-mode #chatMessages .assistant-tool-btn:hover { background: #f1f5f9; color: #0f172a; }
+    body.secretary-mode #chatMessages .prose-ananas { color: #334155 !important; }
+    body.secretary-mode #chatMessages .prose-ananas code { background: #f1f5f9; color: #334155; }
+    body.secretary-mode #chatMessages .prose-ananas pre { background: #f8fafc; border-color: #e2e8f0; }
+    body.secretary-mode #chatMessages .prose-ananas pre code { color: #334155; }
+    body.secretary-mode #chatMessages a { color: #2563eb; }
+    body.secretary-mode #chatMessages .border-ananas-border { border-color: #e2e8f0 !important; }
+    body.secretary-mode #chatMessages .text-gray-200 { color: #334155 !important; }
+    body.secretary-mode #chatMessages .text-gray-400 { color: #64748b !important; }
+    body.secretary-mode #chatMessages .text-ananas-400 { color: #334155 !important; }
+    body.secretary-mode #headerModeGroup #modeSecretaryBtn { background: #ffffff !important; color: #0f172a !important; border-color: #e2e8f0 !important; }
   </style>
 </head>
 
@@ -849,6 +872,8 @@
           <span>گفتگو</span>
         </button>
 
+        <button id="modeSecretaryBtn" onclick="openSecretaryWorkspace()" class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white"><span>✉️</span><span>منشی</span></button>
+
         <button id="modeCoderBtn" onclick="openCoderWorkspace()" class="px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white">
           <span>💻</span>
           <span>کد نویس</span>
@@ -861,7 +886,7 @@
 
       <div id="welcomeScreen" class="max-w-2xl mx-auto text-center py-10 sm:py-16 space-y-6">
         <div class="pt-2">
-          <h2 class="text-2xl sm:text-3xl font-bold text-white">از آناناس بپرس</h2>
+          <h2 id="welcomeTitle" class="text-2xl sm:text-3xl font-bold text-white">از آناناس بپرس</h2>
         </div>
 
         <!-- پیشنهادهای آماده گفتگو -->
@@ -879,13 +904,34 @@
             <span>یک عکس می‌خوام درست کنم؟</span><span class="shrink-0 text-[10px] font-bold px-2.5 py-1 rounded-full bg-fuchsia-500/15 text-fuchsia-300 border border-fuchsia-500/30">الترا</span>
           </button>
         </div>
+        <div id="secretaryWelcome" class="hidden max-w-3xl mx-auto space-y-4 px-1 pt-2 text-right">
+          <div class="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm">
+            <div class="flex items-center gap-3">
+              <div class="w-11 h-11 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-xl">✉️</div>
+              <div class="min-w-0 flex-1"><div class="font-bold text-slate-900">منشی هوشمند آناناس</div><button type="button" onclick="secretaryStartNewConversation()" class="mr-auto rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">گفتگوی جدید</button><div class="text-xs text-slate-500 mt-1">ایمیل‌ها و یادآوری‌ها را با گفتگو مدیریت کن.</div></div>
+            </div>
+            <div id="secretaryConnectionPanel" class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div id="secretaryGoogleStatusText" class="text-sm text-slate-700">وضعیت اتصال حساب گوگل در حال بررسی است...</div>
+              <div class="flex flex-wrap gap-2 mt-3">
+                <button id="secretaryConnectBtn" type="button" onclick="secretaryConnectGoogle()" class="rounded-lg bg-slate-900 px-4 py-2 text-xs font-bold text-white hover:bg-slate-700">اتصال حساب گوگل</button>
+                <button id="secretaryDisconnectBtn" type="button" onclick="secretaryDisconnectGoogle()" class="hidden rounded-lg border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">قطع اتصال</button>
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button type="button" data-prompt="ایمیل‌های مهم امروز را خلاصه کن." onclick="sendSuggestion(this)" class="rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700 text-right hover:border-slate-400">📨 خلاصه ایمیل‌های امروز</button>
+            <button type="button" data-prompt="می‌خواهم یک ایمیل جدید ارسال کنم." onclick="sendSuggestion(this)" class="rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700 text-right hover:border-slate-400">✍️ نوشتن و ارسال ایمیل</button>
+            <button type="button" data-prompt="یک یادآوری برای پرداخت بعدی‌ام در تقویم ثبت کن." onclick="sendSuggestion(this)" class="rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700 text-right hover:border-slate-400">💳 یادآوری پرداخت</button>
+            <button type="button" data-prompt="جلسه‌ای برای من در تقویم ثبت کن." onclick="sendSuggestion(this)" class="rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700 text-right hover:border-slate-400">📅 ثبت جلسه در تقویم</button>
+          </div>
+        </div>
       </div>
 
       <div id="chatMessages" class="max-w-3xl mx-auto space-y-5"></div>
     </div>
 
     <!-- کادر ارسال پیام -->
-    <div class="p-2 sm:p-4 bg-ananas-dark/95 backdrop-blur-md shrink-0">
+    <div id="chatComposerShell" class="p-2 sm:p-4 bg-ananas-dark/95 backdrop-blur-md shrink-0">
       <div class="max-w-3xl mx-auto space-y-2">
 
         <div id="attachmentPreview" class="hidden mb-1 p-2 rounded-xl bg-ananas-card border border-ananas-border flex items-center justify-between">
@@ -1348,52 +1394,61 @@
 
     function updateModeUI(mode) {
       const chatBtn = document.getElementById('modeChatBtn');
+      const secretaryBtn = document.getElementById('modeSecretaryBtn');
       const coderBtn = document.getElementById('modeCoderBtn');
       const input = document.getElementById('promptInput');
       const suggestions = document.getElementById('chatSuggestions');
+      const secretaryWelcome = document.getElementById('secretaryWelcome');
+      const welcomeTitle = document.getElementById('welcomeTitle');
       document.body.classList.toggle('coder-mode', mode === 'coder');
+      document.body.classList.toggle('secretary-mode', mode === 'secretary');
       if (suggestions) suggestions.classList.toggle('hidden', mode !== 'chat');
+      if (secretaryWelcome) secretaryWelcome.classList.toggle('hidden', mode !== 'secretary');
+      if (welcomeTitle) welcomeTitle.textContent = mode === 'secretary' ? 'منشی هوشمند' : (mode === 'coder' ? 'کدنویس آناناس' : 'از آناناس بپرس');
       if (mode === 'coder') {
         if (attachedFile) removeAttachment();
         coderBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-cyan-500 text-white';
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
+        secretaryBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
         input.placeholder = 'کدی را که می‌خواهی بررسی یا بهبود بدهم بفرست یا سؤال برنامه‌نویسی‌ات را بنویس...';
         const infoCard = document.getElementById('coderInfoCard');
         if (infoCard) infoCard.remove();
+      } else if (mode === 'secretary') {
+        if (attachedFile) removeAttachment();
+        secretaryBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-white text-slate-900 shadow-sm';
+        chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
+        coderBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
+        input.placeholder = 'مثلاً: ایمیل‌های امروز را خلاصه کن یا برای تمدید هاست یادآوری ثبت کن...';
       } else {
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-ananas-500 text-ananas-dark';
+        secretaryBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
         coderBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
         input.placeholder = 'از آناناس بپرس ...';
       }
     }
-
-    function openCoderWorkspace() {
-      setMode('coder');
-    }
-
+    function openCoderWorkspace() { setMode('coder'); }
+    function openSecretaryWorkspace() { setMode('secretary'); }
     function setMode(mode) {
-      if (mode === 'coder' && !userToken) {
-        openSettingsModal('🔒 بخش کدنویس ویژه کاربران Pro و Ultra است. ابتدا اشتراک خود را فعال کنید.');
+      if ((mode === 'coder' || mode === 'secretary') && !userToken) {
+        openSettingsModal(mode === 'coder'
+          ? '🔒 بخش کدنویس ویژه کاربران Pro و Ultra است. ابتدا اشتراک خود را فعال کنید.'
+          : '🔒 منشی هوشمند برای کاربران Pro و Ultra فعال است. ابتدا اشتراک خود را فعال کنید.');
         return;
       }
       const current = sessions.find(s => s.id === activeSessionId);
       if (mode === 'coder') {
         if (!current || current.mode !== 'coder') activeSessionId = null;
-        currentMode = 'coder';
-        updateModeUI('coder');
-        if (!sessions.some(s => s.id === activeSessionId && s.mode === 'coder')) {
-          startNewCoderConversation();
-        } else {
-          renderMessages();
-          renderHistoryList();
-          coderInitializeCurrent();
-        }
+        currentMode = 'coder'; updateModeUI('coder');
+        if (!sessions.some(s => s.id === activeSessionId && s.mode === 'coder')) startNewCoderConversation();
+        else { renderMessages(); renderHistoryList(); coderInitializeCurrent(); }
+      } else if (mode === 'secretary') {
+        if (!current || current.mode !== 'secretary') activeSessionId = null;
+        currentMode = 'secretary'; updateModeUI('secretary');
+        renderMessages(); renderHistoryList(); secretaryInitializeWorkspace();
       } else {
-        if (current && current.mode === 'coder') activeSessionId = null;
-        currentMode = 'chat';
-        updateModeUI('chat');
-        renderMessages();
-        renderHistoryList();
+        if (current && current.mode !== 'chat') activeSessionId = null;
+        currentMode = 'chat'; updateModeUI('chat');
+        renderMessages(); renderHistoryList();
       }
     }
 
@@ -1749,6 +1804,10 @@ function renderDollarChart(c,i){
       if (isGenerating) return;
       if (currentMode === 'coder') {
         await handleCoderSubmit();
+        return;
+      }
+      if (currentMode === 'secretary') {
+        await handleSecretarySubmit();
         return;
       }
 
@@ -2150,12 +2209,13 @@ function renderDollarChart(c,i){
       welcome.classList.add('hidden');
 
       container.innerHTML = currentSession.messages.map((msg, idx) => {
+        const secretaryTheme = currentSession.mode === 'secretary';
         if (msg.role === 'user') {
           const attachmentUrl=msg.localImageId&&generatedImageObjectUrls[msg.localImageId];
           const attachment=msg.fileName?(attachmentUrl?`<div class="mt-2"><img src="${escapeHtml(attachmentUrl)}" class="max-w-full max-h-72 rounded-xl object-contain" alt="پیوست"><div class="text-[10px] mt-1 opacity-70">🖼️ ${escapeHtml(msg.fileName)}</div></div>`:`<div class="mt-2 text-xs opacity-80">📎 ${escapeHtml(msg.fileName)}</div>`):'';
           return `
             <div class="flex justify-start">
-              <div class="max-w-[85%] sm:max-w-[75%] rounded-2xl rounded-tr-xs bg-gradient-to-l from-ananas-500 to-ananas-600 text-ananas-dark px-4 py-3 shadow-md">
+              <div class="max-w-[85%] sm:max-w-[75%] rounded-2xl rounded-tr-xs ${secretaryTheme ? 'bg-white border border-slate-200 text-slate-800 shadow-sm' : 'bg-gradient-to-l from-ananas-500 to-ananas-600 text-ananas-dark shadow-md'} px-4 py-3">
                 ${msg.text?renderUserMessageText(msg.text, idx):''}
                 ${attachment}
               </div>
@@ -2176,9 +2236,9 @@ function renderDollarChart(c,i){
 
           return `
             <div class="flex items-start gap-3 justify-end">
-              <div class="flex-1 max-w-[90%] sm:max-w-[82%] rounded-2xl rounded-tl-xs bg-ananas-card border ${msg.isError ? 'border-red-500/50' : 'border-ananas-border'} px-4 py-3.5 shadow-md">
+              <div class="flex-1 max-w-[90%] sm:max-w-[82%] rounded-2xl rounded-tl-xs ${secretaryTheme ? 'bg-white border-slate-200' : 'bg-ananas-card border-ananas-border'} border ${msg.isError ? 'border-red-500/50' : ''} px-4 py-3.5 shadow-md">
                 <div class="flex items-center justify-between mb-2 pb-1.5 border-b border-ananas-border/60">
-                  <span class="text-xs font-bold text-ananas-400 flex items-center gap-1">آناناس (AnanasAI)</span>
+                  <span class="text-xs font-bold ${secretaryTheme ? 'text-slate-800' : 'text-ananas-400'} flex items-center gap-1">${secretaryTheme ? 'منشی هوشمند' : 'آناناس (AnanasAI)'}</span>
 
                   <div class="assistant-toolbar">
                     <button
@@ -2210,8 +2270,9 @@ function renderDollarChart(c,i){
                   </div>
                 </div>
 
-                <div class="prose-ananas text-sm text-gray-200">${parsedMd}</div>
+                <div class="prose-ananas text-sm ${secretaryTheme ? 'text-slate-700' : 'text-gray-200'}">${parsedMd}</div>
                 ${msg.coderAction ? renderCoderMessageAction(msg, idx) : ''}
+                ${msg.secretaryAction ? renderSecretaryMessageAction(msg, idx) : ''}
                 ${(msg.marketChart || msg.dollarChart) ? renderDollarChart(msg.marketChart || msg.dollarChart, idx) : ''}
                 ${audioPlayer}
                 </div>
@@ -2380,49 +2441,47 @@ function renderDollarChart(c,i){
         if (window.innerWidth < 1024) toggleSidebar(false);
         return;
       }
+      if (currentMode === 'secretary') {
+        secretaryStartNewConversation();
+        if (window.innerWidth < 1024) toggleSidebar(false);
+        return;
+      }
       activeSessionId = null;
       chatMenuOpenId = null;
       renderMessages();
       renderHistoryList();
-
-      if (window.innerWidth < 1024) {
-        toggleSidebar(false);
-      }
+      if (window.innerWidth < 1024) toggleSidebar(false);
     }
 
-    function loadSession(id) {
+    async function loadSession(id) {
       stopTextToSpeech();
       activeSessionId = id;
       chatMenuOpenId = null;
       const selected = sessions.find(s => s.id === id);
-      currentMode = selected && selected.mode === 'coder' ? 'coder' : 'chat';
+      currentMode = selected && ['coder', 'secretary'].includes(selected.mode) ? selected.mode : 'chat';
       updateModeUI(currentMode);
-      renderMessages();
-      renderHistoryList();
+      renderMessages(); renderHistoryList();
       if (currentMode === 'coder') coderInitializeCurrent();
-
-      if (window.innerWidth < 1024) {
-        toggleSidebar(false);
-      }
+      if (currentMode === 'secretary' && selected && selected.remoteLoaded === false) await secretaryLoadConversation(selected);
+      if (window.innerWidth < 1024) toggleSidebar(false);
     }
 
-    function deleteSession(id) {
+    async function deleteSession(id) {
       if (!confirm('آیا از حذف این گفتگو مطمئن هستید؟')) return;
-
+      const deletedSession = sessions.find(s => s.id === id);
       sessions = sessions.filter(s => s.id !== id);
+      if (deletedSession && deletedSession.mode === 'secretary' && userToken) secretaryApiPost({ action: 'history_delete', id }).catch(error => console.warn('Secretary history delete failed:', error));
       if (chatMenuOpenId === id) chatMenuOpenId = null;
-
       if (activeSessionId === id) {
         stopTextToSpeech();
         activeSessionId = sessions.length > 0 ? sessions[0].id : null;
         const nextSession = sessions.find(s => s.id === activeSessionId);
-        currentMode = nextSession && nextSession.mode === 'coder' ? 'coder' : 'chat';
-        updateModeUI(currentMode);
-        renderMessages();
+        currentMode = nextSession && ['coder', 'secretary'].includes(nextSession.mode) ? nextSession.mode : 'chat';
+        updateModeUI(currentMode); renderMessages();
+        if (currentMode === 'coder') coderInitializeCurrent();
+        if (currentMode === 'secretary' && nextSession && nextSession.remoteLoaded === false) await secretaryLoadConversation(nextSession);
       }
-
-      saveSessions();
-      renderHistoryList();
+      saveSessions(); renderHistoryList();
     }
 
     function togglePinSession(id) {
@@ -2444,6 +2503,8 @@ function renderDollarChart(c,i){
       if (!confirm('آیا تمام تاریخچه گفتگوها پاک شود؟')) return;
 
       stopTextToSpeech();
+      const secretaryIds = sessions.filter(s => s.mode === 'secretary').map(s => s.id);
+      if (userToken && secretaryIds.length) Promise.all(secretaryIds.map(id => secretaryApiPost({ action: 'history_delete', id }).catch(() => null)));
       sessions = [];
       activeSessionId = null;
 
@@ -2470,7 +2531,8 @@ function renderDollarChart(c,i){
             ...(m.marketChart ? { marketChart: m.marketChart } : {}),
             ...(m.dollarChart ? { dollarChart: m.dollarChart } : {}),
             ...(m.goldChoice ? { goldChoice: true } : {}),
-            ...(m.coderAction ? { coderAction: m.coderAction } : {})
+            ...(m.coderAction ? { coderAction: m.coderAction } : {}),
+            ...(m.secretaryAction ? { secretaryAction: m.secretaryAction } : {})
           }))
         }));
 
@@ -2499,7 +2561,7 @@ function renderDollarChart(c,i){
           <div class="chat-history-item group relative flex items-center gap-1 w-full px-2 py-0 rounded-lg text-xs transition border ${active ? 'is-active bg-[#303030] text-white border-[#505050] font-bold' : 'text-gray-300 hover:bg-[#202020] border-transparent'}">
             <button type="button" onclick="loadSession('${id}')" class="flex-1 min-w-0 overflow-hidden flex items-center gap-2 text-right py-1">
               <span class="shrink-0 text-sm">${s.isPinned ? '📌' : ''}</span>
-              ${s.mode === 'coder' ? '<span class="shrink-0 rounded-md bg-blue-500/15 border border-blue-400/25 text-blue-300 px-1.5 py-0.5 text-[9px]">کدنویس</span>' : ''}
+              ${s.mode === 'coder' ? '<span class="shrink-0 rounded-md bg-blue-500/15 border border-blue-400/25 text-blue-300 px-1.5 py-0.5 text-[9px]">کدنویس</span>' : (s.mode === 'secretary' ? '<span class="shrink-0 rounded-md bg-white/10 border border-slate-300/30 text-slate-200 px-1.5 py-0.5 text-[9px]">منشی</span>' : '')}
               <span class="truncate flex-1" dir="auto">${escapeHtml(s.title || 'گفتگوی بدون عنوان')}</span>
             </button>
             <button type="button" onclick="toggleChatMenu(event, '${id}')" class="chat-menu-trigger shrink-0 w-8 h-8 rounded-lg inline-flex items-center justify-center text-white hover:bg-[#454545] transition" title="مدیریت گفتگو" aria-label="مدیریت گفتگو" aria-expanded="${menuOpen}">
@@ -3799,5 +3861,6 @@ function renderDollarChart(c,i){
     // ----------------------------------------------------------
 
 </script>
+<script src="/secretary-ui.js"></script>
 </body>
 </html>
