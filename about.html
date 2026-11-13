@@ -80,95 +80,44 @@
   <div class="fixed top-0 left-1/2 -translate-x-1/2 w-[550px] h-[300px] bg-ananas-500/10 blur-[130px] pointer-events-none -z-10"></div>
 
   <!-- پوشش تیره منوی موبایل -->
-  <div id="menuOverlay" onclick="toggleMobileMenu(false)" class="fixed inset-0 bg-black/70 backdrop-blur-xs z-40 hidden transition-opacity"></div>
-
-  <!-- منوی کشویی همبرگری -->
-  <aside id="mobileDrawer" class="fixed top-0 right-0 bottom-0 w-72 bg-ananas-card border-l border-ananas-border z-50 transform translate-x-full transition-transform duration-300 flex flex-col justify-between p-5">
+  <div id="menuOverlay" onclick="toggleMobileMenu(false)" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 hidden"></div>
+  <aside id="mobileDrawer" class="fixed top-0 right-0 bottom-0 w-72 max-w-[85vw] bg-ananas-card border-l border-ananas-border z-50 transform translate-x-full transition-transform duration-300 flex flex-col justify-between p-5">
     <div class="space-y-6">
       <div class="flex items-center justify-between border-b border-ananas-border pb-4">
-        <div class="flex items-center gap-2.5">
-          <div class="w-9 h-9 rounded-xl bg-ananas-dark border border-ananas-500/40 flex items-center justify-center text-xl">🍍</div>
-          <div>
-            <span class="font-extrabold text-white text-base">آناناس</span>
-            <span class="text-[10px] px-2 py-0.5 rounded-full bg-ananas-500/15 text-ananas-400 border border-ananas-500/30 font-bold mr-1">AnanasAI</span>
-          </div>
-        </div>
-        <button onclick="toggleMobileMenu(false)" class="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-ananas-dark">
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-        </button>
+        <a href="/home" class="flex items-center gap-2.5"><span class="w-9 h-9 rounded-xl bg-ananas-dark border border-ananas-500/40 flex items-center justify-center text-xl">🍍</span><span><b class="text-white">آناناس</b><small class="block text-[10px] text-ananas-400">AnanasAI</small></span></a>
+        <button onclick="toggleMobileMenu(false)" aria-label="بستن منو" class="p-2 rounded-lg text-gray-400 hover:text-white">✕</button>
       </div>
-
-      <nav class="space-y-2 text-sm font-medium">
-        <a href="home.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-300 hover:bg-ananas-dark hover:text-white transition">
-          <span>🏠</span>
-          <span>صفحه اصلی (Home)</span>
-        </a>
-        <a href="index.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-300 hover:bg-ananas-dark hover:text-white transition">
-          <span>💬</span>
-          <span>ورود به محیط چت و کدنویس</span>
-        </a>
-        <a href="pro.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-amber-400 hover:bg-ananas-dark transition font-bold">
-          <span>🚀</span>
-          <span>خرید اکانت پرو و دانلود اپ</span>
-        </a>
-        <a href="about.html" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl bg-ananas-500/15 text-ananas-400 border border-ananas-500/30 font-bold">
-          <span>ℹ️</span>
-          <span>درباره آناناس AI</span>
-        </a>
-        <a href="/service-guide" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-300 hover:bg-ananas-dark hover:text-white transition"><span>📚</span><span>راهنمای خدمات</span></a>
-        <a href="/privacy-policy" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-300 hover:bg-ananas-dark hover:text-white transition">
-          <span>🔒</span><span>حریم خصوصی</span>
-        </a><a href="/terms-of-service" class="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-300 hover:bg-ananas-dark hover:text-white transition"><span>📄</span><span>شرایط استفاده</span></a>
+      <nav class="space-y-1 text-sm font-medium" aria-label="منوی اصلی">
+        <a href="/home" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-300 hover:bg-ananas-dark"><span>🏠</span>صفحه اصلی</a>
+        <a href="/" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-300 hover:bg-ananas-dark"><span>💬</span>محیط گفتگو</a>
+        <a href="/pro" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-300 hover:bg-ananas-dark"><span>🚀</span>پلن‌ها و اشتراک</a>
+        <a href="/about" aria-current="page" class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-ananas-500/15 text-ananas-400 border border-ananas-500/30 font-bold"><span>ℹ️</span>درباره آناناس</a>
+        <a href="/service-guide" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-300 hover:bg-ananas-dark"><span>📚</span>راهنمای خدمات</a>
+        <a href="/privacy-policy" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-300 hover:bg-ananas-dark"><span>🔒</span>حریم خصوصی</a>
+        <a href="/terms-of-service" class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-300 hover:bg-ananas-dark"><span>📄</span>شرایط استفاده</a>
       </nav>
     </div>
-
     <div class="space-y-3 pt-4 border-t border-ananas-border">
-      <a href="index.html" class="w-full py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs flex items-center justify-center gap-2 transition">
-        <span>رایگان شروع کنید</span>
-      </a>
-      <a href="home.html" class="w-full py-2.5 px-4 rounded-xl bg-ananas-card border border-ananas-border text-gray-300 text-xs flex items-center justify-center gap-2 transition">
-        <span>بازگشت به خانه</span>
-      </a>
+      <a href="/" class="w-full py-2.5 px-4 rounded-xl bg-white/10 text-white font-bold text-xs flex items-center justify-center">شروع گفتگو</a>
+      <a href="/pro" class="w-full py-2.5 px-4 rounded-xl bg-ananas-500 text-ananas-dark font-extrabold text-xs flex items-center justify-center">مشاهده پلن‌ها</a>
     </div>
   </aside>
 
-  <!-- هدر صفحه با دکمه همبرگری -->
-  <header class="h-16 border-b border-ananas-border px-4 lg:px-12 flex items-center justify-between bg-ananas-dark/80 backdrop-blur-md sticky top-0 z-30">
+  <header class="h-16 border-b border-ananas-border px-4 lg:px-10 flex items-center justify-between bg-ananas-dark/85 backdrop-blur-md sticky top-0 z-30">
     <div class="flex items-center gap-3">
-      <!-- دکمه همبرگری -->
-      <button onclick="toggleMobileMenu(true)" aria-label="منو" class="p-2 rounded-xl bg-ananas-card hover:bg-ananas-border/70 border border-ananas-border text-gray-200 transition flex items-center justify-center">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-      </button>
-
-      <a href="home.html" class="flex items-center gap-2.5">
-        <div class="w-9 h-9 rounded-xl bg-ananas-card border border-ananas-500/40 flex items-center justify-center text-xl shadow">
-          🍍
-        </div>
-        <div>
-          <span class="font-bold text-white text-base">آناناس</span>
-          <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-ananas-500/15 text-ananas-400 border border-ananas-500/30 mr-1">AnanasAI</span>
-        </div>
-      </a>
+      <button onclick="toggleMobileMenu(true)" aria-label="باز کردن منو" aria-controls="mobileDrawer" aria-expanded="false" class="p-2 rounded-xl bg-ananas-card border border-ananas-border text-gray-200">☰</button>
+      <a href="/home" class="flex items-center gap-2.5" aria-label="صفحه اصلی آناناس AI"><span class="w-9 h-9 rounded-xl bg-ananas-card border border-ananas-500/40 flex items-center justify-center text-xl">🍍</span><span class="font-extrabold text-white">آناناس <small class="text-ananas-400 text-[10px]">AnanasAI</small></span></a>
     </div>
-
-    <!-- منوی دسکتاپ -->
-    <nav class="hidden md:flex items-center gap-6 text-xs font-bold text-gray-300">
-      <a href="home.html" class="hover:text-white transition">صفحه اصلی</a>
-      <a href="index.html" class="hover:text-white transition">محیط چت</a>
-      <a href="pro.html" class="hover:text-white transition">نسخه پرو</a>
-      <a href="about.html" class="text-ananas-400">درباره ما</a><a href="/service-guide" class="hover:text-white transition">راهنمای خدمات</a>
-      <a href="/privacy-policy" class="hover:text-white transition">حریم خصوصی</a><a href="/terms-of-service" class="hover:text-white transition">شرایط استفاده</a>
+    <nav class="hidden lg:flex items-center gap-5 text-xs font-bold text-gray-300" aria-label="منوی دسکتاپ">
+      <a href="/home" class="hover:text-white">صفحه اصلی</a>
+      <a href="/" class="hover:text-white">محیط گفتگو</a>
+      <a href="/pro" class="hover:text-white">پلن‌ها</a>
+      <a href="/about" class="text-ananas-400" aria-current="page">درباره ما</a>
+      <a href="/service-guide" class="hover:text-white">راهنمای خدمات</a>
+      <a href="/privacy-policy" class="hover:text-white">حریم خصوصی</a>
+      <a href="/terms-of-service" class="hover:text-white">شرایط استفاده</a>
     </nav>
-
-    <div class="flex items-center gap-2">
-      <a href="pro.html" class="hidden sm:inline-flex px-3.5 py-2 rounded-xl bg-ananas-500/15 hover:bg-ananas-500/25 border border-ananas-500/30 text-xs font-bold text-ananas-400 transition">
-        اشتراک پرو 🚀
-      </a>
-      <a href="index.html" class="px-4 py-2 rounded-xl bg-ananas-card hover:bg-ananas-border/60 border border-ananas-border text-xs font-bold text-gray-200 flex items-center gap-2 transition">
-        <span>محیط چت</span>
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-      </a>
-    </div>
+    <a href="/" class="px-3.5 py-2 rounded-xl bg-ananas-card border border-ananas-border text-xs font-bold text-white">ورود به آناناس</a>
   </header>
 
   <!-- محتوای اصلی -->
@@ -294,12 +243,16 @@
     function toggleMobileMenu(show) {
       const drawer = document.getElementById('mobileDrawer');
       const overlay = document.getElementById('menuOverlay');
+      const button = document.querySelector('button[aria-controls="mobileDrawer"]');
+      if (!drawer || !overlay) return;
       if (show) {
         drawer.classList.remove('translate-x-full');
         overlay.classList.remove('hidden');
+        if (button) button.setAttribute('aria-expanded', 'true');
       } else {
         drawer.classList.add('translate-x-full');
         overlay.classList.add('hidden');
+        if (button) button.setAttribute('aria-expanded', 'false');
       }
     }
   </script>
