@@ -3357,6 +3357,9 @@ function renderDollarChart(c,i){
       if (action.type === 'preview_done') {
         return '<div class="coder-inline-card text-xs text-emerald-200">این پیش‌نویس در GitHub ثبت شده است.</div>';
       }
+      if (action.type === 'preview_cancelled') {
+        return '<div class="coder-inline-card text-xs text-gray-400">این پیش‌نویس لغو شد و تغییری در GitHub ثبت نشد.</div>';
+      }
       return '';
     }
 
@@ -3400,7 +3403,7 @@ function renderDollarChart(c,i){
       session.coder.proposal_id = null;
       session.messages.forEach(message => {
         if (message.coderAction && message.coderAction.type === 'preview') {
-          message.coderAction.type = 'preview_done';
+          message.coderAction.type = 'preview_cancelled';
         }
       });
       coderPush('model', 'پیش‌نویس لغو شد. هیچ تغییری در GitHub ثبت نشد؛ می‌توانی درخواستت را اصلاح کنی یا کار دیگری بخواهی.');
