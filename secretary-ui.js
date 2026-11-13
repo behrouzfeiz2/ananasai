@@ -342,8 +342,17 @@ async function secretaryInit() {
   }
 }
 function secretaryStartNewConversation() {
+  // Keep the app in secretary mode when a new conversation is requested from
+  // the shared sidebar action; otherwise the next secretary-button click may
+  // restore the previously active conversation.
+  currentMode = "secretary";
+  if (typeof updateModeUI === "function") updateModeUI("secretary");
   activeSessionId = null;
-  secretaryNewSession();
+  const session = secretaryNewSession();
+  secretaryRememberActiveSession(session);
+  renderMessages();
+  renderHistoryList();
+  return session;
 }
 
 function secretaryParseJson(raw) {
