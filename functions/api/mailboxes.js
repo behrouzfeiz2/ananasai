@@ -436,6 +436,7 @@ async function handlePost({ request, env }) {
       if (!validEmail(email) || !password || password.length > 1024 || /[\r\n\u0000]/.test(password)) return json({ error: "آدرس ایمیل یا رمز عبور معتبر نیست." }, 400);
       const existing = await getMailboxIndex(env, hash);
       if (existing.some(item => item.email.toLowerCase() === email.toLowerCase())) return json({ error: "این آدرس ایمیل قبلاً متصل شده است. ابتدا اتصال قبلی را حذف کنید." }, 409);
+      if (existing.length >= 10) return json({ error: "حداکثر ۱۰ صندوق Hostinger را می‌توان به هر حساب متصل کرد." }, 409);
       try {
         await verifyMailbox(email, password);
       } catch (error) {
