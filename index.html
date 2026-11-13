@@ -2709,6 +2709,18 @@ function renderDollarChart(c,i){
       return data;
     }
 
+    function historyActivityTimestamp(session) {
+      const explicit = Number(session?.updatedAt || session?.createdAt || session?.created_at || 0);
+      if (explicit > 0) return explicit;
+      const legacyChatId = String(session?.id || '').match(/^sess_(\d{10,})$/);
+      return legacyChatId ? Number(legacyChatId[1]) : 0;
+    }
+
+    function isHistoryExpiredLocally(session) {
+      const activity = historyActivityTimestamp(session);
+      return activity > 0 && Date.now() - activity > 180 * 24 * 60 * 60 * 1000;
+    }
+
     function chatHistoryPayload(session) {
       const messages = (session.messages || [])
         .filter(message => message && typeof message.text === 'string' && message.text.trim() &&
@@ -2780,7 +2792,8 @@ function renderDollarChart(c,i){
       sessions = sessions.filter(session => {
         if (session.mode && session.mode !== 'chat') return true;
         if (remoteIds.has(session.id)) return true;
-        return !deletedIds.has(session.id) && !(deletedBefore && Number(session.createdAt || session.updatedAt || 0) <= deletedBefore);
+        if (isHistoryExpiredLocally(session)) return false;
+        return !deletedIds.has(session.id) && !(deletedBefore && historyActivityTimestamp(session) <= deletedBefore);
       });
       for (const item of remote.slice().reverse()) {
         if (!item.id) continue;
@@ -2871,7 +2884,8 @@ function renderDollarChart(c,i){
         sessions = sessions.filter(session => {
           if (session.mode !== 'coder') return true;
           if (remoteIds.has(session.id)) return true;
-          return !deletedIds.has(session.id) && !(deletedBefore && Number(session.createdAt || session.updatedAt || 0) <= deletedBefore);
+          if (isHistoryExpiredLocally(session)) return false;
+          return !deletedIds.has(session.id) && !(deletedBefore && historyActivityTimestamp(session) <= deletedBefore);
         });
         for (const item of remote.slice().reverse()) {
           if (!item.id) continue;
