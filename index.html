@@ -1544,13 +1544,14 @@
     }
 
     function sendSuggestion(button) {
-      if (isGenerating || currentMode !== 'chat') return;
+      if (isGenerating || !button || !['chat', 'secretary'].includes(currentMode)) return;
 
       const input = document.getElementById('promptInput');
-      if (!input || !button) return;
+      if (!input) return;
 
       input.value = (button.dataset.prompt || button.textContent).trim();
       autoResizeTextarea(input);
+      // handleSubmit dispatches to handleSecretarySubmit when secretary mode is active.
       handleSubmit();
     }
 
@@ -2549,6 +2550,9 @@ function renderDollarChart(c,i){
       activeSessionId = id;
       chatMenuOpenId = null;
       const selected = sessions.find(s => s.id === id);
+      if (selected && selected.mode === 'secretary' && typeof secretaryRememberActiveSession === 'function') {
+        secretaryRememberActiveSession(selected);
+      }
       currentMode = selected && ['coder', 'secretary'].includes(selected.mode) ? selected.mode : 'chat';
       updateModeUI(currentMode);
       renderMessages(); renderHistoryList();
