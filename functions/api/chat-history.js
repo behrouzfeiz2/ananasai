@@ -77,7 +77,16 @@ async function handlePost({ request, env }) {
 
     if (action === "history_list") {
       const conversations = await listAccountRecords(env.ANANAS_KV, prefix);
-      return json({ conversations });
+      const deletedPrefix = "ananas_chat_history_deleted:" + accountHash + ":";
+      const deletedIds = [];
+      let cursor;
+      do {
+        const page = await env.ANANAS_KV.list({ prefix: deletedPrefix, limit: 1000, ...(cursor ? { cursor } : {}) });
+        for (const item of page.keys || []) deletedIds.push(item.name.slice(deletedPrefix.length));
+        cursor = page.list_complete ? null : page.cursor;
+      } while (cursor);
+      const clearedAt = Number(await env.ANANAS_KV.get("ananas_chat_history_clear:" + accountHash)) || 0;
+      return json({ conversations, deleted_ids: deletedIds, deleted_before: clearedAt });
     }
 
     if (action === "history_clear") {
@@ -94,7 +103,9 @@ async function handlePost({ request, env }) {
         await Promise.all(batch.map(key => env.ANANAS_KV.delete(key)));
         deleted += batch.length;
       }
-      return json({ deleted: true, count: deleted });
+      const clearedAt = Date.now();
+      await env.ANANAS_KV.put("ananas_chat_history_clear:" + accountHash, String(clearedAt), { expirationTtl: HISTORY_TTL });
+      return json({ deleted: true, count: deleted, deleted_before: clearedAt });
     }
 
     const id = String(body.id || body.conversation?.id || "");
@@ -110,6 +121,7 @@ async function handlePost({ request, env }) {
       }
       const now = Date.now();
       conversation.updated_at = Number(conversation.updated_at) || now;
+      conversation.updated_at = now;
       await env.ANANAS_KV.put(storageKey, JSON.stringify(conversation), {
         expirationTtl: HISTORY_TTL,
         metadata: {
@@ -123,6 +135,7 @@ async function handlePost({ request, env }) {
 
     if (action === "history_delete") {
       await env.ANANAS_KV.delete(storageKey);
+      await env.ANANAS_KV.put("ananas_chat_history_deleted:" + accountHash + ":" + id, "1", { expirationTtl: HISTORY_TTL });
       return json({ deleted: true, id });
     }
 
@@ -160,6 +173,7 @@ async function handlePost({ request, env }) {
       messages
     };
 
+    await env.ANANAS_KV.delete("ananas_chat_history_deleted:" + accountHash + ":" + id);
     await env.ANANAS_KV.put(storageKey, JSON.stringify(conversation), {
       expirationTtl: HISTORY_TTL,
       metadata: { title, created_at: conversation.created_at, updated_at: now }
