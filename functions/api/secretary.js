@@ -275,6 +275,12 @@ async function handleHistoryAction(env, account, body) {
   if (!Array.isArray(index)) index = [];
   const action = body.action;
   if (action === "history_list") return json({ conversations: index.filter(item => item && validId(item.id)).sort((a, b) => Number(b.updated_at || 0) - Number(a.updated_at || 0)).slice(0, 50) });
+  if (action === "history_clear") {
+    const ids = index.filter(item => item && validId(item.id)).map(item => item.id);
+    await Promise.all(ids.map(id => env.ANANAS_KV.delete(recordKey(id))));
+    await env.ANANAS_KV.delete(indexKey);
+    return json({ deleted: true, count: ids.length });
+  }
   const id = String(body.id || body.conversation?.id || "");
   if (!validId(id)) return json({ error: "شناسه گفتگوی منشی معتبر نیست." }, 400);
   const storageKey = recordKey(id);
