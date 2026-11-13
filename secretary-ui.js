@@ -416,3 +416,7 @@ window.secretaryConfirmAction = secretaryConfirmAction;
 window.secretaryCancelAction = secretaryCancelAction;
 window.secretaryStartNewConversation = secretaryStartNewConversation;
 secretaryRestoreUrl();
+
+async function secretaryInitializeWorkspace() { return secretaryInit(); }
+async function secretaryLoadConversation(session) { return secretaryLoadRemote(session); }
+async function secretaryApiPost(body) { return secretaryApi(body.action, body); }
