@@ -3631,55 +3631,7 @@ function renderDollarChart(c,i){
     }
 
     async function coderMigrateLegacyHistory() {
-      if (!userToken) return;
-      let migrationKey = 'ananas_coder_history_imported_v1';
-      try {
-        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(userToken));
-        const suffix = Array.from(new Uint8Array(digest)).slice(0, 10)
-          .map(v => v.toString(16).padStart(2, '0')).join('');
-        migrationKey += '_' + suffix;
-      } catch (error) {}
-      if (localStorage.getItem(migrationKey) === '1') return;
-      try {
-        const list = await coderApiPost({ action: 'history_list' });
-        const legacy = Array.isArray(list.conversations) ? list.conversations.slice(0, 30) : [];
-        for (const item of legacy) {
-          const legacyId = String(item.id || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 55);
-          const id = 'legacy_coder_' + legacyId;
-          if (!legacyId || sessions.some(s => s.id === id)) continue;
-          try {
-            const result = await coderApiPost({ action: 'history_get', id: item.id });
-            const conversation = result.conversation;
-            if (!conversation || !Array.isArray(conversation.messages)) continue;
-            const messages = conversation.messages.map(message => ({
-              role: message.role === 'user' ? 'user' : 'model',
-              text: String(message.content || '').slice(0, 7000)
-            }));
-            sessions.push({
-              id: id, title: conversation.title || item.title || 'گفتگوی کدنویسی',
-              mode: 'coder', isPinned: false,
-              createdAt: conversation.created_at || Date.now(),
-              updatedAt: conversation.updated_at || Date.now(),
-              coder: {
-                stage: conversation.status === 'preview' ? 'preview' : (conversation.repository ? 'task' : 'project'),
-                repository: conversation.repository || '',
-                branch: conversation.branch || '',
-                proposal_id: conversation.proposal_id || null,
-                status: conversation.status || 'chat',
-                pull_request_number: conversation.pull_request_number || null,
-                pull_request_url: conversation.pull_request_url || null,
-                pull_request_branch: conversation.pull_request_branch || null
-              },
-              messages: messages
-            });
-          } catch (error) {}
-        }
-        saveSessions();
-        localStorage.setItem(migrationKey, '1');
-        renderHistoryList();
-      } catch (error) {
-        console.warn('Legacy coder history migration will retry later:', error);
-      }
+      return coderSyncRemoteHistory();
     }
 
     function coderShowUsageGuide() {
@@ -3692,6 +3644,7 @@ function renderDollarChart(c,i){
     async function coderInitializeCurrent(force) {
       const session = coderCurrentSession();
       if (!session || !userToken || isGenerating) return;
+      await coderSyncRemoteHistory();
       if (!session.coder) {
         session.coder = {
           stage: 'manual', repository: '', branch: '', proposal_id: null,
