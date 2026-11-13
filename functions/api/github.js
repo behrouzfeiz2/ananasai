@@ -229,13 +229,15 @@ function findRequestedCodePath(task, files, history) {
     });
   if (mentionedStems.length) return mentionedStems[0].path;
 
-  if (/(ادامه|بخش بعدی|قسمت بعدی)/i.test(text)) {
-    const previous = (Array.isArray(history) ? history : []).slice().reverse()
-      .find(item => item && item.role === "assistant" && typeof item.content === "string");
-    const content = String(previous && previous.content || "");
-    const marker = "**فایل:** ";
-    const position = content.indexOf(marker);
-    if (position >= 0) {
+  const refersToPreviousFile = /(ادامه|بخش بعدی|قسمت بعدی|همین فایل|همان فایل|این فایل|کل فایل|تمام فایل|کل سورس|سورس کامل|کد کامل|فایل کامل)/i.test(text);
+  if (refersToPreviousFile) {
+    const previousMessages = (Array.isArray(history) ? history : []).slice().reverse();
+    for (const previous of previousMessages) {
+      if (!previous || previous.role !== "assistant" || typeof previous.content !== "string") continue;
+      const content = previous.content;
+      const marker = "**فایل:** ";
+      const position = content.indexOf(marker);
+      if (position < 0) continue;
       const value = content.slice(position + marker.length).split("·")[0].trim();
       const path = value.split(String.fromCharCode(96)).join("").trim();
       if (list.some(item => item.path === path)) return path;
@@ -730,6 +732,7 @@ async function handlePost({ request, env }) {
         const totalLines = sourceLines.length > 1 && sourceLines[sourceLines.length - 1] === "" ? sourceLines.length - 1 : sourceLines.length;
         const explicitRange = task.match(/(?:خطوط?|lines?)\s*(\d+)\s*(?:تا|-|–)\s*(\d+)/i);
         const explicitStart = task.match(/(?:از\s*)?(?:خط|line)\s*(\d+)/i);
+        const wholeFileRequest = /(کل|تمام|همه|کامل).{0,18}(?:فایل|سورس|کد)|(?:فایل|سورس|کد).{0,18}(?:کامل|تمام|همه)/i.test(task);
         let startLine = explicitRange
           ? Number(explicitRange[1])
           : (explicitStart ? Number(explicitStart[1]) : 1);
@@ -751,8 +754,9 @@ async function handlePost({ request, env }) {
           return json({ error: "شماره خط درخواستی خارج از محدوده فایل است. فایل دارای " + totalLines + " خط است." }, 400);
         }
 
-        const maxLines = 120;
-        const maxCharacters = 12000;
+        // Explicit whole-file requests get larger source chunks; very large files remain paginated.
+        const maxLines = wholeFileRequest ? 240 : 120;
+        const maxCharacters = wholeFileRequest ? 24000 : 12000;
         const selectedLines = [];
         let characterCount = 0;
         let endLine = startLine - 1;
@@ -783,7 +787,12 @@ async function handlePost({ request, env }) {
         ];
         const hasMore = endLine < totalLines;
         if (hasMore) {
-          messageParts.push("این فایل طولانی است و برای خوانایی بخش‌بندی شده. برای دیدن ادامه، دکمهٔ «نمایش بخش بعدی» را بزن.");
+          messageParts.push(
+            (wholeFileRequest
+              ? "فایل از این بخش طولانی‌تر است؛ برای اینکه کد کامل و قابل‌کپی بماند، آن را به چند قسمت تقسیم کردم."
+              : "این فایل طولانی است و برای خوانایی بخش‌بندی شده.") +
+            " برای دیدن ادامه، دکمهٔ «نمایش بخش بعدی» را بزن."
+          );
         } else if (startLine === 1) {
           messageParts.push("کل محتوای این فایل در همین پاسخ نمایش داده شد. می‌توانی هر قسمت را کپی کنی و بگویی چه تغییری روی آن می‌خواهی.");
         } else {
