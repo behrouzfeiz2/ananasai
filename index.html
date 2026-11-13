@@ -2533,11 +2533,22 @@ function renderDollarChart(c,i){
         if (window.innerWidth < 1024) toggleSidebar(false);
         return;
       }
-      if (currentMode === 'secretary') {
-        secretaryStartNewConversation();
+
+      // The visible workspace is the source of truth as well: some secretary
+      // actions (for example returning from an OAuth/calendar flow) can leave
+      // currentMode stale while the secretary UI is still active.
+      const secretaryWorkspaceVisible = document.body.classList.contains('secretary-mode') ||
+        (document.getElementById('secretaryWelcome') && !document.getElementById('secretaryWelcome').classList.contains('hidden'));
+      if (currentMode === 'secretary' || secretaryWorkspaceVisible) {
+        currentMode = 'secretary';
+        updateModeUI('secretary');
+        if (typeof secretaryStartNewConversation === 'function') {
+          secretaryStartNewConversation();
+        }
         if (window.innerWidth < 1024) toggleSidebar(false);
         return;
       }
+
       activeSessionId = null;
       chatMenuOpenId = null;
       renderMessages();
