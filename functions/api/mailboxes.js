@@ -110,7 +110,7 @@ async function openSmtpSocket() {
       await smtpCommand(writer, reader, "EHLO ananasai.ir", [250]);
       await smtpCommand(writer, reader, "STARTTLS", [220]);
       const secureSocket = socket.startTls();
-      return { socket: secureSocket, reader: secureSocket.readable.getReader(), writer: secureSocket.writable.getWriter() };
+      return { socket: secureSocket, reader: secureSocket.readable.getReader(), writer: secureSocket.writable.getWriter(), startTlsUpgraded: true };
     } catch (startTlsError) {
       try { if (writer) await writer.close(); } catch {}
       try { if (socket) await socket.close(); } catch {}
@@ -141,8 +141,10 @@ async function authenticateSmtp(email, password) {
   let connection;
   try {
     connection = await openSmtpSocket();
-    const greeting = await smtpRead(connection.reader);
-    if (greeting.code !== 220) throw new Error("سرور SMTP آماده دریافت اتصال نیست.");
+    if (!connection.startTlsUpgraded) {
+      const greeting = await smtpRead(connection.reader);
+      if (greeting.code !== 220) throw new Error("سرور SMTP آماده دریافت اتصال نیست.");
+    }
     await smtpCommand(connection.writer, connection.reader, "EHLO ananasai.ir", [250]);
     await smtpCommand(connection.writer, connection.reader, "AUTH LOGIN", [334]);
     await smtpCommand(connection.writer, connection.reader, authBase64(email), [334]);
@@ -333,8 +335,10 @@ async function sendMailboxMessage(email, password, input) {
   let connection;
   try {
     connection = await openSmtpSocket();
-    const greeting = await smtpRead(connection.reader);
-    if (greeting.code !== 220) throw new Error("سرور SMTP آماده ارسال نیست.");
+    if (!connection.startTlsUpgraded) {
+      const greeting = await smtpRead(connection.reader);
+      if (greeting.code !== 220) throw new Error("سرور SMTP آماده ارسال نیست.");
+    }
     await smtpCommand(connection.writer, connection.reader, "EHLO ananasai.ir", [250]);
     await smtpCommand(connection.writer, connection.reader, "AUTH LOGIN", [334]);
     await smtpCommand(connection.writer, connection.reader, authBase64(email), [334]);
