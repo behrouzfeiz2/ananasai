@@ -1,4 +1,5 @@
 const SITE_ORIGIN = "https://ananasai.ir";
+const HISTORY_TTL = 180 * 24 * 60 * 60;
 const API = "https://api.github.com";
 const headers = {
   "Access-Control-Allow-Origin": SITE_ORIGIN,
@@ -445,6 +446,16 @@ async function handlePost({ request, env }) {
       if (!Array.isArray(index)) index = [];
 
       if (action === "history_list") {
+        const retentionKey = "coder_history_retention_v1:" + accountHash;
+        if (!(await env.ANANAS_KV.get(retentionKey))) {
+          await Promise.all(index.filter(item => item && validId(item.id)).map(async item => {
+            const key = recordKey(item.id);
+            const raw = await env.ANANAS_KV.get(key);
+            if (raw) await env.ANANAS_KV.put(key, raw, { expirationTtl: HISTORY_TTL });
+          }));
+          await env.ANANAS_KV.put(retentionKey, "1", { expirationTtl: HISTORY_TTL });
+        }
+        await env.ANANAS_KV.put(indexKey, JSON.stringify(index), { expirationTtl: HISTORY_TTL });
         return json({ conversations: index.filter(item => item && validId(item.id)).sort((a, b) => Number(b.updated_at || 0) - Number(a.updated_at || 0)) });
       }
 
@@ -452,6 +463,7 @@ async function handlePost({ request, env }) {
         const ids = index.filter(item => item && validId(item.id)).map(item => item.id);
         await Promise.all(ids.map(id => env.ANANAS_KV.delete(recordKey(id))));
         await env.ANANAS_KV.delete(indexKey);
+        await env.ANANAS_KV.delete("coder_history_retention_v1:" + accountHash);
         return json({ deleted: true, count: ids.length });
       }
 
@@ -464,13 +476,15 @@ async function handlePost({ request, env }) {
         if (!raw) return json({ error: "این گفتگو پیدا نشد یا حذف شده است." }, 404);
         let conversation;
         try { conversation = JSON.parse(raw); } catch { return json({ error: "اطلاعات این گفتگو قابل بازیابی نیست." }, 500); }
+        await env.ANANAS_KV.put(storageKey, raw, { expirationTtl: HISTORY_TTL });
+        await env.ANANAS_KV.put(indexKey, JSON.stringify(index), { expirationTtl: HISTORY_TTL });
         return json({ conversation });
       }
 
       if (action === "history_delete") {
         await env.ANANAS_KV.delete(storageKey);
         index = index.filter(item => item?.id !== id);
-        await env.ANANAS_KV.put(indexKey, JSON.stringify(index));
+        await env.ANANAS_KV.put(indexKey, JSON.stringify(index), { expirationTtl: HISTORY_TTL });
         return json({ deleted: true, id });
       }
 
@@ -486,11 +500,11 @@ async function handlePost({ request, env }) {
         if (!previous) return json({ error: "گفتگو پیدا نشد." }, 404);
         previous.title = title;
         previous.updated_at = Date.now();
-        await env.ANANAS_KV.put(storageKey, JSON.stringify(previous));
+        await env.ANANAS_KV.put(storageKey, JSON.stringify(previous), { expirationTtl: HISTORY_TTL });
         index = index.map(item => item?.id === id ? {
           ...item, title, updated_at: previous.updated_at
         } : item);
-        await env.ANANAS_KV.put(indexKey, JSON.stringify(index));
+        await env.ANANAS_KV.put(indexKey, JSON.stringify(index), { expirationTtl: HISTORY_TTL });
         return json({ renamed: true, conversation: previous });
       }
 
@@ -552,7 +566,7 @@ async function handlePost({ request, env }) {
         created_at: previous?.created_at || now,
         updated_at: now
       };
-      await env.ANANAS_KV.put(storageKey, JSON.stringify(conversation));
+      await env.ANANAS_KV.put(storageKey, JSON.stringify(conversation), { expirationTtl: HISTORY_TTL });
       const summary = {
         id, title, repository, branch, status: conversation.status,
         pull_request_number: conversation.pull_request_number,
@@ -563,7 +577,7 @@ async function handlePost({ request, env }) {
       };
       index = [summary, ...index.filter(item => item?.id !== id)]
         .sort((a, b) => Number(b.updated_at || 0) - Number(a.updated_at || 0));
-      await env.ANANAS_KV.put(indexKey, JSON.stringify(index));
+      await env.ANANAS_KV.put(indexKey, JSON.stringify(index), { expirationTtl: HISTORY_TTL });
       return json({ saved: true, conversation: summary });
     }
     if (!["confirm", "analyze", "chat", "apply", "refine", "list_drafts", "merge_drafts"].includes(action)) return json({ error: "درخواست ناشناخته است." }, 404);
