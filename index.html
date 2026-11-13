@@ -2747,6 +2747,14 @@ function renderDollarChart(c,i){
       const result = await chatHistoryApiPost({ action: 'history_list' });
       const remote = Array.isArray(result.conversations) ? result.conversations : [];
       const remoteById = new Map(remote.map(item => [item.id, item]));
+      const remoteIds = new Set(remote.map(item => item.id));
+      const deletedIds = new Set(Array.isArray(result.deleted_ids) ? result.deleted_ids : []);
+      const deletedBefore = Number(result.deleted_before) || 0;
+      sessions = sessions.filter(session => {
+        if (session.mode && session.mode !== 'chat') return true;
+        if (remoteIds.has(session.id)) return true;
+        return !deletedIds.has(session.id) && !(deletedBefore && Number(session.createdAt || session.updatedAt || 0) <= deletedBefore);
+      });
       for (const item of remote.slice().reverse()) {
         if (!item.id) continue;
         let local = sessions.find(session => session.id === item.id && (!session.mode || session.mode === 'chat'));
@@ -2826,6 +2834,14 @@ function renderDollarChart(c,i){
         const result = await coderApiPost({ action: 'history_list' });
         const remote = Array.isArray(result.conversations) ? result.conversations : [];
         const remoteById = new Map(remote.map(item => [item.id, item]));
+        const remoteIds = new Set(remote.map(item => item.id));
+        const deletedIds = new Set(Array.isArray(result.deleted_ids) ? result.deleted_ids : []);
+        const deletedBefore = Number(result.deleted_before) || 0;
+        sessions = sessions.filter(session => {
+          if (session.mode !== 'coder') return true;
+          if (remoteIds.has(session.id)) return true;
+          return !deletedIds.has(session.id) && !(deletedBefore && Number(session.createdAt || session.updatedAt || 0) <= deletedBefore);
+        });
         for (const item of remote.slice().reverse()) {
           if (!item.id) continue;
           let local = sessions.find(session => session.id === item.id && session.mode === 'coder');
