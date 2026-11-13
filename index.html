@@ -2510,7 +2510,8 @@ function renderDollarChart(c,i){
       if (!confirm('آیا از حذف این گفتگو مطمئن هستید؟')) return;
       const deletedSession = sessions.find(s => s.id === id);
       sessions = sessions.filter(s => s.id !== id);
-      if (deletedSession && deletedSession.mode === 'secretary' && userToken) secretaryApiPost({ action: 'history_delete', id }).catch(error => console.warn('Secretary history delete failed:', error));
+      if (deletedSession && deletedSession.mode === 'secretary' && userToken) await secretaryApiPost({ action: 'history_delete', id }).catch(error => console.warn('Secretary history delete failed:', error));
+      if (deletedSession && deletedSession.mode === 'coder' && userToken) await coderApiPost({ action: 'history_delete', id }).catch(error => console.warn('Coder history delete failed:', error));
       if (chatMenuOpenId === id) chatMenuOpenId = null;
       if (activeSessionId === id) {
         stopTextToSpeech();
@@ -2539,12 +2540,16 @@ function renderDollarChart(c,i){
       renderHistoryList();
     }
 
-    function clearAllHistory() {
+    async function clearAllHistory() {
       if (!confirm('آیا تمام تاریخچه گفتگوها پاک شود؟')) return;
 
       stopTextToSpeech();
-      const secretaryIds = sessions.filter(s => s.mode === 'secretary').map(s => s.id);
-      if (userToken && secretaryIds.length) Promise.all(secretaryIds.map(id => secretaryApiPost({ action: 'history_delete', id }).catch(() => null)));
+      if (userToken) {
+        await Promise.all([
+          secretaryApiPost({ action: 'history_clear' }).catch(() => null),
+          coderApiPost({ action: 'history_clear' }).catch(() => null)
+        ]);
+      }
       sessions = [];
       activeSessionId = null;
 
