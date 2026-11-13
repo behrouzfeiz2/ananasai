@@ -3350,7 +3350,7 @@ function renderDollarChart(c,i){
           }
         });
         coderPush('model',
-          'اتصال GitHub از آناناس قطع شد. برای اتصال حساب دیگری، ابتدا در تب GitHub از حساب قبلی خارج شو و سپس دکمهٔ اتصال را بزن.',
+          'اتصال GitHub از آناناس قطع شد. این کار فقط پیوند ذخیره‌شده در آناناس را حذف می‌کند و نشست ورود سایت GitHub را نمی‌بندد. برای اتصال حساب دیگر، ابتدا در GitHub از حساب قبلی خارج شو و سپس دوباره اتصال را بزن.',
           { coderAction: { type: 'github_status', connected: false } }
         );
       } catch (error) {
@@ -3469,9 +3469,15 @@ function renderDollarChart(c,i){
       }
       if (action.type === 'github_status') {
         if (action.connected) {
-          return '<div class="coder-inline-card"><div class="text-sm text-emerald-200 font-bold">✓ GitHub متصل است</div><p class="mt-2 text-xs text-gray-300">حساب فعال: <b dir="ltr" class="text-white">@' + escapeHtml(action.login || 'نامشخص') + '</b></p><p class="mt-2 text-xs text-gray-400">اگر این حساب اشتباه است، اتصال را قطع کن؛ سپس در GitHub از حساب فعلی خارج شو و حساب درست را دوباره متصل کن.</p><div class="mt-3 flex flex-wrap gap-2"><button type="button" class="coder-inline-primary" onclick="window.coderLoadProjectsAndAsk()">بارگذاری دوباره پروژه‌ها</button><button type="button" class="px-3 py-2 rounded-lg border border-red-500/40 text-red-300 text-xs" onclick="window.coderDisconnectGitHub()">قطع اتصال / تغییر حساب</button><a href="https://github.com/logout" target="_blank" rel="noopener noreferrer" class="px-3 py-2 rounded-lg border border-slate-600 text-gray-300 text-xs">خروج از حساب GitHub</a></div></div>';
+          return '<div class="coder-inline-card"><div class="text-sm text-emerald-200 font-bold">✓ GitHub متصل است</div><p class="mt-2 text-xs text-gray-300">حساب فعال: <b dir="ltr" class="text-white">@' + escapeHtml(action.login || 'نامشخص') + '</b></p><p class="mt-2 text-xs text-gray-400">اگر حساب اشتباه است، «قطع اتصال / تغییر حساب» را بزن. توجه: این کار فقط اتصال ذخیره‌شده در آناناس را حذف می‌کند و از سایت GitHub خارجت نمی‌کند؛ برای ورود با حساب دیگر باید جداگانه از GitHub خارج شوی.</p><div class="mt-3 flex flex-wrap gap-2"><button type="button" class="coder-inline-primary" onclick="window.coderLoadProjectsAndAsk()">بارگذاری پروژه‌ها</button><button type="button" class="px-3 py-2 rounded-lg border border-red-500/40 text-red-300 text-xs" onclick="window.coderDisconnectGitHub()">قطع اتصال / تغییر حساب</button></div></div>';
         }
         return '<div class="coder-inline-card"><div class="text-sm text-amber-200 font-bold">GitHub متصل نیست</div><p class="mt-2 text-xs text-gray-300">برای ادامه، حساب خودت را متصل کن. پس از بازگشت، نام حساب تأیید می‌شود و سپس پروژه‌ها را انتخاب می‌کنی.</p><button type="button" class="coder-inline-primary mt-3" onclick="window.coderConnectGitHub()">اتصال به حساب GitHub</button></div>';
+      }
+      if (action.type === 'code_file_more') {
+        const nextLine = Math.max(1, Number(action.nextLine) || 1);
+        const encodedPath = encodeURIComponent(String(action.path || ''));
+        const command = 'ادامه فایل ' + decodeURIComponent(encodedPath) + ' از خط ' + nextLine;
+        return '<div class="coder-inline-card"><button type="button" class="coder-inline-primary" onclick="window.coderQuickCommand(&quot;' + escapeHtml(command) + '&quot;)">نمایش بخش بعدی (از خط ' + nextLine + ')</button></div>';
       }
       if (action.type === 'github_status_error') {
         return '<div class="coder-inline-card"><button type="button" class="coder-inline-primary" onclick="window.coderCheckGitHubStatus()">تلاش دوباره برای بررسی وضعیت</button></div>';
@@ -3624,6 +3630,11 @@ function renderDollarChart(c,i){
         coderPush('model', result.assistant_message || result.summary || 'پیش‌نویس تغییرات آماده شد. جزئیات را بررسی کن.', {
           coderAction: { type: 'preview', data: result }
         });
+      } else if (result.code_display) {
+        const extra = result.next_line
+          ? { coderAction: { type: 'code_file_more', path: result.file_path, nextLine: result.next_line } }
+          : {};
+        coderPush('model', result.message || result.summary || 'کد فایل دریافت شد.', extra);
       } else {
         coderPush('model', result.message || result.summary || 'پاسخی از عامل کدنویس دریافت نشد.');
       }
