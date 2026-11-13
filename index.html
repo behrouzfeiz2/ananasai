@@ -3281,6 +3281,91 @@ function renderDollarChart(c,i){
       }
     }
 
+    async function coderCheckGitHubStatus() {
+      const session = coderCurrentSession();
+      if (!session || isGenerating) return;
+      if (!userToken) {
+        openSettingsModal('برای اتصال GitHub ابتدا اشتراک Pro یا Ultra را فعال کن.');
+        return;
+      }
+      isGenerating = true;
+      appendLoadingBubble(true, false);
+      try {
+        const status = await coderApiGet({ action: 'status' });
+        if (status.connected) {
+          session.coder = session.coder || { stage: 'manual', repository: '', branch: '', status: 'chat' };
+          session.coder.githubLogin = status.login || '';
+          session.coder.stage = 'project';
+          coderPush('model',
+            'وضعیت GitHub: اتصال برقرار است. حساب متصل‌شده: @' + (status.login || 'نامشخص') + '. حالا فهرست پروژه‌های قابل‌دسترسی همین حساب را در پیام بعدی نمایش می‌دهم.',
+            { coderAction: { type: 'github_status', connected: true, login: status.login || '' } }
+          );
+          await coderLoadProjectsAndAsk();
+        } else {
+          session.coder = session.coder || { stage: 'manual', repository: '', branch: '', status: 'chat' };
+          session.coder.repository = '';
+          session.coder.branch = '';
+          session.coder.githubLogin = '';
+          session.coder.stage = 'manual';
+          coderPush('model',
+            'وضعیت GitHub: هنوز هیچ حسابی به آناناس متصل نیست. برای اتصال حساب خودت دکمهٔ زیر را بزن. اگر می‌خواهی از حساب دیگری استفاده کنی، ابتدا در GitHub از حساب فعلی خارج شو.',
+            { coderAction: { type: 'github_status', connected: false } }
+          );
+        }
+      } catch (error) {
+        coderPush('model',
+          'نتوانستم وضعیت GitHub را دریافت کنم: ' + error.message + '\nدوباره تلاش کن.',
+          { coderAction: { type: 'github_status_error' } }
+        );
+      } finally {
+        removeLoadingBubble();
+        isGenerating = false;
+        saveSessions();
+        renderMessages();
+        renderHistoryList();
+      }
+    }
+
+    async function coderDisconnectGitHub() {
+      const session = coderCurrentSession();
+      if (!session || isGenerating) return;
+      isGenerating = true;
+      appendLoadingBubble(true, false);
+      try {
+        await coderApiPost({ action: 'disconnect' });
+        coderProjectCache = [];
+        if (!session.coder) session.coder = { stage: 'manual', repository: '', branch: '', status: 'chat' };
+        session.coder.repository = '';
+        session.coder.branch = '';
+        session.coder.proposal_id = null;
+        session.coder.githubLogin = '';
+        session.coder.stage = 'manual';
+        session.coder.status = 'chat';
+        session.messages.forEach(message => {
+          if (message.coderAction && message.coderAction.type === 'github_status' && message.coderAction.connected) {
+            message.coderAction.type = 'github_status_archived';
+          }
+          if (message.coderAction && message.coderAction.type === 'projects') {
+            message.coderAction.type = 'projects_expired';
+          }
+        });
+        coderPush('model',
+          'اتصال GitHub از آناناس قطع شد. برای اتصال حساب دیگری، ابتدا در تب GitHub از حساب قبلی خارج شو و سپس دکمهٔ اتصال را بزن.',
+          { coderAction: { type: 'github_status', connected: false } }
+        );
+      } catch (error) {
+        coderPush('model', 'قطع اتصال GitHub ناموفق بود: ' + error.message, {
+          coderAction: { type: 'github_status_error' }
+        });
+      } finally {
+        removeLoadingBubble();
+        isGenerating = false;
+        saveSessions();
+        renderMessages();
+        renderHistoryList();
+      }
+    }
+
     async function coderConnectGitHub() {
       const session = coderCurrentSession();
       if (!session) return;
@@ -3370,17 +3455,32 @@ function renderDollarChart(c,i){
       });
       if (data.high_risk) html += '<p class="mt-3 text-xs text-red-300">هشدار: بخشی از تغییرات نسبتاً گسترده است؛ پیش از ثبت آن را با دقت بررسی کن.</p>';
       html += '<div class="mt-3 coder-inline-muted">برای ثبت این تغییرات در GitHub، پیام «در مخزن اعمالش کن» را بفرست. تا قبل از این پیام هیچ تغییری در GitHub ثبت نمی‌شود.</div>';
-      html += '<div class="mt-2 flex flex-wrap gap-2"><button type="button" class="coder-inline-primary" onclick="coderQuickCommand(\'در مخزن اعمالش کن\')">ثبت پیش‌نویس در GitHub</button><button type="button" class="mt-2 px-3 py-2 rounded-lg border border-slate-600 text-gray-300 text-xs" onclick="coderQuickCommand(\'پیش‌نویس را لغو کن\')">لغو پیش‌نویس</button></div></div>';
+      html += '<div class="mt-2 flex flex-wrap gap-2"><button type="button" class="coder-inline-primary" onclick="window.coderQuickCommand(\'در مخزن اعمالش کن\')">ثبت پیش‌نویس در GitHub</button><button type="button" class="mt-2 px-3 py-2 rounded-lg border border-slate-600 text-gray-300 text-xs" onclick="window.coderQuickCommand(\'پیش‌نویس را لغو کن\')">لغو پیش‌نویس</button></div></div>';
       return html;
     }
 
     function renderCoderMessageAction(message, index) {
       const action = message.coderAction || {};
       if (action.type === 'manual_intro') {
-        return '<div class="coder-inline-card"><p class="text-sm text-blue-100">برای بررسی کد ارسالی، نیازی به GitHub نیست. کد را در کادر گفتگو بفرست. اتصال GitHub فقط برای دسترسی مستقیم به مخزن و ساخت پیش‌نویس تغییرات لازم است.</p><button type="button" class="coder-inline-primary" onclick="coderConnectGitHub()">اتصال GitHub (اختیاری)</button></div>';
+        return '<div class="coder-inline-card"><p class="text-sm text-blue-100">برای بررسی کد ارسالی نیازی به GitHub نیست. برای کار مستقیم روی مخزن، ابتدا وضعیت اتصال و نام حساب GitHub را بررسی کن.</p><button type="button" class="coder-inline-primary" onclick="window.coderCheckGitHubStatus()">بررسی وضعیت / اتصال GitHub</button></div>';
       }
       if (action.type === 'connect') {
-        return '<div class="coder-inline-card"><p class="text-sm text-blue-100">می‌توانی کد را بدون GitHub در گفتگو بفرستی یا برای دسترسی مستقیم به پروژه‌ها، حساب GitHub را متصل کنی.</p><button type="button" class="coder-inline-primary" onclick="coderConnectGitHub()">اتصال GitHub (اختیاری)</button></div>';
+        return '<div class="coder-inline-card"><p class="text-sm text-blue-100">ابتدا وضعیت اتصال GitHub را بررسی کن.</p><button type="button" class="coder-inline-primary" onclick="window.coderCheckGitHubStatus()">بررسی وضعیت GitHub</button></div>';
+      }
+      if (action.type === 'github_status') {
+        if (action.connected) {
+          return '<div class="coder-inline-card"><div class="text-sm text-emerald-200 font-bold">✓ GitHub متصل است</div><p class="mt-2 text-xs text-gray-300">حساب فعال: <b dir="ltr" class="text-white">@' + escapeHtml(action.login || 'نامشخص') + '</b></p><p class="mt-2 text-xs text-gray-400">اگر این حساب اشتباه است، اتصال را قطع کن؛ سپس در GitHub از حساب فعلی خارج شو و حساب درست را دوباره متصل کن.</p><div class="mt-3 flex flex-wrap gap-2"><button type="button" class="coder-inline-primary" onclick="window.coderLoadProjectsAndAsk()">بارگذاری دوباره پروژه‌ها</button><button type="button" class="px-3 py-2 rounded-lg border border-red-500/40 text-red-300 text-xs" onclick="window.coderDisconnectGitHub()">قطع اتصال / تغییر حساب</button><a href="https://github.com/logout" target="_blank" rel="noopener noreferrer" class="px-3 py-2 rounded-lg border border-slate-600 text-gray-300 text-xs">خروج از حساب GitHub</a></div></div>';
+        }
+        return '<div class="coder-inline-card"><div class="text-sm text-amber-200 font-bold">GitHub متصل نیست</div><p class="mt-2 text-xs text-gray-300">برای ادامه، حساب خودت را متصل کن. پس از بازگشت، نام حساب تأیید می‌شود و سپس پروژه‌ها را انتخاب می‌کنی.</p><button type="button" class="coder-inline-primary mt-3" onclick="window.coderConnectGitHub()">اتصال به حساب GitHub</button></div>';
+      }
+      if (action.type === 'github_status_error') {
+        return '<div class="coder-inline-card"><button type="button" class="coder-inline-primary" onclick="window.coderCheckGitHubStatus()">تلاش دوباره برای بررسی وضعیت</button></div>';
+      }
+      if (action.type === 'github_status_archived') {
+        return '<div class="coder-inline-card text-xs text-gray-500">این وضعیت اتصال قدیمی است.</div>';
+      }
+      if (action.type === 'projects_expired') {
+        return '<div class="coder-inline-card text-xs text-gray-500">این فهرست مربوط به اتصال قبلی است؛ پس از اتصال دوباره، فهرست جدید را دریافت کن.</div>';
       }
       if (action.type === 'projects') {
         const projects = Array.isArray(action.projects) ? action.projects : [];
@@ -3388,10 +3488,10 @@ function renderDollarChart(c,i){
           '<option value="' + escapeHtml(project.full_name) + '">' +
           escapeHtml(project.full_name) + (project.private ? ' · خصوصی' : ' · عمومی') + '</option>'
         ).join('');
-        return '<div class="coder-inline-card"><label class="block text-xs text-blue-100 mb-2" for="coderProjectSelect_' + index + '">پروژه GitHub را انتخاب کن</label><select id="coderProjectSelect_' + index + '"><option value="">انتخاب پروژه...</option>' + options + '</select><button type="button" class="coder-inline-primary" onclick="coderChooseProject(' + index + ')">انتخاب این پروژه</button></div>';
+        return '<div class="coder-inline-card"><label class="block text-xs text-blue-100 mb-2" for="coderProjectSelect_' + index + '">پروژه GitHub را انتخاب کن</label><select id="coderProjectSelect_' + index + '"><option value="">انتخاب پروژه...</option>' + options + '</select><button type="button" class="coder-inline-primary" onclick="window.coderChooseProject(' + index + ')">انتخاب این پروژه</button></div>';
       }
       if (action.type === 'reload_projects') {
-        return '<div class="coder-inline-card"><button type="button" class="coder-inline-primary" onclick="coderReloadProjects()">بارگذاری دوباره پروژه‌ها</button></div>';
+        return '<div class="coder-inline-card"><button type="button" class="coder-inline-primary" onclick="window.coderReloadProjects()">بارگذاری دوباره پروژه‌ها</button></div>';
       }
       if (action.type === 'retry_status') {
         return '<div class="coder-inline-card"><button type="button" class="coder-inline-primary" onclick="coderInitializeCurrent(true)">تلاش دوباره</button></div>';
@@ -3645,9 +3745,20 @@ function renderDollarChart(c,i){
           coderAction: { type: 'manual_intro' }
         });
       } else {
-        await coderInitializeCurrent(true);
+        const current = coderCurrentSession();
+        if (current && current.coder) current.coder.stage = 'connect_pending';
+        await coderCheckGitHubStatus();
       }
     }
+
+    // Explicit global exports for actions rendered inside message HTML.
+    window.coderCheckGitHubStatus = coderCheckGitHubStatus;
+    window.coderConnectGitHub = coderConnectGitHub;
+    window.coderDisconnectGitHub = coderDisconnectGitHub;
+    window.coderLoadProjectsAndAsk = coderLoadProjectsAndAsk;
+    window.coderReloadProjects = coderReloadProjects;
+    window.coderChooseProject = coderChooseProject;
+    window.coderQuickCommand = coderQuickCommand;
 
     // بازگشت OAuth و لینک مستقیم کدنویس، همان صفحه چت را باز می‌کنند.
     coderRestoreFromUrl();
