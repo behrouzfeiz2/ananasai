@@ -306,20 +306,30 @@ async function secretaryInit() {
   try {
     await secretaryRefreshStatus();
     const result = await secretaryApi("history_list", { action: "history_list" });
-    const remote = Array.isArray(result.conversations) ? result.conversations : [];
-    const remoteById = new Map(remote.map(function(item) { return [item.id, item]; }));
-    const remoteIds = new Set(remote.map(function(item) { return item.id; }));
     const deletedIds = new Set(Array.isArray(result.deleted_ids) ? result.deleted_ids : []);
     const deletedBefore = Number(result.deleted_before) || 0;
     const purgedBefore = Number(result.purged_before) || 0;
+    // فهرست‌های قدیمی KV ممکن است موقتاً در کش دیده شوند؛ در سمت مرورگر هم
+    // آن‌ها را با نشانگر پاک‌سازی و حذف فیلتر می‌کنیم تا تاریخچه برنگردد.
+    const remote = (Array.isArray(result.conversations) ? result.conversations : []).filter(function(item) {
+      const createdAt = Number(item.created_at) || 0;
+      const activity = Number(item.updated_at || createdAt) || 0;
+      return !deletedIds.has(item.id) &&
+        !(purgedBefore && createdAt < purgedBefore) &&
+        !(deletedBefore && activity <= deletedBefore);
+    });
+    const remoteById = new Map(remote.map(function(item) { return [item.id, item]; }));
+    const remoteIds = new Set(remote.map(function(item) { return item.id; }));
     sessions = sessions.filter(function(session) {
       if (session.mode !== "secretary") return true;
-      if (remoteIds.has(session.id)) return true;
       if (typeof isHistoryExpiredLocally === "function" && isHistoryExpiredLocally(session)) return false;
       const activity = typeof historyActivityTimestamp === "function"
         ? historyActivityTimestamp(session)
         : Number(session.createdAt || session.updatedAt || 0);
-      return !deletedIds.has(session.id) && !(purgedBefore && Number(session.createdAt || 0) < purgedBefore) && !(deletedBefore && activity <= deletedBefore);
+      if (deletedIds.has(session.id) ||
+          (purgedBefore && Number(session.createdAt || 0) < purgedBefore) ||
+          (deletedBefore && activity <= deletedBefore)) return false;
+      return true;
     });
     remote.forEach(function(item) {
       if (!item.id) return;
