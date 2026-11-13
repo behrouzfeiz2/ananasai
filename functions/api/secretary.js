@@ -272,10 +272,12 @@ async function handleHistoryAction(env, account, body) {
   const recordKey = id => "secretary_history_record:" + accountHash + ":" + id;
   const deletedPrefix = "secretary_history_deleted:" + accountHash + ":";
   const clearMarkerKey = "secretary_history_clear:" + accountHash;
+  const globalPurgedAt = Number(await env.ANANAS_KV.get("admin_chat_history_purge_at")) || 0;
   const validId = value => /^sec_[A-Za-z0-9_-]{8,60}$/.test(String(value || ""));
   const rawIndex = await env.ANANAS_KV.get(indexKey);
   let index = []; try { index = rawIndex ? JSON.parse(rawIndex) : []; } catch {}
   if (!Array.isArray(index)) index = [];
+  if (globalPurgedAt) index = index.filter(item => Number(item?.created_at || 0) >= globalPurgedAt);
   const action = body.action;
   if (action === "history_list") {
     const cutoff = Date.now() - HISTORY_TTL * 1000;
@@ -307,7 +309,7 @@ async function handleHistoryAction(env, account, body) {
       await env.ANANAS_KV.put(retentionKey, "1", { expirationTtl: HISTORY_TTL });
     }
     await env.ANANAS_KV.put(indexKey, JSON.stringify(index), { expirationTtl: HISTORY_TTL });
-    return json({ conversations: index.filter(item => item && validId(item.id)).sort((a, b) => Number(b.updated_at || 0) - Number(a.updated_at || 0)), deleted_ids: deletedIds, deleted_before: deletedBefore });
+    return json({ conversations: index.filter(item => item && validId(item.id)).sort((a, b) => Number(b.updated_at || 0) - Number(a.updated_at || 0)), deleted_ids: deletedIds, deleted_before: deletedBefore, purged_before: globalPurgedAt });
   }
   if (action === "history_clear") {
     const ids = index.filter(item => item && validId(item.id)).map(item => item.id);
@@ -325,6 +327,7 @@ async function handleHistoryAction(env, account, body) {
     const raw = await env.ANANAS_KV.get(storageKey);
     if (!raw) return json({ error: "گفتگوی منشی پیدا نشد." }, 404);
     const conversation = JSON.parse(raw);
+    if (globalPurgedAt && Number(conversation.created_at || 0) < globalPurgedAt) return json({ error: "این گفتگو در پاک‌سازی سراسری تاریخچه حذف شده است." }, 404);
     conversation.updated_at = Date.now();
     await env.ANANAS_KV.put(storageKey, JSON.stringify(conversation), { expirationTtl: HISTORY_TTL });
     index = index.map(item => item?.id === id ? { ...item, updated_at: conversation.updated_at } : item);
@@ -340,6 +343,8 @@ async function handleHistoryAction(env, account, body) {
   }
   const incoming = body.conversation;
   if (!incoming || typeof incoming !== "object" || Array.isArray(incoming) || incoming.id !== id) return json({ error: "ساختار اطلاعات گفتگوی منشی معتبر نیست." }, 400);
+  const incomingCreatedAt = Number(incoming.created_at) || Date.now();
+  if (globalPurgedAt && incomingCreatedAt < globalPurgedAt) return json({ error: "این تاریخچه در پاک‌سازی سراسری حذف شده و قابل بازیابی مجدد نیست." }, 410);
   const inputMessages = Array.isArray(incoming.messages) ? incoming.messages : [];
   if (inputMessages.length > 120) return json({ error: "تعداد پیام‌های گفتگو بیش از حد مجاز است." }, 413);
   let total = 0; const messages = [];
@@ -354,7 +359,7 @@ async function handleHistoryAction(env, account, body) {
   const now = Date.now(), firstRequest = messages.find(message => message.role === "user")?.content || "";
   const title = String(incoming.title || "").replace(/[\r\n\t]+/g, " ").trim().slice(0, 120) || firstRequest.replace(/\s+/g, " ").slice(0, 58) || "گفتگوی منشی";
   const conversation = {
-    id, title, created_at: Number(incoming.created_at) || now, updated_at: now, messages,
+    id, title, created_at: incomingCreatedAt, updated_at: now, messages,
     pendingAction: incoming.pendingAction && ["email", "event"].includes(incoming.pendingAction.type) ? incoming.pendingAction : null
   };
   await env.ANANAS_KV.delete(deletedPrefix + id);
