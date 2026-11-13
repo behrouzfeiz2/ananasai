@@ -435,7 +435,7 @@ async function handlePost({ request, env }) {
     }
 
     // گفتگوهای کدنویس در فضای اختصاصی هر حساب ذخیره می‌شوند و به اتصال فعال GitHub وابسته نیستند.
-    if (["history_list", "history_get", "history_save", "history_delete", "history_rename"].includes(action)) {
+    if (["history_list", "history_get", "history_save", "history_delete", "history_rename", "history_clear"].includes(action)) {
       const accountHash = await sha256(account.token);
       const indexKey = "coder_history_index:" + accountHash;
       const recordKey = id => "coder_history_record:" + accountHash + ":" + id;
