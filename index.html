@@ -3213,6 +3213,13 @@ function renderDollarChart(c,i){
       }
     }
 
+    function coderShowUsageGuide() {
+      const session = coderCurrentSession();
+      if (!session || isGenerating) return;
+      const guide = "### 💻 راهنمای استفاده از کدنویس آناناس\n\nکدنویس آناناس دستیار برنامه‌نویسی شماست؛ می‌تواند کد را بررسی کند، خطاها را پیدا کند، بخش‌های مختلف پروژه را توضیح دهد و برای بهبود یا توسعه نرم‌افزار راهکار و کد پیشنهادی ارائه کند.\n\n**دو روش برای شروع دارید:**\n\n**۱. بدون اتصال GitHub**\nکد یا قطعه‌فایل موردنظرتان را مستقیماً در کادر گفتگو بفرستید. آناناس همان کد ارسالی را بررسی می‌کند، ایرادها را توضیح می‌دهد و نسخه پیشنهادی یا اصلاح‌شده را در پاسخ ارائه می‌کند. در این حالت به فایل‌های دیگر رایانه یا مخزن شما دسترسی ندارد.\n\n**۲. با اتصال اختیاری GitHub**\nدکمه «بررسی وضعیت / اتصال GitHub» را بزنید. ابتدا وضعیت اتصال و نام حساب نمایش داده می‌شود؛ اگر حساب درست بود، فهرست پروژه‌ها در پیام بعدی ظاهر می‌شود. پروژه موردنظر را انتخاب کنید تا آناناس بتواند فایل‌ها و ساختار همان مخزن را بررسی کند.\n\nاگر حساب نمایش‌داده‌شده اشتباه است، «قطع اتصال / تغییر حساب» را بزنید. این کار اتصال ذخیره‌شده در آناناس را حذف می‌کند، اما از سایت GitHub خارجتان نمی‌کند؛ برای ورود با حساب دیگر، در GitHub از حساب قبلی خارج شوید و سپس دوباره متصل شوید.\n\n### چه درخواست‌هایی می‌توانید مطرح کنید؟\n\n- **بررسی و رفع خطا:** پیدا کردن علت خطا، باگ‌یابی و پیشنهاد راه‌حل (Debugging).\n- **نمایش سورس:** نمایش کد یک فایل، یک تابع یا یک بخش مشخص با امکان کپی کردن کد.\n- **بهبود و بازنویسی:** مرتب‌سازی و بازنویسی کد (Refactoring)، افزایش خوانایی و کاهش کدهای تکراری.\n- **توسعه قابلیت‌ها:** اضافه کردن امکانات جدید، فرم‌ها، دکمه‌ها، APIها و اتصال بخش‌های مختلف.\n- **رابط کاربری:** اصلاح طراحی صفحات، نمایش موبایل و دسکتاپ، CSS و تجربه کاربری.\n- **بهینه‌سازی:** بررسی کارایی، سرعت، امنیت و ساختار پروژه.\n- **توضیح و مستندسازی:** توضیح عملکرد توابع و فایل‌ها و آماده‌سازی مستندات.\n\n### چطور سؤال دقیق‌تری بپرسید؟\n\nبرای گرفتن پاسخ بهتر، تا جای ممکن این موارد را بنویسید:\n\n1. نام فایل یا بخشی که درباره آن سؤال دارید.\n2. کاری که اکنون انجام می‌دهد و نتیجه‌ای که انتظار دارید.\n3. پیام خطا یا شرایطی که مشکل در آن رخ می‌دهد.\n4. محدودیت‌ها؛ مثلاً «فقط هدر را تغییر بده و به بقیه بخش‌ها دست نزن».\n\n**نمونه درخواست‌های خوب:**\n\n- «فایل `index.html` را بررسی کن و بگو منوی موبایل چرا باز نمی‌شود.»\n- «کد تابع `loadProjects` را نمایش بده تا مشخص کنم کدام قسمت باید تغییر کند.»\n- «این دکمه در موبایل از کادر بیرون می‌زند؛ علت را پیدا کن و راه‌حل پیشنهاد بده.»\n- «فقط ظاهر هدر را اصلاح کن؛ رنگ‌بندی و ساختار بقیه صفحه حفظ شود.»\n\nمی‌توانید کد نمایش‌داده‌شده را کپی کنید و در پیام بعد بنویسید دقیقاً کدام خط یا قسمت باید تغییر کند. برای فایل‌های طولانی، از دکمه «نمایش بخش بعدی» استفاده کنید.\n\n### عبارت‌های دستوری مهم\n\n| عبارت | کاربرد |\n|---|---|\n| «بررسی کن» | تحلیل و پیشنهاد راه‌حل؛ بدون ثبت تغییر در مخزن |\n| «کد فایل ... را نمایش بده» | نمایش سورس واقعی فایل مشخص |\n| «کل فایل را نمایش بده» | نمایش فایل قبلی از ابتدا؛ فایل بزرگ بخش‌بندی می‌شود |\n| «بخش بعدی را نمایش بده» | ادامه نمایش فایل |\n| «خودت انجام بده» | آماده‌سازی پیش‌نویس تغییرات برای پروژه متصل‌شده |\n| «پیش‌نویس را لغو کن» | لغو پیش‌نویس و بازگشت به گفتگو |\n| «در مخزن اعمالش کن» | پس از بررسی پیش‌نویس، ساخت تغییرات در شاخه اختصاصی و Draft Pull Request |\n\n### ثبت تغییرات چگونه انجام می‌شود؟\n\nوقتی پروژه GitHub انتخاب شده باشد، با گفتن «خودت انجام بده» آناناس ابتدا پیش‌نویس تغییرات را آماده می‌کند تا فایل‌های قبل و بعد را بررسی کنید. اگر نتیجه درست بود، عبارت «در مخزن اعمالش کن» را بفرستید. تغییرات در شاخه اختصاصی ثبت و یک Draft Pull Request ساخته می‌شود؛ شاخه `main` مستقیماً تغییر نمی‌کند و تغییرات پس از بررسی و ادغام وارد شاخه اصلی خواهند شد.\n\n**نکته امنیتی:** رمز عبور، توکن، کلید API، فایل `.env` و اطلاعات محرمانه را در گفتگو ارسال نکنید.";
+      coderPush('model', guide, { coderAction: { type: 'usage_guide_footer' } });
+    }
+
     async function coderInitializeCurrent(force) {
       const session = coderCurrentSession();
       if (!session || !userToken || isGenerating) return;
@@ -3462,10 +3469,13 @@ function renderDollarChart(c,i){
     function renderCoderMessageAction(message, index) {
       const action = message.coderAction || {};
       if (action.type === 'manual_intro') {
-        return '<div class="coder-inline-card"><p class="text-sm text-blue-100">برای بررسی کد ارسالی نیازی به GitHub نیست. برای کار مستقیم روی مخزن، ابتدا وضعیت اتصال و نام حساب GitHub را بررسی کن.</p><button type="button" class="coder-inline-primary" onclick="window.coderCheckGitHubStatus()">بررسی وضعیت / اتصال GitHub</button></div>';
+        return '<div class="coder-inline-card"><p class="text-sm text-blue-100">کدی را که می‌خواهی بررسی یا بهبود بدهم همین‌جا بفرست. برای این کار نیازی به GitHub نیست؛ اتصال GitHub فقط برای دسترسی مستقیم به فایل‌های پروژه اختیاری است.</p><div class="mt-3 flex flex-wrap gap-2"><button type="button" class="coder-inline-primary" onclick="window.coderCheckGitHubStatus()">بررسی وضعیت / اتصال GitHub</button><button type="button" class="px-3 py-2 rounded-lg border border-slate-600 text-gray-200 text-xs hover:border-ananas-500/60" onclick="window.coderShowUsageGuide()">راهنمای استفاده از کدنویس</button></div></div>';
       }
       if (action.type === 'connect') {
         return '<div class="coder-inline-card"><p class="text-sm text-blue-100">ابتدا وضعیت اتصال GitHub را بررسی کن.</p><button type="button" class="coder-inline-primary" onclick="window.coderCheckGitHubStatus()">بررسی وضعیت GitHub</button></div>';
+      }
+      if (action.type === 'usage_guide_footer') {
+        return '<div class="coder-inline-card"><p class="text-sm text-gray-300">حالا می‌توانی کد را بدون GitHub در همین گفتگو بفرستی، یا برای کار مستقیم روی یک مخزن، حساب GitHub را متصل و پروژه را انتخاب کنی.</p><button type="button" class="coder-inline-primary mt-3" onclick="window.coderCheckGitHubStatus()">بررسی حساب و اتصال GitHub (اختیاری)</button></div>';
       }
       if (action.type === 'github_status') {
         if (action.connected) {
@@ -3763,6 +3773,7 @@ function renderDollarChart(c,i){
     }
 
     // Explicit global exports for actions rendered inside message HTML.
+    window.coderShowUsageGuide = coderShowUsageGuide;
     window.coderCheckGitHubStatus = coderCheckGitHubStatus;
     window.coderConnectGitHub = coderConnectGitHub;
     window.coderDisconnectGitHub = coderDisconnectGitHub;
