@@ -489,13 +489,6 @@ function secretaryPreviewEvent(event, originalText) {
   });
   return true;
 }
-  const session = secretaryCurrentSession();
-  session.secretary = session.secretary || {};
-  session.secretary.pendingAction = { type: "event", data: data };
-  secretaryAdd("model", "پیش‌نمایش یادآوری آماده ثبت در Google Calendar است. جزئیات را بررسی و تأیید کن.", {
-    secretaryAction: { type: "event_preview", data: data }
-  });
-}
 async function secretaryRunIntent(result, originalText) {
   let intent = String(result.intent || "general").toLowerCase();
   if (secretaryLooksLikeCalendarRequest(originalText) && intent !== "calendar_preview") {
