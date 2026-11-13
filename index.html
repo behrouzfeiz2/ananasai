@@ -608,7 +608,85 @@
         padding-top: 3.5rem;
       }
     }
-</style>
+
+    /* کدنویس: همان صفحه چت، با تأکید آبی و بدون ابزارهای گفتگوی عمومی */
+    body.coder-mode #chatComposerForm {
+      border-color: rgba(59,130,246,.72) !important;
+      background: #0b1728 !important;
+      box-shadow: 0 0 0 1px rgba(37,99,235,.12), 0 0 24px rgba(37,99,235,.08);
+    }
+    body.coder-mode #chatComposerForm:focus-within {
+      border-color: #3b82f6 !important;
+      box-shadow: 0 0 0 2px rgba(59,130,246,.18), 0 0 26px rgba(37,99,235,.13);
+    }
+    body.coder-mode #sendBtn {
+      background: #2563eb !important;
+      color: #fff !important;
+      box-shadow: 0 4px 14px rgba(37,99,235,.25) !important;
+    }
+    body.coder-mode #sendBtn:hover { background: #3b82f6 !important; }
+    body.coder-mode #promptInput::placeholder { color: #93c5fd !important; }
+    body.coder-mode #attachmentMenuButton,
+    body.coder-mode #micBtn { display: none !important; }
+    body.coder-mode #modeCoderBtn {
+      background: #2563eb !important;
+      color: #fff !important;
+      border-color: rgba(96,165,250,.6) !important;
+    }
+    .coder-inline-card {
+      margin-top: 14px;
+      padding: 13px;
+      border: 1px solid rgba(59,130,246,.35);
+      border-radius: 14px;
+      background: rgba(30,64,175,.10);
+    }
+    .coder-inline-card select {
+      width: 100%;
+      min-height: 44px;
+      color: #f3f4f6;
+      background: #0b1220;
+      border: 1px solid rgba(96,165,250,.42);
+      border-radius: 10px;
+      padding: 9px 11px;
+      outline: none;
+    }
+    .coder-inline-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      margin-top: 10px;
+      padding: 10px 15px;
+      min-height: 42px;
+      border-radius: 10px;
+      background: #2563eb;
+      color: white;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .coder-inline-primary:hover { background: #3b82f6; }
+    .coder-inline-muted {
+      color: #93c5fd;
+      font-size: 11px;
+      line-height: 1.9;
+    }
+    .coder-preview-file {
+      margin-top: 11px;
+      border: 1px solid rgba(148,163,184,.18);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .coder-preview-code {
+      direction: ltr;
+      text-align: left;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      padding: 9px;
+      font: 11px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace;
+      max-height: 210px;
+      overflow: auto;
+    }
+  </style>
 </head>
 
 <body class="flex h-full w-full select-text">
@@ -826,7 +904,7 @@
           </button>
         </div>
 
-        <form onsubmit="handleSubmit(event)" toolname="send-message-to-ananas" tooldescription="ارسال پیام متنی کاربر به دستیار هوشمند آناناس برای دریافت پاسخ. فقط متن واردشده را ارسال کن؛ فایل‌ها فقط زمانی پیوست می‌شوند که کاربر خودش آن‌ها را انتخاب کرده باشد." class="relative flex items-center gap-2 bg-ananas-card border border-ananas-border focus-within:border-ananas-500/70 rounded-2xl p-2">
+        <form id="chatComposerForm" onsubmit="handleSubmit(event)" toolname="send-message-to-ananas" tooldescription="ارسال پیام متنی کاربر به دستیار هوشمند آناناس برای دریافت پاسخ. فقط متن واردشده را ارسال کن؛ فایل‌ها فقط زمانی پیوست می‌شوند که کاربر خودش آن‌ها را انتخاب کرده باشد." class="relative flex items-center gap-2 bg-ananas-card border border-ananas-border focus-within:border-ananas-500/70 rounded-2xl p-2">
 
           <input type="file" id="fileInput" accept=".txt,.js,.py,.html,.css,.json,.pdf,.php,.sql,.cs,.cpp,.java,.ts,.md,.doc,.docx,.xls,.xlsx,.csv,.zip" class="hidden" onchange="handleFileSelect(event)" />
           <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="handleFileSelect(event)" />
@@ -1256,44 +1334,53 @@
       }
     }
 
-    function openCoderWorkspace() {
-      if (!userToken) {
-        openSettingsModal('🔒 عامل کدنویس آناناس ویژه کاربران Pro و Ultra است. لطفاً کد اشتراک خود را فعال کنید.');
-        return;
-      }
-      window.location.href = 'coder.html';
-    }
-
-    function setMode(mode) {
-      if (mode === 'coder' && !userToken) {
-        openSettingsModal('🔒 بخش تخصصی «کد نویس» و بررسی کد ویژه کاربران پرو است. لطفاً کد فعال‌سازی خود را وارد کنید.');
-        return;
-      }
-
-      currentMode = mode;
-
+    function updateModeUI(mode) {
       const chatBtn = document.getElementById('modeChatBtn');
       const coderBtn = document.getElementById('modeCoderBtn');
       const input = document.getElementById('promptInput');
       const suggestions = document.getElementById('chatSuggestions');
-
-      if (suggestions) {
-        suggestions.classList.toggle('hidden', mode !== 'chat');
-      }
-
+      document.body.classList.toggle('coder-mode', mode === 'coder');
+      if (suggestions) suggestions.classList.toggle('hidden', mode !== 'chat');
       if (mode === 'coder') {
-        coderBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-cyan-500 text-ananas-dark';
+        coderBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-cyan-500 text-white';
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
-        input.placeholder = 'کد یا سوال برنامه‌نویسی خود را بنویسید یا فایل کد را ضمیمه کنید...';
-
-        showCoderInfoIfNeeded();
+        input.placeholder = 'درخواستت درباره پروژه را بنویس؛ آناناس ابتدا کد را بررسی می‌کند...';
+        const infoCard = document.getElementById('coderInfoCard');
+        if (infoCard) infoCard.remove();
       } else {
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-ananas-500 text-ananas-dark';
         coderBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
         input.placeholder = 'از آناناس بپرس ...';
+      }
+    }
 
-        const infoCard = document.getElementById('coderInfoCard');
-        if (infoCard) infoCard.remove();
+    function openCoderWorkspace() {
+      setMode('coder');
+    }
+
+    function setMode(mode) {
+      if (mode === 'coder' && !userToken) {
+        openSettingsModal('🔒 بخش کدنویس ویژه کاربران Pro و Ultra است. ابتدا اشتراک خود را فعال کنید.');
+        return;
+      }
+      const current = sessions.find(s => s.id === activeSessionId);
+      if (mode === 'coder') {
+        if (!current || current.mode !== 'coder') activeSessionId = null;
+        currentMode = 'coder';
+        updateModeUI('coder');
+        if (!sessions.some(s => s.id === activeSessionId && s.mode === 'coder')) {
+          startNewCoderConversation();
+        } else {
+          renderMessages();
+          renderHistoryList();
+          coderInitializeCurrent();
+        }
+      } else {
+        if (current && current.mode === 'coder') activeSessionId = null;
+        currentMode = 'chat';
+        updateModeUI('chat');
+        renderMessages();
+        renderHistoryList();
       }
     }
 
@@ -1647,6 +1734,10 @@ function renderDollarChart(c,i){
     async function handleSubmit(e) {
       if (e) e.preventDefault();
       if (isGenerating) return;
+      if (currentMode === 'coder') {
+        await handleCoderSubmit();
+        return;
+      }
 
       const inputEl = document.getElementById('promptInput');
       const userText = inputEl.value.trim();
@@ -2040,10 +2131,6 @@ function renderDollarChart(c,i){
         welcome.classList.remove('hidden');
         container.innerHTML = '';
 
-        if (currentMode === 'coder') {
-          showCoderInfoIfNeeded();
-        }
-
         return;
       }
 
@@ -2111,6 +2198,7 @@ function renderDollarChart(c,i){
                 </div>
 
                 <div class="prose-ananas text-sm text-gray-200">${parsedMd}</div>
+                ${msg.coderAction ? renderCoderMessageAction(msg, idx) : ''}
                 ${(msg.marketChart || msg.dollarChart) ? renderDollarChart(msg.marketChart || msg.dollarChart, idx) : ''}
                 ${audioPlayer}
                 </div>
@@ -2274,6 +2362,11 @@ function renderDollarChart(c,i){
 
     function startNewChat() {
       stopTextToSpeech();
+      if (currentMode === 'coder') {
+        startNewCoderConversation();
+        if (window.innerWidth < 1024) toggleSidebar(false);
+        return;
+      }
       activeSessionId = null;
       chatMenuOpenId = null;
       renderMessages();
@@ -2288,8 +2381,12 @@ function renderDollarChart(c,i){
       stopTextToSpeech();
       activeSessionId = id;
       chatMenuOpenId = null;
+      const selected = sessions.find(s => s.id === id);
+      currentMode = selected && selected.mode === 'coder' ? 'coder' : 'chat';
+      updateModeUI(currentMode);
       renderMessages();
       renderHistoryList();
+      if (currentMode === 'coder') coderInitializeCurrent();
 
       if (window.innerWidth < 1024) {
         toggleSidebar(false);
@@ -2305,6 +2402,9 @@ function renderDollarChart(c,i){
       if (activeSessionId === id) {
         stopTextToSpeech();
         activeSessionId = sessions.length > 0 ? sessions[0].id : null;
+        const nextSession = sessions.find(s => s.id === activeSessionId);
+        currentMode = nextSession && nextSession.mode === 'coder' ? 'coder' : 'chat';
+        updateModeUI(currentMode);
         renderMessages();
       }
 
@@ -2356,7 +2456,8 @@ function renderDollarChart(c,i){
             // Persist chart payloads so market charts survive reloads and reopening old conversations.
             ...(m.marketChart ? { marketChart: m.marketChart } : {}),
             ...(m.dollarChart ? { dollarChart: m.dollarChart } : {}),
-            ...(m.goldChoice ? { goldChoice: true } : {})
+            ...(m.goldChoice ? { goldChoice: true } : {}),
+            ...(m.coderAction ? { coderAction: m.coderAction } : {})
           }))
         }));
 
@@ -2385,6 +2486,7 @@ function renderDollarChart(c,i){
           <div class="chat-history-item group relative flex items-center gap-1 w-full px-2 py-0 rounded-lg text-xs transition border ${active ? 'is-active bg-[#303030] text-white border-[#505050] font-bold' : 'text-gray-300 hover:bg-[#202020] border-transparent'}">
             <button type="button" onclick="loadSession('${id}')" class="flex-1 min-w-0 overflow-hidden flex items-center gap-2 text-right py-1">
               <span class="shrink-0 text-sm">${s.isPinned ? '📌' : ''}</span>
+              ${s.mode === 'coder' ? '<span class="shrink-0 rounded-md bg-blue-500/15 border border-blue-400/25 text-blue-300 px-1.5 py-0.5 text-[9px]">کدنویس</span>' : ''}
               <span class="truncate flex-1" dir="auto">${escapeHtml(s.title || 'گفتگوی بدون عنوان')}</span>
             </button>
             <button type="button" onclick="toggleChatMenu(event, '${id}')" class="chat-menu-trigger shrink-0 w-8 h-8 rounded-lg inline-flex items-center justify-center text-white hover:bg-[#454545] transition" title="مدیریت گفتگو" aria-label="مدیریت گفتگو" aria-expanded="${menuOpen}">
