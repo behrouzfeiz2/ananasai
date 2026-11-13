@@ -12,21 +12,6 @@ async function auth(req,env){
 }
 async function tokenHash(token){const bytes=new TextEncoder().encode(token),digest=await crypto.subtle.digest("SHA-256",bytes);return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,"0")).join("");}
 async function release(env,key){try{const q=JSON.parse(await env.ANANAS_KV.get(key)||"{}");q.used=Math.max(0,(Number(q.used)||0)-1);await env.ANANAS_KV.put(key,JSON.stringify(q),{expirationTtl:172800});}catch{}}
-async function saveToLibrary(env,token,id,url,prompt,model,width,height){
-  const hash=await tokenHash(token),prefix="imgdata_"+hash+"_"+id;
-  const existing=await env.ANANAS_KV.get("imgmeta_"+hash+"_"+id);
-  if(existing)return true;
-  const response=await fetch(url);
-  if(!response.ok)throw new Error("دانلود تصویر تولیدشده ناموفق بود.");
-  const type=(response.headers.get("content-type")||"image/png").split(";")[0].trim();
-  if(!/^image\/(png|jpeg|webp|gif)$/.test(type))throw new Error("فرمت تصویر خروجی پشتیبانی نمی‌شود.");
-  const bytes=await response.arrayBuffer();
-  if(bytes.byteLength>24*1024*1024)throw new Error("حجم تصویر برای ذخیره در کتابخانه بیش از حد مجاز است.");
-  await env.ANANAS_KV.put(prefix,bytes,{expirationTtl:31536000});
-  const meta={id, name:String(prompt||"تصویر تولیدشده").slice(0,180),model,width:Number(width)||null,height:Number(height)||null,createdAt:new Date().toISOString(),contentType:type,size:bytes.byteLength};
-  await env.ANANAS_KV.put("imgmeta_"+hash+"_"+id,JSON.stringify(meta),{expirationTtl:31536000});
-  return true;
-}
 export async function onRequestPost({request,env}){
   const u=await auth(request,env);if(u.error)return out({error:u.error},u.status);
   try{
@@ -65,7 +50,7 @@ export async function onRequestPost({request,env}){
 }
 export async function onRequestGet({request,env}){
   const u=await auth(request,env);if(u.error)return out({error:u.error},u.status);
-  const id=new URL(request.url).searchParams.get("id");
+  const url=new URL(request.url),id=url.searchParams.get("id");
   if(!id){
     const usage=JSON.parse(await env.ANANAS_KV.get(u.key)||"{}");
     return out({success:true,quota:{used:Math.max(0,Number(usage.used)||0),limit:5}});
@@ -78,12 +63,26 @@ export async function onRequestGet({request,env}){
     const r=await fetch(API+"/generations/"+id,{headers:{Authorization:"Bearer "+env.ALPHA_KEY}}),d=await r.json();
     if(!r.ok)return out({error:d.error?.message||"خطا در دریافت وضعیت."},r.status);
     if(d.status==="failed"&&!job.released){await release(env,job.key);job.released=true;await env.ANANAS_KV.put("imagejob_"+id,JSON.stringify(job),{expirationTtl:86400});}
-    let librarySaved=false;
-    if(d.status==="ready"&&d.output?.url){
-      try{librarySaved=await saveToLibrary(env,u.token,id,d.output.url,job.prompt,job.model,job.width,job.height);if(!job.librarySaved){job.librarySaved=true;await env.ANANAS_KV.put("imagejob_"+id,JSON.stringify(job),{expirationTtl:86400});}}
-      catch(e){return out({success:true,status:"ready",output:d.output,librarySaved:false,libraryError:e.message});}
+    if(url.searchParams.get("download")==="1"){
+      if(d.status!=="ready"||!d.output?.url)return out({error:"تصویر هنوز آماده دریافت نیست."},409);
+      let imageUrl;
+      try{imageUrl=new URL(d.output.url);if(imageUrl.protocol!=="https:")throw new Error("invalid protocol");}
+      catch{return out({error:"نشانی تصویر خروجی معتبر نیست."},502);}
+      const imageResponse=await fetch(imageUrl.toString());
+      if(!imageResponse.ok)return out({error:"دریافت تصویر از سرویس تولید ناموفق بود."},502);
+      const contentType=(imageResponse.headers.get("content-type")||"image/png").split(";")[0].trim();
+      if(!/^image\/(png|jpeg|webp|gif)$/.test(contentType))return out({error:"فرمت تصویر خروجی پشتیبانی نمی‌شود."},415);
+      const contentLength=Number(imageResponse.headers.get("content-length")||0);
+      if(contentLength>24*1024*1024)return out({error:"حجم تصویر بیش از حد مجاز است."},413);
+      return new Response(imageResponse.body,{status:200,headers:{
+        "Content-Type":contentType,
+        ...(contentLength?{"Content-Length":String(contentLength)}:{}),
+        "Cache-Control":"no-store",
+        "Content-Disposition":'inline; filename="ananas-'+id+'"',
+        "X-Content-Type-Options":"nosniff"
+      }});
     }
-    return out({success:true,status:d.status,output:d.output||null,error:d.error||null,librarySaved});
+    return out({success:true,status:d.status,output:d.output||null,error:d.error||null});
   }catch{return out({error:"دریافت وضعیت تصویر ناموفق بود."},502);}
 }
 export async function onRequestOptions(){return new Response(null,{status:204,headers:{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type, X-User-Token","Access-Control-Allow-Methods":"GET, POST, OPTIONS"}});}
