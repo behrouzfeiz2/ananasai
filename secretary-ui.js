@@ -313,7 +313,11 @@ async function secretaryInit() {
     sessions = sessions.filter(function(session) {
       if (session.mode !== "secretary") return true;
       if (remoteIds.has(session.id)) return true;
-      return !deletedIds.has(session.id) && !(deletedBefore && Number(session.createdAt || session.updatedAt || 0) <= deletedBefore);
+      if (typeof isHistoryExpiredLocally === "function" && isHistoryExpiredLocally(session)) return false;
+      const activity = typeof historyActivityTimestamp === "function"
+        ? historyActivityTimestamp(session)
+        : Number(session.createdAt || session.updatedAt || 0);
+      return !deletedIds.has(session.id) && !(deletedBefore && activity <= deletedBefore);
     });
     remote.forEach(function(item) {
       if (!item.id) return;
