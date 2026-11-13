@@ -217,8 +217,12 @@ function findRequestedCodePath(task, files, history) {
   if (exactName) return exactName.path;
 
   const words = text.split(/[^a-z0-9_-]+/i);
+  const wantsPage = /صفحه|page/i.test(text);
   const mentionedStems = basenames.filter(item => item.stem.length >= 2 && words.includes(item.stem))
     .sort((a, b) => {
+      const aPagePenalty = wantsPage && !/\.html?$/i.test(a.path) ? 1 : 0;
+      const bPagePenalty = wantsPage && !/\.html?$/i.test(b.path) ? 1 : 0;
+      if (aPagePenalty !== bPagePenalty) return aPagePenalty - bPagePenalty;
       const aRoot = a.path.includes("/") ? 1 : 0;
       const bRoot = b.path.includes("/") ? 1 : 0;
       return aRoot - bRoot || a.path.length - b.path.length;
@@ -723,7 +727,7 @@ async function handlePost({ request, env }) {
       if (directCodePath) {
         const file = await getFile(linked.token, repository, directCodePath, data.branch);
         const sourceLines = file.content.split(/\r\n|\r|\n/);
-        const totalLines = sourceLines.length;
+        const totalLines = sourceLines.length > 1 && sourceLines[sourceLines.length - 1] === "" ? sourceLines.length - 1 : sourceLines.length;
         const explicitRange = task.match(/(?:خطوط?|lines?)\s*(\d+)\s*(?:تا|-|–)\s*(\d+)/i);
         const explicitStart = task.match(/(?:از\s*)?(?:خط|line)\s*(\d+)/i);
         let startLine = explicitRange
