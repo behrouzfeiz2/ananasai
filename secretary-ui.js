@@ -31,7 +31,8 @@ async function secretaryRefreshStatus() {
   }
   if (connect) {
     connect.disabled = !secretaryGoogleStatus.configured;
-    connect.textContent = secretaryGoogleStatus.connected ? "تغییر حساب گوگل" : "اتصال حساب گوگل";
+    const connectLabel = connect.querySelector("#secretaryConnectBtnLabel");
+    if (connectLabel) connectLabel.textContent = secretaryGoogleStatus.connected ? "تغییر حساب گوگل" : "اتصال حساب گوگل";
   }
   if (disconnect) disconnect.classList.toggle("hidden", !secretaryGoogleStatus.connected);
 }

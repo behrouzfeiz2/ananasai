@@ -1743,16 +1743,15 @@ if (!attachmentValidation.valid) {
       }, quota.status);
     }
 
-    // منشی فقط برای Ultra فعال است و سهمیه روزانه چت عمومی را مصرف نمی‌کند.
+    // منشی فقط برای Ultra فعال است؛ پیام‌های آن از همان سهمیه روزانه ۱۵۰تایی Ultra مصرف می‌کنند.
     if (mode === "secretary" && !quota.isUltra) {
       return jsonResponse({
         error: { message: "منشی هوشمند فقط برای کاربران دارای اشتراک Ultra فعال است." },
         quota: getQuotaInfo(quota)
       }, 403);
     }
-    const unlimitedSecretary = mode === "secretary" && quota.isUltra;
 
-    if (!unlimitedSecretary && quota.usedText >= quota.limitText) {
+    if (quota.usedText >= quota.limitText) {
       return jsonResponse({
         error: {
           message:
@@ -2043,14 +2042,12 @@ if (!attachmentValidation.valid) {
     // 15. SAVE QUOTA
     // ==================================================
 
-    // درخواست‌های منشی Ultra نامحدود هستند و سهمیه عمومی را افزایش نمی‌دهند.
-    if (!unlimitedSecretary) {
-      await saveQuota(
-        context,
-        env,
-        quota
-      );
-    }
+    // همه پیام‌های موفق، از جمله پیام‌های منشی، از سهمیه مشترک کاربر کم می‌کنند.
+    await saveQuota(
+      context,
+      env,
+      quota
+    );
 
     // ==================================================
     // 16. ADD METADATA
