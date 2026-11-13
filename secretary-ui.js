@@ -1,5 +1,7 @@
 /* AnanasAI Secretary UI */
 let secretaryGoogleStatus = { configured: false, connected: false, email: null };
+let secretaryHostingerMailboxes = [];
+let secretarySelectedEmailProvider = "";
 function secretaryHeaders() {
   return { "Content-Type": "application/json", "X-User-Token": userToken, "X-Device-UUID": deviceUUID };
 }
@@ -17,6 +19,78 @@ async function secretaryApi(action, payload) {
   if (!response.ok) throw new Error(data.error || "خطای منشی (" + response.status + ")");
   return data;
 }
+async function secretaryMailboxApi(payload, method) {
+  const options = {
+    method: method || "POST",
+    headers: secretaryHeaders(),
+    cache: "no-store",
+    credentials: "same-origin"
+  };
+  if (options.method === "POST") options.body = JSON.stringify(payload || {});
+  const response = await fetch("/api/mailboxes", options);
+  const data = await response.json().catch(function() { return {}; });
+  if (!response.ok) throw new Error(data.error || "خطای اتصال صندوق ایمیل (" + response.status + ")");
+  return data;
+}
+function secretaryGetSelectedEmailProvider() {
+  const select = document.getElementById("secretaryEmailAccountSelect");
+  const value = String((select && select.value) || secretarySelectedEmailProvider || "");
+  if (value === "google" && secretaryGoogleStatus.connected) {
+    return { type: "google", email: secretaryGoogleStatus.email || "Google" };
+  }
+  if (value.indexOf("hostinger:") === 0) {
+    const id = value.slice("hostinger:".length);
+    const mailbox = secretaryHostingerMailboxes.find(function(item) { return item.id === id; });
+    if (mailbox) return { type: "hostinger", mailboxId: mailbox.id, email: mailbox.email };
+  }
+  return null;
+}
+function secretarySelectEmailProvider(value) {
+  secretarySelectedEmailProvider = String(value || "");
+  const provider = secretaryGetSelectedEmailProvider();
+  const hint = document.getElementById("secretaryEmailAccountHint");
+  if (hint) hint.textContent = provider
+    ? ("عملیات ایمیل از طریق " + provider.email + " انجام می‌شود. قابلیت تقویم همچنان از حساب Google استفاده می‌کند.")
+    : "برای دریافت یا ارسال ایمیل، ابتدا یک حساب متصل انتخاب کن.";
+}
+function secretaryRenderMailboxes() {
+  const wrap = document.getElementById("secretaryEmailAccountWrap");
+  const select = document.getElementById("secretaryEmailAccountSelect");
+  const list = document.getElementById("secretaryConnectedMailboxes");
+  const options = [];
+  if (secretaryGoogleStatus.connected) {
+    options.push('<option value="google">Google · ' + escapeHtml(secretaryGoogleStatus.email || "حساب متصل") + '</option>');
+  }
+  secretaryHostingerMailboxes.forEach(function(item) {
+    options.push('<option value="hostinger:' + escapeHtml(item.id) + '">Hostinger · ' + escapeHtml(item.email) + '</option>');
+  });
+  if (wrap) wrap.classList.toggle("hidden", options.length === 0);
+  if (select) {
+    select.innerHTML = options.length ? options.join("") : '<option value="">هیچ حساب ایمیلی متصل نیست</option>';
+    const available = options.some(function(option) { return option.indexOf('value="' + secretarySelectedEmailProvider + '"') >= 0; });
+    if (!available) secretarySelectedEmailProvider = secretaryGoogleStatus.connected ? "google" : (secretaryHostingerMailboxes[0] ? "hostinger:" + secretaryHostingerMailboxes[0].id : "");
+    select.value = secretarySelectedEmailProvider;
+  }
+  if (list) {
+    list.innerHTML = secretaryHostingerMailboxes.map(function(item) {
+      return '<div class="flex items-center justify-between gap-2 rounded-lg border border-ananas-border bg-[#101722] px-3 py-2">' +
+        '<div class="min-w-0"><div class="text-xs font-semibold text-gray-200">Hostinger Email</div><div class="truncate text-[11px] text-gray-400" dir="ltr">' + escapeHtml(item.email) + '</div></div>' +
+        '<button type="button" onclick="secretaryDisconnectMailbox(\'' + escapeHtml(item.id) + '\')" class="shrink-0 rounded-md border border-red-500/30 px-2.5 py-1.5 text-[10px] font-semibold text-red-300 hover:bg-red-500/10">قطع اتصال</button></div>';
+    }).join("");
+    list.classList.toggle("hidden", secretaryHostingerMailboxes.length === 0);
+  }
+  secretarySelectEmailProvider(secretarySelectedEmailProvider);
+}
+async function secretaryRefreshMailboxes() {
+  try {
+    const result = await secretaryMailboxApi(null, "GET");
+    secretaryHostingerMailboxes = Array.isArray(result.mailboxes) ? result.mailboxes : [];
+  } catch (error) {
+    secretaryHostingerMailboxes = [];
+    console.warn("Hostinger mailbox list unavailable:", error);
+  }
+  secretaryRenderMailboxes();
+}
 async function secretaryRefreshStatus() {
   if (!userToken) return;
   try { secretaryGoogleStatus = await secretaryApi("status", { method: "GET" }); }
@@ -26,7 +100,7 @@ async function secretaryRefreshStatus() {
   const disconnect = document.getElementById("secretaryDisconnectBtn");
   if (label) {
     if (!secretaryGoogleStatus.configured) label.textContent = "اتصال گوگل هنوز پیکربندی نشده است.";
-    else if (secretaryGoogleStatus.connected) label.textContent = "حساب متصل: " + (secretaryGoogleStatus.email || "Google");
+    else if (secretaryGoogleStatus.connected) label.textContent = "حساب گوگل متصل: " + (secretaryGoogleStatus.email || "Google");
     else label.textContent = "حساب گوگل هنوز متصل نشده است.";
   }
   if (connect) {
@@ -35,6 +109,92 @@ async function secretaryRefreshStatus() {
     if (connectLabel) connectLabel.textContent = secretaryGoogleStatus.connected ? "تغییر حساب گوگل" : "اتصال حساب گوگل";
   }
   if (disconnect) disconnect.classList.toggle("hidden", !secretaryGoogleStatus.connected);
+  await secretaryRefreshMailboxes();
+}
+function secretaryShowOtherProviders(show) {
+  const chooser = document.getElementById("secretaryProviderChooser");
+  const form = document.getElementById("secretaryHostingerForm");
+  const message = document.getElementById("secretaryProviderMessage");
+  if (chooser) chooser.classList.toggle("hidden", !show);
+  if (form) form.classList.add("hidden");
+  if (message) message.classList.add("hidden");
+}
+function secretaryShowHostingerForm() {
+  const chooser = document.getElementById("secretaryProviderChooser");
+  const form = document.getElementById("secretaryHostingerForm");
+  const message = document.getElementById("secretaryProviderMessage");
+  const error = document.getElementById("secretaryHostingerError");
+  if (chooser) chooser.classList.add("hidden");
+  if (form) form.classList.remove("hidden");
+  if (message) message.classList.add("hidden");
+  if (error) error.classList.add("hidden");
+}
+function secretaryChooseCpanel() {
+  const chooser = document.getElementById("secretaryProviderChooser");
+  const form = document.getElementById("secretaryHostingerForm");
+  const message = document.getElementById("secretaryProviderMessage");
+  if (form) form.classList.add("hidden");
+  if (chooser) chooser.classList.remove("hidden");
+  if (message) {
+    message.textContent = "اتصال ایمیل‌های cPanel فعلاً در آناناس پشتیبانی نمی‌شود. می‌توانی Hostinger Email را انتخاب کنی یا بعداً دوباره بررسی کنی.";
+    message.classList.remove("hidden");
+  }
+}
+async function secretaryConnectHostinger(event) {
+  if (event && typeof event.preventDefault === "function") event.preventDefault();
+  const emailInput = document.getElementById("secretaryHostingerEmail");
+  const passwordInput = document.getElementById("secretaryHostingerPassword");
+  const button = document.getElementById("secretaryHostingerConnectBtn");
+  const errorBox = document.getElementById("secretaryHostingerError");
+  const email = String(emailInput && emailInput.value || "").trim();
+  const password = String(passwordInput && passwordInput.value || "");
+  if (errorBox) { errorBox.textContent = ""; errorBox.classList.add("hidden"); }
+  if (!email || !password) {
+    if (errorBox) { errorBox.textContent = "آدرس ایمیل و رمز عبور صندوق را وارد کن."; errorBox.classList.remove("hidden"); }
+    return;
+  }
+  if (button) { button.disabled = true; button.textContent = "در حال بررسی IMAP و SMTP..."; }
+  try {
+    const result = await secretaryMailboxApi({ action: "connect_hostinger", email: email, password: password });
+    if (passwordInput) passwordInput.value = "";
+    await secretaryRefreshMailboxes();
+    if (result.mailbox && result.mailbox.id) {
+      secretarySelectedEmailProvider = "hostinger:" + result.mailbox.id;
+      secretaryRenderMailboxes();
+    }
+    const chooser = document.getElementById("secretaryProviderChooser");
+    const form = document.getElementById("secretaryHostingerForm");
+    const message = document.getElementById("secretaryProviderMessage");
+    if (form) form.classList.add("hidden");
+    if (chooser) chooser.classList.remove("hidden");
+    if (message) {
+      message.textContent = "حساب " + (result.mailbox && result.mailbox.email || email) + " با موفقیت متصل شد. دریافت و ارسال ایمیل بررسی شدند.";
+      message.classList.remove("hidden");
+    }
+  } catch (error) {
+    if (passwordInput) passwordInput.value = "";
+    if (errorBox) { errorBox.textContent = error.message || "اتصال Hostinger ناموفق بود."; errorBox.classList.remove("hidden"); }
+  } finally {
+    if (button) { button.disabled = false; button.textContent = "بررسی و اتصال"; }
+  }
+}
+async function secretaryDisconnectMailbox(mailboxId) {
+  const mailbox = secretaryHostingerMailboxes.find(function(item) { return item.id === mailboxId; });
+  if (!mailbox || !confirm("اتصال صندوق " + mailbox.email + " قطع شود؟")) return;
+  try {
+    await secretaryMailboxApi({ action: "disconnect", mailboxId: mailboxId });
+    if (secretarySelectedEmailProvider === "hostinger:" + mailboxId) secretarySelectedEmailProvider = secretaryGoogleStatus.connected ? "google" : "";
+    await secretaryRefreshMailboxes();
+  } catch (error) {
+    alert(error.message || "قطع اتصال صندوق ایمیل ناموفق بود.");
+  }
+}
+function secretaryRequireEmailProvider() {
+  const provider = secretaryGetSelectedEmailProvider();
+  if (provider) return provider;
+  secretaryAdd("model", "برای مدیریت ایمیل‌ها ابتدا یک حساب Google یا Hostinger را از بخش اتصال حساب‌ها متصل و انتخاب کن.");
+  secretaryShowOtherProviders(true);
+  return null;
 }
 async function secretaryConnectGoogle() {
   try {
@@ -227,11 +387,17 @@ async function secretaryRequireGoogle() {
   secretaryAdd("model", message, { secretaryAction: { type: "connect" } });
   return false;
 }
-function secretaryPreviewEmail(email) {
+function secretaryPreviewEmail(email, provider) {
+  provider = provider || secretaryGetSelectedEmailProvider();
+  if (!provider) {
+    secretaryRequireEmailProvider();
+    return;
+  }
   const data = {
     to: String(email.to || "").trim(),
     subject: String(email.subject || "").trim(),
-    body: String(email.body || "").trim()
+    body: String(email.body || "").trim(),
+    fromAccount: provider.email || (provider.type === "google" ? "Google" : "")
   };
   if (!data.to || !data.subject || !data.body) {
     secretaryAdd("model", "برای آماده‌سازی ایمیل، گیرنده، موضوع و متن اصلی را مشخص کن.");
@@ -239,8 +405,9 @@ function secretaryPreviewEmail(email) {
   }
   const session = secretaryCurrentSession();
   session.secretary = session.secretary || {};
-  session.secretary.pendingAction = { type: "email", data: data };
-  secretaryAdd("model", "پیش‌نویس ایمیل آماده است. گیرنده و متن را بررسی کن؛ ارسال فقط پس از تأیید تو انجام می‌شود.", {
+  const selected = { type: provider.type, mailboxId: provider.mailboxId || null, email: provider.email || "" };
+  session.secretary.pendingAction = { type: "email", provider: selected, data: data };
+  secretaryAdd("model", "پیش‌نویس ایمیل برای حساب " + data.fromAccount + " آماده است. گیرنده و متن را بررسی کن؛ ارسال فقط پس از تأیید تو انجام می‌شود.", {
     secretaryAction: { type: "email_preview", data: data }
   });
 }
@@ -273,7 +440,8 @@ async function secretaryRunIntent(result, originalText) {
     return;
   }
   if (intent === "email_preview") {
-    if (await secretaryRequireGoogle()) secretaryPreviewEmail(result.email || {});
+    const provider = secretaryRequireEmailProvider();
+    if (provider) secretaryPreviewEmail(result.email || {}, provider);
     return;
   }
   if (intent === "calendar_preview") {
@@ -281,10 +449,21 @@ async function secretaryRunIntent(result, originalText) {
     return;
   }
   if (intent === "summarize_emails") {
-    if (!await secretaryRequireGoogle()) return;
-    const mail = await secretaryApi("list_emails", { action: "list_emails", query: result.query || "in:inbox", maxResults: result.maxResults || 6 });
+    const provider = secretaryRequireEmailProvider();
+    if (!provider) return;
+    let mail;
+    if (provider.type === "hostinger") {
+      mail = await secretaryMailboxApi({
+        action: "list_emails",
+        mailboxId: provider.mailboxId,
+        query: result.query || "",
+        maxResults: result.maxResults || 6
+      });
+    } else {
+      mail = await secretaryApi("list_emails", { action: "list_emails", query: result.query || "in:inbox", maxResults: result.maxResults || 6 });
+    }
     if (!mail.emails || !mail.emails.length) {
-      secretaryAdd("model", "ایمیلی مطابق این جست‌وجو پیدا نکردم.");
+      secretaryAdd("model", "ایمیلی مطابق این جست‌وجو در حساب " + provider.email + " پیدا نکردم.");
       return;
     }
     secretaryAdd("model", await secretarySummarize("email", mail.emails, originalText));
@@ -310,12 +489,20 @@ async function secretaryExecutePending() {
   if (!pending) return;
   window.secretaryActionExecuting = true;
   try {
-    if (!await secretaryRequireGoogle()) return;
     if (pending.type === "email") {
-      const result = await secretaryApi("send_email", { action: "send_email", email: pending.data });
+      const provider = pending.provider || { type: "google" };
+      let result;
+      if (provider.type === "hostinger") {
+        result = await secretaryMailboxApi({ action: "send_email", mailboxId: provider.mailboxId, email: pending.data });
+      } else {
+        if (!await secretaryRequireGoogle()) return;
+        result = await secretaryApi("send_email", { action: "send_email", email: pending.data });
+      }
       session.secretary.pendingAction = null;
-      secretaryAdd("model", "ایمیل با موفقیت ارسال شد." + (result.id ? "\nشناسه پیام: " + result.id : ""));
+      const accountLabel = result.account || provider.email || "";
+      secretaryAdd("model", "ایمیل از طریق " + accountLabel + " به سرور ارسال شد." + (result.messageId || result.id ? "\nشناسه پیام: " + (result.messageId || result.id) : "") + "\nتوجه: پذیرش توسط سرور ارسال به معنی تضمین تحویل نهایی به صندوق گیرنده نیست.");
     } else if (pending.type === "event") {
+      if (!await secretaryRequireGoogle()) return;
       const result = await secretaryApi("create_event", { action: "create_event", event: pending.data });
       session.secretary.pendingAction = null;
       let link = "";
@@ -350,7 +537,7 @@ function renderSecretaryMessageAction(message, index) {
   }
   if (action.type === "email_preview") {
     return '<div class="mt-3 rounded-xl border border-ananas-border bg-ananas-card p-3 text-gray-200"><div class="text-xs font-bold mb-2">پیش‌نمایش ایمیل</div>' +
-      '<div class="text-xs mb-1"><b>گیرنده:</b> <span dir="auto">' + escapeHtml(data.to || "") + '</span></div><div class="text-xs mb-2"><b>موضوع:</b> ' + escapeHtml(data.subject || "") + '</div>' +
+      '<div class="text-xs mb-1"><b>فرستنده:</b> <span dir="auto">' + escapeHtml(data.fromAccount || "Google") + '</span></div><div class="text-xs mb-1"><b>گیرنده:</b> <span dir="auto">' + escapeHtml(data.to || "") + '</span></div><div class="text-xs mb-2"><b>موضوع:</b> ' + escapeHtml(data.subject || "") + '</div>' +
       '<div class="text-sm whitespace-pre-wrap break-words rounded-lg bg-ananas-dark border border-ananas-border p-3 text-gray-100">' + escapeHtml(data.body || "") + '</div>' +
       '<div class="flex flex-wrap gap-2 mt-3"><button onclick="secretaryConfirmAction(' + index + ')" class="rounded-lg bg-ananas-500 px-4 py-2 text-xs font-bold text-ananas-dark hover:bg-ananas-400">تأیید و ارسال</button><button onclick="secretaryCancelAction(' + index + ')" class="rounded-lg border border-ananas-border px-4 py-2 text-xs text-gray-300 hover:bg-ananas-dark">لغو</button></div></div>';
   }
