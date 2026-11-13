@@ -157,6 +157,30 @@
     .core-glow {
       animation: orbitGlow 4s ease-in-out infinite;
     }
+
+    .secretary-showcase { isolation:isolate; }
+    .secretary-stage { perspective:1100px; transform-style:preserve-3d; }
+    .secretary-orbit { border-radius:50%; transform:rotateX(66deg) rotateZ(-18deg); box-shadow:0 0 55px rgba(16,185,129,.07); }
+    .secretary-orbit-two { transform:rotateX(66deg) rotateZ(24deg); }
+    .secretary-panel { transform-style:preserve-3d; transition:transform .65s cubic-bezier(.2,.8,.2,1),opacity .45s,filter .45s; backface-visibility:hidden; }
+    .secretary-panel-calendar { transform:translate3d(-12px,0,45px) rotateY(-13deg) rotateX(4deg); z-index:3; }
+    .secretary-panel-email { transform:translate3d(75px,16px,-65px) rotateY(-22deg) rotateX(5deg) scale(.88); opacity:.48; filter:blur(.5px); z-index:2; }
+    .secretary-panel-document { transform:translate3d(-75px,24px,-110px) rotateY(18deg) rotateX(5deg) scale(.82); opacity:.32; filter:blur(1px); z-index:1; }
+    .secretary-panel.is-selected { transform:translate3d(0,0,90px) rotateY(0) rotateX(0) scale(1); opacity:1; filter:none; z-index:5; }
+    .secretary-panel.is-behind { opacity:.28; filter:blur(1px); }
+    .secretary-tab.is-active { border-color:rgba(52,211,153,.5); background:rgba(16,185,129,.1); }
+    .secretary-tab.is-active [data-tab-arrow] { color:#6ee7b7; }
+    @media(max-width:640px) {
+      .secretary-stage { min-height:330px; }
+      .secretary-panel { width:min(82%,310px); }
+      .secretary-panel-calendar { transform:translate3d(-7px,0,35px) rotateY(-10deg) scale(.94); }
+      .secretary-panel-email { transform:translate3d(35px,12px,-55px) rotateY(-18deg) scale(.82); }
+      .secretary-panel-document { transform:translate3d(-35px,18px,-90px) rotateY(15deg) scale(.78); }
+      .secretary-panel.is-selected { transform:translate3d(0,0,70px) rotateY(0) scale(.94); }
+    }
+    @media(prefers-reduced-motion:reduce) {
+      .secretary-panel { transition:none; }
+    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between relative bg-grid-pattern">
@@ -442,6 +466,58 @@
         </article>
       </div>
     </section>
+    <section class="secretary-showcase relative overflow-hidden rounded-[2rem] border border-amber-400/20 bg-[#0d1420] p-5 sm:p-8 lg:p-10 space-y-8" aria-labelledby="secretary-showcase-title">
+      <div class="absolute inset-0 pointer-events-none opacity-40" aria-hidden="true" style="background: radial-gradient(ellipse at 50% 45%, rgba(16,185,129,.14), transparent 55%), linear-gradient(rgba(35,47,70,.18) 1px, transparent 1px), linear-gradient(90deg, rgba(35,47,70,.18) 1px, transparent 1px); background-size:auto, 34px 34px, 34px 34px;"></div>
+      <div class="relative z-10 text-center max-w-3xl mx-auto space-y-4">
+        <span class="inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-xs sm:text-sm font-extrabold text-amber-300"><span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> برای اولین بار در ایران</span>
+        <h2 id="secretary-showcase-title" class="text-2xl sm:text-4xl font-black leading-relaxed text-white">منشی اختصاصی آناناس؛ فراتر از یک چت‌بات</h2>
+        <p class="text-sm sm:text-base leading-8 text-gray-400">قرارها و برنامه‌هایتان را مدیریت کنید، با ایمیل‌هایتان کار کنید و برای اسناد و کارهای روزمره کمک بگیرید؛ همه در یک تجربه هوشمند و یکپارچه.</p>
+      </div>
+
+      <div class="relative z-10 grid lg:grid-cols-[.85fr_1.15fr] gap-8 lg:gap-12 items-center">
+        <div class="space-y-3 order-2 lg:order-1">
+          <button type="button" class="secretary-tab is-active w-full text-right rounded-2xl border border-emerald-400/40 bg-emerald-400/10 p-4 transition" data-secretary-tab="calendar" aria-pressed="true">
+            <span class="flex items-center gap-3"><span class="w-11 h-11 rounded-xl bg-emerald-400/15 flex items-center justify-center text-2xl">📅</span><span class="flex-1"><strong class="block text-white text-sm sm:text-base">تقویم و مدیریت قرارها</strong><span class="block text-xs text-gray-400 mt-1 leading-6">برنامه‌ریزی رویدادها و یادآوری قرارهای مهم</span></span><span class="text-emerald-300 text-xl">‹</span></span>
+          </button>
+          <button type="button" class="secretary-tab w-full text-right rounded-2xl border border-white/10 bg-white/[.03] p-4 transition hover:border-sky-400/40" data-secretary-tab="email" aria-pressed="false">
+            <span class="flex items-center gap-3"><span class="w-11 h-11 rounded-xl bg-sky-400/15 flex items-center justify-center text-2xl">✉️</span><span class="flex-1"><strong class="block text-white text-sm sm:text-base">مدیریت ایمیل‌ها</strong><span class="block text-xs text-gray-400 mt-1 leading-6">خواندن، دسته‌بندی و آماده‌سازی پاسخ ایمیل‌ها</span></span><span class="text-gray-500 text-xl">‹</span></span>
+          </button>
+          <button type="button" class="secretary-tab w-full text-right rounded-2xl border border-white/10 bg-white/[.03] p-4 transition hover:border-violet-400/40" data-secretary-tab="document" aria-pressed="false">
+            <span class="flex items-center gap-3"><span class="w-11 h-11 rounded-xl bg-violet-400/15 flex items-center justify-center text-2xl">📄</span><span class="flex-1"><strong class="block text-white text-sm sm:text-base">کار با اسناد و مستندات</strong><span class="block text-xs text-gray-400 mt-1 leading-6">کمک در تهیه، بررسی و سامان‌دهی مستندات</span></span><span class="text-gray-500 text-xl">‹</span></span>
+          </button>
+          <p class="text-[11px] leading-6 text-gray-500 px-2">برای اتصال سرویس‌ها و انجام بعضی عملیات، ممکن است لازم باشد حساب مربوطه را متصل و دسترسی‌های لازم را تأیید کنید.</p>
+        </div>
+
+        <div class="secretary-stage order-1 lg:order-2 relative min-h-[340px] sm:min-h-[420px] flex items-center justify-center" aria-label="نمای تعاملی سه‌بعدی تقویم، ایمیل و سند">
+          <div class="secretary-orbit absolute w-[78%] aspect-square rounded-full border border-emerald-400/10" aria-hidden="true"></div>
+          <div class="secretary-orbit secretary-orbit-two absolute w-[95%] aspect-square rounded-full border border-sky-400/10" aria-hidden="true"></div>
+          <div class="secretary-panel secretary-panel-calendar absolute w-[min(78%,350px)] rounded-2xl border border-emerald-300/30 bg-[#172638]/95 p-4 sm:p-5 shadow-2xl" data-secretary-panel="calendar">
+            <div class="flex items-center justify-between border-b border-white/10 pb-3"><div><span class="text-[10px] text-emerald-300">تقویم کاری</span><h3 class="font-extrabold text-white mt-1">آبان ۱۴۰۵</h3></div><span class="text-2xl">📅</span></div>
+            <div class="grid grid-cols-7 gap-1 mt-4 text-center text-[10px] text-gray-500"><span>ش</span><span>ی</span><span>د</span><span>س</span><span>چ</span><span>پ</span><span>ج</span></div>
+            <div class="grid grid-cols-7 gap-1 mt-2 text-center text-xs">
+              <span class="rounded-lg py-2 text-gray-700"></span><span class="rounded-lg py-2 text-gray-700"></span><span class="rounded-lg py-2 text-gray-700"></span><span class="rounded-lg py-2 text-gray-700"></span><span class="rounded-lg py-2 text-gray-700"></span><span class="rounded-lg py-2 text-gray-700"></span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">1</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">2</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">3</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">4</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">5</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">6</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">7</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">8</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">9</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">10</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">11</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">12</span><span class="rounded-lg py-2 bg-emerald-400 text-slate-950 font-black">13</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">14</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">15</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">16</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">17</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">18</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">19</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">20</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">21</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">22</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">23</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">24</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">25</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">26</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">27</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">28</span><span class="rounded-lg py-2 text-gray-300 bg-white/[.03]">29</span>
+            </div>
+            <div class="mt-4 rounded-xl bg-emerald-400/10 border border-emerald-300/15 p-3 flex items-center gap-3"><span class="w-2 h-2 rounded-full bg-emerald-400"></span><div><p class="text-xs text-white font-bold">جلسه برنامه‌ریزی</p><p class="text-[10px] text-gray-400 mt-1">۱۰:۳۰ · یادآوری فعال</p></div></div>
+          </div>
+          <div class="secretary-panel secretary-panel-email absolute w-[min(78%,350px)] rounded-2xl border border-sky-300/30 bg-[#172638]/95 p-4 sm:p-5 shadow-2xl" data-secretary-panel="email">
+            <div class="flex items-center justify-between border-b border-white/10 pb-3"><div><span class="text-[10px] text-sky-300">صندوق ورودی</span><h3 class="font-extrabold text-white mt-1">ایمیل‌های شما</h3></div><span class="text-2xl">✉️</span></div>
+            <div class="space-y-3 mt-4">
+              <div class="rounded-xl bg-white/[.05] p-3"><div class="flex justify-between gap-2"><b class="text-xs text-white">گزارش هفتگی پروژه</b><span class="text-[9px] text-sky-300">جدید</span></div><p class="text-[10px] text-gray-400 mt-2">خلاصه‌ای از آخرین تغییرات و موارد نیازمند پیگیری...</p></div>
+              <div class="rounded-xl bg-white/[.04] p-3"><b class="text-xs text-white">هماهنگی جلسه</b><p class="text-[10px] text-gray-400 mt-2">لطفاً زمان مناسب برای جلسه را اعلام کنید.</p></div>
+              <div class="rounded-xl border border-sky-300/20 bg-sky-400/10 p-3"><span class="text-[10px] text-sky-200">پیشنهاد منشی</span><p class="text-xs text-gray-200 mt-1">پاسخ پیشنهادی آماده بررسی شماست.</p></div>
+            </div>
+          </div>
+          <div class="secretary-panel secretary-panel-document absolute w-[min(78%,350px)] rounded-2xl border border-violet-300/30 bg-[#172638]/95 p-4 sm:p-5 shadow-2xl" data-secretary-panel="document">
+            <div class="flex items-center justify-between border-b border-white/10 pb-3"><div><span class="text-[10px] text-violet-300">فضای اسناد</span><h3 class="font-extrabold text-white mt-1">گزارش پروژه</h3></div><span class="text-2xl">📄</span></div>
+            <div class="mt-4 rounded-xl bg-white/[.04] p-4 space-y-3"><div class="h-2 w-2/3 rounded bg-violet-300/60"></div><div class="h-1.5 w-full rounded bg-white/15"></div><div class="h-1.5 w-[92%] rounded bg-white/10"></div><div class="h-1.5 w-[78%] rounded bg-white/10"></div><div class="pt-2"><div class="h-16 rounded-lg border border-dashed border-violet-300/25 flex items-center justify-center text-[10px] text-violet-200">نمودار و داده‌های سند</div></div><div class="h-1.5 w-[85%] rounded bg-white/10"></div><div class="h-1.5 w-1/2 rounded bg-white/10"></div></div>
+            <div class="mt-3 flex items-center gap-2 text-[10px] text-violet-200"><span>✦</span> تحلیل و آماده‌سازی هوشمند سند</div>
+          </div>
+          <div class="absolute bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-white/10 bg-black/40 px-4 py-2 text-[10px] sm:text-xs text-gray-400 backdrop-blur">برای مشاهده، هرکدام از ابزارها را انتخاب کنید</div>
+        </div>
+      </div>
+      <div class="relative z-10 text-center"><a href="index.html" class="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-l from-amber-400 to-yellow-300 px-6 py-3 text-sm font-black text-slate-950 shadow-lg shadow-amber-400/10 transition hover:scale-[1.02]">تجربه منشی اختصاصی آناناس <span aria-hidden="true">←</span></a></div>
+    </section>
+
     <section class="relative overflow-hidden rounded-3xl border border-ananas-border bg-gradient-to-l from-[#172235] via-[#111a28] to-[#10251f] p-6 sm:p-9 space-y-5" aria-labelledby="media-title">
       <div class="absolute -left-16 -top-20 w-56 h-56 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none"></div>
       <div class="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -535,6 +611,24 @@
         if (menuButton) menuButton.setAttribute('aria-expanded', 'false');
       }
     }
+
+    document.querySelectorAll('[data-secretary-tab]').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const selected = tab.dataset.secretaryTab;
+        document.querySelectorAll('[data-secretary-tab]').forEach((item) => {
+          const active = item === tab;
+          item.classList.toggle('is-active', active);
+          item.setAttribute('aria-pressed', String(active));
+        });
+        document.querySelectorAll('[data-secretary-panel]').forEach((panel) => {
+          const active = panel.dataset.secretaryPanel === selected;
+          panel.classList.toggle('is-selected', active);
+          panel.classList.toggle('is-behind', !active);
+        });
+      });
+    });
+    document.querySelector('[data-secretary-panel="calendar"]')?.classList.add('is-selected');
+    document.querySelectorAll('[data-secretary-panel]:not([data-secretary-panel="calendar"])').forEach((panel) => panel.classList.add('is-behind'));
   </script>
 </body>
 </html>
