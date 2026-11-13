@@ -1469,7 +1469,11 @@ async function callGroq(apiKey, contents, systemPrompt) {
       response: responseText.slice(0, 1500)
     });
 
-    return null;
+    return {
+      _providerError: {
+        status: response.status
+      }
+    };
   }
 
   const result = JSON.parse(responseText);
@@ -1494,6 +1498,58 @@ async function callGroq(apiKey, contents, systemPrompt) {
       model: CONFIG.GROQ_MODEL
     }
   };
+}
+
+async function callGroqWithRetry(apiKey, contents, systemPrompt, requestId) {
+  const retryableStatuses = [408, 425, 429, 500, 502, 503, 504];
+
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const result = await callGroq(apiKey, contents, systemPrompt);
+
+      if (!result?._providerError) return result;
+
+      const status = result._providerError.status;
+      if (!retryableStatuses.includes(status) || attempt === 2) {
+        console.warn("ANANAS_GROQ_FAILED", {
+          requestId,
+          status,
+          attempt
+        });
+        return null;
+      }
+
+      const delayMs = 700 * attempt;
+      console.warn("ANANAS_GROQ_RETRY", {
+        requestId,
+        status,
+        attempt,
+        delayMs
+      });
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+
+    } catch (error) {
+      if (attempt === 2) {
+        console.error("ANANAS_GROQ_EXCEPTION", {
+          requestId,
+          error: error?.name || "Error",
+          message: String(error?.message || error).slice(0, 300)
+        });
+        return null;
+      }
+
+      const delayMs = 700 * attempt;
+      console.warn("ANANAS_GROQ_RETRY", {
+        requestId,
+        attempt,
+        error: error?.name || "NetworkError",
+        delayMs
+      });
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+
+  return null;
 }
 
 // ======================================================
@@ -1897,10 +1953,11 @@ if (!attachmentValidation.valid) {
       // Groq نمی‌تواند فایل‌های ضمیمه را در این ساختار پردازش کند.
       if (groqKey && !attachmentExists) {
         try {
-          responseJson = await callGroq(
+          responseJson = await callGroqWithRetry(
             groqKey,
             contents,
-            systemPrompt
+            systemPrompt,
+            requestId
           );
         } catch (error) {
           console.error(
