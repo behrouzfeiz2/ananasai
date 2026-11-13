@@ -74,9 +74,11 @@ async function handlePost({ request, env }) {
     const accountHash = await sha256Hex(account.token);
     const prefix = "ananas_chat_history:" + accountHash + ":";
     const action = String(body.action || "");
+    const globalPurgedAt = Number(await env.ANANAS_KV.get("admin_chat_history_purge_at")) || 0;
 
     if (action === "history_list") {
-      const conversations = await listAccountRecords(env.ANANAS_KV, prefix);
+      const conversations = (await listAccountRecords(env.ANANAS_KV, prefix))
+        .filter(item => !globalPurgedAt || Number(item.created_at || 0) >= globalPurgedAt);
       const deletedPrefix = "ananas_chat_history_deleted:" + accountHash + ":";
       const deletedIds = [];
       let cursor;
@@ -86,7 +88,7 @@ async function handlePost({ request, env }) {
         cursor = page.list_complete ? null : page.cursor;
       } while (cursor);
       const clearedAt = Number(await env.ANANAS_KV.get("ananas_chat_history_clear:" + accountHash)) || 0;
-      return json({ conversations, deleted_ids: deletedIds, deleted_before: clearedAt });
+      return json({ conversations, deleted_ids: deletedIds, deleted_before: clearedAt, purged_before: globalPurgedAt });
     }
 
     if (action === "history_clear") {
@@ -119,6 +121,9 @@ async function handlePost({ request, env }) {
       try { conversation = JSON.parse(raw); } catch {
         return json({ error: "اطلاعات این گفتگو قابل بازیابی نیست." }, 500);
       }
+      if (globalPurgedAt && Number(conversation.created_at || 0) < globalPurgedAt) {
+        return json({ error: "این گفتگو در پاک‌سازی سراسری تاریخچه حذف شده است." }, 404);
+      }
       const now = Date.now();
       conversation.updated_at = now;
       await env.ANANAS_KV.put(storageKey, JSON.stringify(conversation), {
@@ -142,6 +147,10 @@ async function handlePost({ request, env }) {
     const incoming = body.conversation;
     if (!incoming || typeof incoming !== "object" || Array.isArray(incoming) || incoming.id !== id) {
       return json({ error: "ساختار گفتگو معتبر نیست." }, 400);
+    }
+    const incomingCreatedAt = Number(incoming.created_at) || Date.now();
+    if (globalPurgedAt && incomingCreatedAt < globalPurgedAt) {
+      return json({ error: "این تاریخچه در پاک‌سازی سراسری حذف شده و قابل بازیابی مجدد نیست." }, 410);
     }
 
     const inputMessages = Array.isArray(incoming.messages) ? incoming.messages : [];
@@ -167,7 +176,7 @@ async function handlePost({ request, env }) {
     const conversation = {
       id,
       title,
-      created_at: Number(incoming.created_at) || now,
+      created_at: incomingCreatedAt,
       updated_at: now,
       messages
     };
