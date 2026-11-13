@@ -2236,7 +2236,7 @@ function renderDollarChart(c,i){
 
           return `
             <div class="flex items-start gap-3 justify-end">
-              <div class="flex-1 max-w-[90%] sm:max-w-[82%] rounded-2xl rounded-tl-xs ${secretaryTheme ? 'bg-white border-slate-200' : 'bg-ananas-card border-ananas-border'} border \${msg.isError ? 'border-red-500/50' : ''} px-4 py-3.5 shadow-md">
+              <div class="flex-1 max-w-[90%] sm:max-w-[82%] rounded-2xl rounded-tl-xs ${secretaryTheme ? 'bg-white border-slate-200' : 'bg-ananas-card border-ananas-border'} border ${msg.isError ? 'border-red-500/50' : ''} px-4 py-3.5 shadow-md">
                 <div class="flex items-center justify-between mb-2 pb-1.5 border-b border-ananas-border/60">
                   <span class="text-xs font-bold ${secretaryTheme ? 'text-slate-800' : 'text-ananas-400'} flex items-center gap-1">${secretaryTheme ? 'منشی هوشمند' : 'آناناس (AnanasAI)'}</span>
 
@@ -2270,9 +2270,9 @@ function renderDollarChart(c,i){
                   </div>
                 </div>
 
-                <div class="prose-ananas text-sm ${secretaryTheme ? 'text-slate-700' : 'text-gray-200'}">\${parsedMd}</div>
-                \${msg.coderAction ? renderCoderMessageAction(msg, idx) : ''}
-                \${msg.secretaryAction ? renderSecretaryMessageAction(msg, idx) : ''}
+                <div class="prose-ananas text-sm ${secretaryTheme ? 'text-slate-700' : 'text-gray-200'}">${parsedMd}</div>
+                ${msg.coderAction ? renderCoderMessageAction(msg, idx) : ''}
+                ${msg.secretaryAction ? renderSecretaryMessageAction(msg, idx) : ''}
                 ${(msg.marketChart || msg.dollarChart) ? renderDollarChart(msg.marketChart || msg.dollarChart, idx) : ''}
                 ${audioPlayer}
                 </div>
@@ -2441,14 +2441,16 @@ function renderDollarChart(c,i){
         if (window.innerWidth < 1024) toggleSidebar(false);
         return;
       }
+      if (currentMode === 'secretary') {
+        secretaryStartNewConversation();
+        if (window.innerWidth < 1024) toggleSidebar(false);
+        return;
+      }
       activeSessionId = null;
       chatMenuOpenId = null;
       renderMessages();
       renderHistoryList();
-
-      if (window.innerWidth < 1024) {
-        toggleSidebar(false);
-      }
+      if (window.innerWidth < 1024) toggleSidebar(false);
     }
 
     async function loadSession(id) {
