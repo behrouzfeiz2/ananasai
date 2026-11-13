@@ -99,6 +99,18 @@
 
       </div>
 
+    <section class="space-y-3 border-t border-[#232f46] pt-5">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="space-y-1">
+          <h3 class="text-sm font-extrabold text-white">🧹 پاک‌سازی تصاویر قدیمی از KV</h3>
+          <p class="text-[11px] text-gray-400 leading-6">فایل‌های تصویری قدیمی، اطلاعات تصاویر و تصاویر مرجع موقت را از KV حذف می‌کند. این عملیات برگشت‌پذیر نیست و به کدهای اشتراک، پرداخت‌ها یا تاریخچه گفتگوها دست نمی‌زند.</p>
+          <p id="imageKvCleanupStatus" class="text-[11px] text-emerald-300"></p>
+        </div>
+        <button id="imageKvCleanupButton" onclick="purgeImageKv()" class="shrink-0 px-4 py-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-300 text-xs font-bold transition cursor-pointer">حذف تصاویر قدیمی از KV</button>
+      </div>
+    </section>
+      </div>
+
   <script>
     let pass = "";
 
@@ -326,6 +338,40 @@
         body: JSON.stringify({ action: 'deleteKey', key })
       });
       loadAdminData();
+    }
+
+    async function purgeImageKv() {
+      if (!confirm('تمام فایل‌های تصویری ذخیره‌شده در KV، شامل تصاویر تولیدشده قدیمی و تصاویر مرجع موقت، حذف شوند؟ این کار قابل بازگشت نیست.')) return;
+      const button = document.getElementById('imageKvCleanupButton');
+      const status = document.getElementById('imageKvCleanupStatus');
+      button.disabled = true;
+      button.classList.add('opacity-50', 'cursor-not-allowed');
+      status.textContent = 'در حال پاک‌سازی...';
+      let prefixIndex = 0, cursor = null, totalDeleted = 0, done = false;
+      try {
+        while (!done) {
+          const response = await fetch('/api/admin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'purgeImageKv', prefixIndex, cursor })
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || !data.ok) throw new Error(data.error || 'پاک‌سازی تصاویر ناموفق بود.');
+          totalDeleted += Number(data.deleted) || 0;
+          prefixIndex = Number(data.prefixIndex) || 0;
+          cursor = data.cursor || null;
+          done = Boolean(data.done);
+          status.textContent = 'تعداد کلیدهای تصویری حذف‌شده: ' + totalDeleted.toLocaleString('fa-IR');
+        }
+        status.textContent = 'پاک‌سازی کامل شد؛ ' + totalDeleted.toLocaleString('fa-IR') + ' کلید تصویری حذف شد.';
+        alert('پاک‌سازی تصاویر KV کامل شد. تعداد کلیدهای حذف‌شده: ' + totalDeleted.toLocaleString('fa-IR'));
+      } catch (error) {
+        status.textContent = error.message || 'خطا در پاک‌سازی تصاویر.';
+        alert(status.textContent);
+      } finally {
+        button.disabled = false;
+        button.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
     }
 
     async function createToken() {
