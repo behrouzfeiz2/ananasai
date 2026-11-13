@@ -192,9 +192,56 @@ function isProtectedPath(path) {
 function countLines(value) { return value.length ? value.split(/\r\n|\r|\n/).length : 0; }
 function isCodeDisplayRequest(value) {
   const text = String(value || "").replace(/[\u200c\u200f]/g, " ").toLowerCase();
-  const hasCodeTarget = /(کد|سورس|source|\bcode\b|محتوای فایل|\bindex(?:\.html)?\b|\.html\b|\.js\b)/i.test(text);
-  const asksToSeeIt = /(نمایش|نشون|نشان|ببینم|بفرست|ارسال|کپی|دریافت|محتوا|سورس کامل|کد کامل)/i.test(text);
+  const hasCodeTarget = /(کد|فایل|سورس|source|\bcode\b|محتوای فایل|\bindex(?:\.html)?\b|\.html\b|\.js\b)/i.test(text);
+  const asksToSeeIt = /(نمایش|نشون|نشان|ببینم|بفرست|ارسال|کپی|دریافت|محتوا|سورس کامل|کد کامل|ادامه|بخش بعدی|قسمت بعدی)/i.test(text);
   return hasCodeTarget && asksToSeeIt;
+}
+function findRequestedCodePath(task, files, history) {
+  const text = String(task || "").replace(/[\u200c\u200f]/g, " ").toLowerCase();
+  const list = Array.isArray(files) ? files : [];
+  const mentionedPath = list
+    .filter(item => text.includes(String(item.path || "").toLowerCase()))
+    .sort((a, b) => String(b.path).length - String(a.path).length)[0];
+  if (mentionedPath) return mentionedPath.path;
+
+  const basenames = list.map(item => {
+    const path = String(item.path || "");
+    const name = path.split("/").pop() || path;
+    const stem = name.replace(/\.[^.]+$/, "");
+    return { path, name: name.toLowerCase(), stem: stem.toLowerCase() };
+  });
+
+  const exactName = basenames
+    .filter(item => item.name && text.includes(item.name))
+    .sort((a, b) => a.path.length - b.path.length)[0];
+  if (exactName) return exactName.path;
+
+  const words = text.split(/[^a-z0-9_-]+/i);
+  const wantsPage = /صفحه|page/i.test(text);
+  const mentionedStems = basenames.filter(item => item.stem.length >= 2 && words.includes(item.stem))
+    .sort((a, b) => {
+      const aPagePenalty = wantsPage && !/\.html?$/i.test(a.path) ? 1 : 0;
+      const bPagePenalty = wantsPage && !/\.html?$/i.test(b.path) ? 1 : 0;
+      if (aPagePenalty !== bPagePenalty) return aPagePenalty - bPagePenalty;
+      const aRoot = a.path.includes("/") ? 1 : 0;
+      const bRoot = b.path.includes("/") ? 1 : 0;
+      return aRoot - bRoot || a.path.length - b.path.length;
+    });
+  if (mentionedStems.length) return mentionedStems[0].path;
+
+  if (/(ادامه|بخش بعدی|قسمت بعدی)/i.test(text)) {
+    const previous = (Array.isArray(history) ? history : []).slice().reverse()
+      .find(item => item && item.role === "assistant" && typeof item.content === "string");
+    const content = String(previous && previous.content || "");
+    const marker = "**فایل:** ";
+    const position = content.indexOf(marker);
+    if (position >= 0) {
+      const value = content.slice(position + marker.length).split("·")[0].trim();
+      const path = value.split(String.fromCharCode(96)).join("").trim();
+      if (list.some(item => item.path === path)) return path;
+    }
+  }
+  return null;
 }
 function codeLanguageForPath(path) {
   const extension = String(path || "").split(".").pop().toLowerCase();
@@ -672,6 +719,90 @@ async function handlePost({ request, env }) {
         !isProtectedPath(item.path) &&
         (isEditableSourcePath(item.path) || /^(README(?:\.[^/]+)?|package\.json|wrangler\.toml|vite\.config\.[^/]+|tsconfig\.json)$/i.test(item.path))
       );
+
+      // Explicit file requests are served directly from GitHub, without slow Gemini routing.
+      const directCodePath = wantsCodeDisplay
+        ? findRequestedCodePath(task, readable, body.history)
+        : null;
+      if (directCodePath) {
+        const file = await getFile(linked.token, repository, directCodePath, data.branch);
+        const sourceLines = file.content.split(/\r\n|\r|\n/);
+        const totalLines = sourceLines.length > 1 && sourceLines[sourceLines.length - 1] === "" ? sourceLines.length - 1 : sourceLines.length;
+        const explicitRange = task.match(/(?:خطوط?|lines?)\s*(\d+)\s*(?:تا|-|–)\s*(\d+)/i);
+        const explicitStart = task.match(/(?:از\s*)?(?:خط|line)\s*(\d+)/i);
+        let startLine = explicitRange
+          ? Number(explicitRange[1])
+          : (explicitStart ? Number(explicitStart[1]) : 1);
+
+        if (!explicitRange && !explicitStart && /(ادامه|بخش بعدی|قسمت بعدی)/i.test(task)) {
+          const previous = (Array.isArray(body.history) ? body.history : []).slice().reverse()
+            .find(item => item && item.role === "assistant" && typeof item.content === "string");
+          const previousText = String(previous && previous.content || "");
+          const marker = "**فایل:** ";
+          const position = previousText.indexOf(marker);
+          const previousPath = position >= 0
+            ? previousText.slice(position + marker.length).split("·")[0].split(String.fromCharCode(96)).join("").trim()
+            : "";
+          const previousRange = previousText.match(/خطوط:\s*(\d+)\s*تا\s*(\d+)/);
+          if (previousPath === directCodePath && previousRange) startLine = Number(previousRange[2]) + 1;
+        }
+
+        if (!Number.isInteger(startLine) || startLine < 1 || startLine > totalLines) {
+          return json({ error: "شماره خط درخواستی خارج از محدوده فایل است. فایل دارای " + totalLines + " خط است." }, 400);
+        }
+
+        const maxLines = 120;
+        const maxCharacters = 12000;
+        const selectedLines = [];
+        let characterCount = 0;
+        let endLine = startLine - 1;
+        for (let index = startLine - 1; index < totalLines && selectedLines.length < maxLines; index++) {
+          const line = sourceLines[index];
+          const nextLength = line.length + (selectedLines.length ? 1 : 0);
+          if (selectedLines.length && characterCount + nextLength > maxCharacters) break;
+          if (!selectedLines.length && line.length > maxCharacters) {
+            selectedLines.push(line.slice(0, maxCharacters));
+            characterCount = maxCharacters;
+            endLine = index + 1;
+            break;
+          }
+          selectedLines.push(line);
+          characterCount += nextLength;
+          endLine = index + 1;
+        }
+
+        const code = selectedLines.join("\n");
+        if (!code.trim()) return json({ error: "در این محدوده کدی برای نمایش پیدا نشد." }, 404);
+        const language = codeLanguageForPath(directCodePath);
+        const fence = String.fromCharCode(96).repeat(3);
+        const tick = String.fromCharCode(96);
+        const messageParts = [
+          "حتماً؛ سورس واقعی فایل را مستقیماً از GitHub خواندم. این بخش را می‌توانی کپی کنی و دقیقاً روی همین کد درخواست تغییر بدهی.",
+          "**فایل:** " + tick + directCodePath + tick + " · **خطوط:** " + startLine + " تا " + endLine + " از " + totalLines,
+          fence + language + "\n" + code + "\n" + fence
+        ];
+        const hasMore = endLine < totalLines;
+        if (hasMore) {
+          messageParts.push("این فایل طولانی است و برای خوانایی بخش‌بندی شده. برای دیدن ادامه، دکمهٔ «نمایش بخش بعدی» را بزن.");
+        } else if (startLine === 1) {
+          messageParts.push("کل محتوای این فایل در همین پاسخ نمایش داده شد. می‌توانی هر قسمت را کپی کنی و بگویی چه تغییری روی آن می‌خواهی.");
+        } else {
+          messageParts.push("به انتهای فایل رسیدیم. می‌توانی همین بخش را کپی کنی و درخواست تغییرت را بنویسی.");
+        }
+
+        return json({
+          message: messageParts.join("\n\n"),
+          files: [directCodePath],
+          code_display: true,
+          direct_source: true,
+          file_path: directCodePath,
+          next_line: hasMore ? endLine + 1 : null,
+          displayed_from: startLine,
+          displayed_to: endLine,
+          total_lines: totalLines
+        });
+      }
+
       const routePrompt = CODER_GUIDELINES +
         (wantsCodeDisplay
           ? "\nکاربر صریحاً سورس کد را برای مشاهده خواسته است. فقط فایل اصلی و دقیقاً مرتبط با درخواست را انتخاب کن؛ به‌جای آن فایل‌های جانبی یا README را انتخاب نکن."
