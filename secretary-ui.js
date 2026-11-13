@@ -499,6 +499,7 @@ function secretaryPreviewEvent(event, originalText) {
 async function secretaryRunIntent(result, originalText) {
   let intent = String(result.intent || "general").toLowerCase();
   if (secretaryLooksLikeCalendarRequest(originalText) && intent !== "calendar_preview") {
+    if (!await secretaryRequireGoogle()) return;
     const extracted = await secretaryAskCalendarEvent(originalText);
     if (extracted && extracted.event) {
       const event = extracted.event;
@@ -522,7 +523,13 @@ async function secretaryRunIntent(result, originalText) {
     return;
   }
   if (intent === "calendar_preview") {
-    if (await secretaryRequireGoogle()) secretaryPreviewEvent(result.event || {}, originalText);
+    if (!await secretaryRequireGoogle()) return;
+    const event = result.event || {};
+    if (!event.summary || !(event.startDate || event.startDateTime) || !event.startDateTime) {
+      secretaryAdd("model", result.reply || "برای ثبت یادآوری، لطفاً عنوان، تاریخ و ساعت دقیق را مشخص کن.");
+      return;
+    }
+    secretaryPreviewEvent(event, originalText);
     return;
   }
   if (intent === "summarize_emails") {
