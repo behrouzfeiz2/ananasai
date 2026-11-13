@@ -2,6 +2,19 @@
 let secretaryGoogleStatus = { configured: false, connected: false, email: null };
 let secretaryHostingerMailboxes = [];
 let secretarySelectedEmailProvider = "";
+const SECRETARY_ACTIVE_SESSION_KEY = "ananas_secretary_active_session";
+function secretaryRememberActiveSession(session) {
+  if (!session || !session.id) return;
+  try { localStorage.setItem(SECRETARY_ACTIVE_SESSION_KEY, session.id); } catch (error) {}
+}
+function secretaryFindRememberedSession() {
+  try {
+    const id = localStorage.getItem(SECRETARY_ACTIVE_SESSION_KEY);
+    return id ? (sessions.find(function(item) { return item.id === id && item.mode === "secretary"; }) || null) : null;
+  } catch (error) {
+    return null;
+  }
+}
 function secretaryHeaders() {
   return { "Content-Type": "application/json", "X-User-Token": userToken, "X-Device-UUID": deviceUUID };
 }
@@ -227,6 +240,7 @@ function secretaryNewSession() {
   };
   sessions.unshift(item);
   activeSessionId = id;
+  secretaryRememberActiveSession(item);
   saveSessions(); renderHistoryList(); renderMessages();
   return item;
 }
@@ -303,6 +317,10 @@ async function secretaryInit() {
     });
     let session = secretaryCurrentSession();
     if (!session) {
+      session = secretaryFindRememberedSession();
+      if (session) activeSessionId = session.id;
+    }
+    if (!session) {
       const list = sessions.filter(function(item) { return item.mode === "secretary"; });
       list.sort(function(a, b) { return Number(b.updatedAt || 0) - Number(a.updatedAt || 0); });
       if (list.length) {
@@ -311,6 +329,7 @@ async function secretaryInit() {
       }
     }
     if (!session) session = secretaryNewSession();
+    secretaryRememberActiveSession(session);
     if (session.remoteLoaded === false) await secretaryLoadRemote(session);
     saveSessions(); renderHistoryList(); renderMessages();
   } catch (error) {
