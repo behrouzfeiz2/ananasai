@@ -3079,6 +3079,286 @@ function renderDollarChart(c,i){
       '"': '&quot;',
       "'": '&#39;'
     }[m]));
-  </script>
+  
+    // ---------------- گفتگوی طبیعی عامل کدنویس ----------------
+    let coderInitializedSessionId = null;
+    let coderProjectCache = [];
+
+    function coderCurrentSession() {
+      return sessions.find(s => s.id === activeSessionId && s.mode === 'coder') || null;
+    }
+
+    function coderCreateSession() {
+      const id = 'coder_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9);
+      const record = {
+        id: id, title: 'گفتگوی کدنویسی', mode: 'coder', isPinned: false,
+        createdAt: Date.now(), updatedAt: Date.now(),
+        coder: {
+          stage: 'connect', repository: '', branch: '', proposal_id: null,
+          status: 'chat', pull_request_number: null, pull_request_url: null,
+          pull_request_branch: null
+        },
+        messages: []
+      };
+      sessions.unshift(record);
+      activeSessionId = id;
+      coderInitializedSessionId = null;
+      saveSessions();
+      renderHistoryList();
+      renderMessages();
+      return record;
+    }
+
+    function startNewCoderConversation() {
+      const session = coderCreateSession();
+      coderInitializeCurrent();
+      return session;
+    }
+
+    function coderPush(role, text, extra) {
+      const session = coderCurrentSession();
+      if (!session) return;
+      session.messages.push(Object.assign({ role: role, text: String(text || '') }, extra || {}));
+      session.updatedAt = Date.now();
+      saveSessions();
+      renderMessages();
+      renderHistoryList();
+    }
+
+    function coderSetTitleFromRequest(text) {
+      const session = coderCurrentSession();
+      if (!session) return;
+      if (!session.title || session.title === 'گفتگوی کدنویسی' || session.title === 'گفتگوی جدید') {
+        session.title = String(text || '').replace(/\s+/g, ' ').slice(0, 52) || 'گفتگوی کدنویسی';
+      }
+    }
+
+    function coderHeaders() {
+      return {
+        'Content-Type': 'application/json',
+        'X-User-Token': userToken,
+        'X-Device-UUID': deviceUUID
+      };
+    }
+
+    async function coderApiGet(params) {
+      const response = await fetch('/api/github?' + new URLSearchParams(params || {}).toString(), {
+        method: 'GET', headers: coderHeaders(), cache: 'no-store', credentials: 'same-origin'
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'ارتباط با GitHub ناموفق بود (' + response.status + ')');
+      return data;
+    }
+
+    async function coderApiPost(body) {
+      const response = await fetch('/api/github', {
+        method: 'POST', headers: coderHeaders(), body: JSON.stringify(body || {}),
+        cache: 'no-store', credentials: 'same-origin'
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'درخواست کدنویس ناموفق بود (' + response.status + ')');
+      return data;
+    }
+
+    async function coderMigrateLegacyHistory() {
+      if (!userToken) return;
+      let migrationKey = 'ananas_coder_history_imported_v1';
+      try {
+        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(userToken));
+        const suffix = Array.from(new Uint8Array(digest)).slice(0, 10)
+          .map(v => v.toString(16).padStart(2, '0')).join('');
+        migrationKey += '_' + suffix;
+      } catch (error) {}
+      if (localStorage.getItem(migrationKey) === '1') return;
+      try {
+        const list = await coderApiPost({ action: 'history_list' });
+        const legacy = Array.isArray(list.conversations) ? list.conversations.slice(0, 30) : [];
+        for (const item of legacy) {
+          const legacyId = String(item.id || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 55);
+          const id = 'legacy_coder_' + legacyId;
+          if (!legacyId || sessions.some(s => s.id === id)) continue;
+          try {
+            const result = await coderApiPost({ action: 'history_get', id: item.id });
+            const conversation = result.conversation;
+            if (!conversation || !Array.isArray(conversation.messages)) continue;
+            const messages = conversation.messages.map(message => ({
+              role: message.role === 'user' ? 'user' : 'model',
+              text: String(message.content || '').slice(0, 7000)
+            }));
+            sessions.push({
+              id: id, title: conversation.title || item.title || 'گفتگوی کدنویسی',
+              mode: 'coder', isPinned: false,
+              createdAt: conversation.created_at || Date.now(),
+              updatedAt: conversation.updated_at || Date.now(),
+              coder: {
+                stage: conversation.status === 'preview' ? 'preview' : (conversation.repository ? 'task' : 'project'),
+                repository: conversation.repository || '',
+                branch: conversation.branch || '',
+                proposal_id: conversation.proposal_id || null,
+                status: conversation.status || 'chat',
+                pull_request_number: conversation.pull_request_number || null,
+                pull_request_url: conversation.pull_request_url || null,
+                pull_request_branch: conversation.pull_request_branch || null
+              },
+              messages: messages
+            });
+          } catch (error) {}
+        }
+        saveSessions();
+        localStorage.setItem(migrationKey, '1');
+        renderHistoryList();
+      } catch (error) {
+        console.warn('Legacy coder history migration will retry later:', error);
+      }
+    }
+
+    async function coderInitializeCurrent(force) {
+      const session = coderCurrentSession();
+      if (!session || !userToken || isGenerating) return;
+      if (!session.coder) {
+        session.coder = {
+          stage: 'connect', repository: '', branch: '', proposal_id: null,
+          status: 'chat', pull_request_number: null, pull_request_url: null,
+          pull_request_branch: null
+        };
+      }
+      if (!force && coderInitializedSessionId === session.id) return;
+      coderInitializedSessionId = session.id;
+      try {
+        await coderMigrateLegacyHistory();
+        const latest = coderCurrentSession();
+        if (!latest) return;
+        if (latest.coder.repository && ['task', 'preview', 'draft'].includes(latest.coder.stage)) return;
+        const status = await coderApiGet({ action: 'status' });
+        if (!status.connected) {
+          latest.coder.stage = 'connect';
+          const hasCard = latest.messages.some(m => m.coderAction && m.coderAction.type === 'connect');
+          if (!hasCard) {
+            coderPush('model', 'برای شروع، حساب GitHub خودت را به آناناس متصل کن. بعد از اتصال، پروژه را انتخاب می‌کنیم و وارد گفتگوی کدنویسی می‌شویم.', {
+              coderAction: { type: 'connect' }
+            });
+          }
+          return;
+        }
+        await coderLoadProjectsAndAsk();
+      } catch (error) {
+        coderPush('model', 'برای ادامه گفتگو نتوانستم وضعیت GitHub را بررسی کنم. ' + error.message + '\nلطفاً دوباره تلاش کن.', {
+          coderAction: { type: 'retry_status' }
+        });
+      }
+    }
+
+    async function coderConnectGitHub() {
+      const session = coderCurrentSession();
+      if (!session) return;
+      try {
+        localStorage.setItem('ananas_pending_coder_session', session.id);
+        const result = await coderApiGet({ action: 'connect' });
+        if (!result.url) throw new Error('لینک اتصال GitHub دریافت نشد.');
+        location.href = result.url;
+      } catch (error) {
+        coderPush('model', 'اتصال GitHub آماده نشد: ' + error.message + '\nدوباره تلاش کن.', {
+          coderAction: { type: 'connect' }
+        });
+      }
+    }
+
+    async function coderLoadProjectsAndAsk() {
+      const session = coderCurrentSession();
+      if (!session) return;
+      const result = await coderApiGet({ action: 'repos' });
+      coderProjectCache = Array.isArray(result.repositories) ? result.repositories : [];
+      session.coder.stage = 'project';
+      if (!coderProjectCache.length) {
+        coderPush('model', 'اتصال برقرار شد، اما هیچ مخزن قابل دسترسی در حساب GitHub پیدا نکردم. دسترسی GitHub را بررسی کن و دوباره فهرست پروژه‌ها را بارگذاری کن.', {
+          coderAction: { type: 'reload_projects' }
+        });
+        return;
+      }
+      coderPush('model', 'حساب GitHub متصل شد. حالا کدام پروژه را می‌خواهی انتخاب کنیم؟', {
+        coderAction: { type: 'projects', projects: coderProjectCache.slice(0, 100) }
+      });
+    }
+
+    async function coderReloadProjects() {
+      try {
+        await coderLoadProjectsAndAsk();
+      } catch (error) {
+        coderPush('model', 'بارگذاری پروژه‌ها ناموفق بود: ' + error.message, {
+          coderAction: { type: 'reload_projects' }
+        });
+      }
+    }
+
+    function coderChooseProject(messageIndex) {
+      const session = coderCurrentSession();
+      const select = document.getElementById('coderProjectSelect_' + messageIndex);
+      if (!session || !select) return;
+      const project = coderProjectCache.find(item => item.full_name === select.value);
+      if (!project) return;
+      session.coder.repository = project.full_name;
+      session.coder.branch = project.default_branch || 'main';
+      session.coder.stage = 'task';
+      session.coder.status = 'chat';
+      session.coder.proposal_id = null;
+      session.coder.pull_request_number = null;
+      session.coder.pull_request_url = null;
+      session.coder.pull_request_branch = null;
+      coderPush('user', 'پروژه انتخاب‌شده: ' + project.full_name + ' (شاخه ' + session.coder.branch + ')');
+      coderPush('model', 'پروژه «' + project.full_name + '» انتخاب شد. حالا می‌خوای چه کاری روی این پروژه انجام بدیم؟\n\nمی‌تونی مشکل را توضیح بدی، قابلیت جدیدی بخوای یا درباره ساختار کد سؤال کنی. اول فایل‌های مرتبط را بررسی می‌کنم و راهکار را توضیح می‌دهم؛ هر وقت گفتی «خودت انجام بده»، پیش‌نویس تغییرات را آماده می‌کنم.');
+    }
+
+    function coderRenderPreview(data) {
+      const stats = Array.isArray(data.stats) ? data.stats : [];
+      const files = Array.isArray(data.preview) ? data.preview : [];
+      let html = '<div class="coder-inline-card"><div class="font-bold text-blue-200 text-sm">پیش‌نویس تغییرات آماده بررسی است</div>';
+      html += '<p class="mt-2 text-xs text-gray-300 leading-6">' + escapeHtml(data.summary || 'اصلاحات پیشنهادی آماده شد.') + '</p>';
+      html += '<div class="mt-3 space-y-2">';
+      stats.forEach(stat => {
+        html += '<div class="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-black/20 px-3 py-2 text-xs"><span class="code text-blue-200" dir="ltr">' + escapeHtml(stat.path || '') + '</span><span class="text-gray-300"><span class="text-emerald-300">+' + Number(stat.added || 0) + '</span> / <span class="text-red-300">-' + Number(stat.deleted || 0) + '</span> خط</span>' + (stat.high_risk ? '<span class="text-red-300">ریسک بالا</span>' : '') + '</div>';
+      });
+      files.forEach(file => {
+        html += '<div class="coder-preview-file"><div class="px-3 py-2 bg-black/20 text-xs text-blue-200 code" dir="ltr">' + escapeHtml(file.path || '') + '</div>';
+        (file.edits || []).forEach(edit => {
+          html += '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2">';
+          html += '<div class="rounded-lg bg-red-950/25 border border-red-900/30"><div class="px-2 pt-2 text-[10px] text-red-300">قبل</div><pre class="coder-preview-code text-gray-300">' + escapeHtml(edit.before || '') + '</pre></div>';
+          html += '<div class="rounded-lg bg-emerald-950/20 border border-emerald-900/30"><div class="px-2 pt-2 text-[10px] text-emerald-300">بعد</div><pre class="coder-preview-code text-gray-200">' + escapeHtml(edit.after || '') + '</pre></div>';
+          html += '</div>';
+        });
+        html += '</div>';
+      });
+      if (data.high_risk) html += '<p class="mt-3 text-xs text-red-300">هشدار: بخشی از تغییرات نسبتاً گسترده است؛ پیش از ثبت آن را با دقت بررسی کن.</p>';
+      html += '<div class="mt-3 coder-inline-muted">برای ثبت این تغییرات در GitHub، پیام «در مخزن اعمالش کن» را بفرست. تا قبل از این پیام هیچ تغییری در GitHub ثبت نمی‌شود.</div>';
+      html += '<div class="mt-2 flex flex-wrap gap-2"><button type="button" class="coder-inline-primary" onclick="coderQuickCommand(\'در مخزن اعمالش کن\')">ثبت پیش‌نویس در GitHub</button><button type="button" class="mt-2 px-3 py-2 rounded-lg border border-slate-600 text-gray-300 text-xs" onclick="coderQuickCommand(\'پیش‌نویس را لغو کن\')">لغو پیش‌نویس</button></div></div>';
+      return html;
+    }
+
+    function renderCoderMessageAction(message, index) {
+      const action = message.coderAction || {};
+      if (action.type === 'connect') {
+        return '<div class="coder-inline-card"><p class="text-sm text-blue-100">برای دسترسی به پروژه‌ها و بررسی فایل‌ها، ابتدا GitHub را وصل کن.</p><button type="button" class="coder-inline-primary" onclick="coderConnectGitHub()">اتصال به حساب GitHub</button></div>';
+      }
+      if (action.type === 'projects') {
+        const projects = Array.isArray(action.projects) ? action.projects : [];
+        const options = projects.map(project =>
+          '<option value="' + escapeHtml(project.full_name) + '">' +
+          escapeHtml(project.full_name) + (project.private ? ' · خصوصی' : ' · عمومی') + '</option>'
+        ).join('');
+        return '<div class="coder-inline-card"><label class="block text-xs text-blue-100 mb-2" for="coderProjectSelect_' + index + '">پروژه GitHub را انتخاب کن</label><select id="coderProjectSelect_' + index + '"><option value="">انتخاب پروژه...</option>' + options + '</select><button type="button" class="coder-inline-primary" onclick="coderChooseProject(' + index + ')">انتخاب این پروژه</button></div>';
+      }
+      if (action.type === 'reload_projects') {
+        return '<div class="coder-inline-card"><button type="button" class="coder-inline-primary" onclick="coderReloadProjects()">بارگذاری دوباره پروژه‌ها</button></div>';
+      }
+      if (action.type === 'retry_status') {
+        return '<div class="coder-inline-card"><button type="button" class="coder-inline-primary" onclick="coderInitializeCurrent(true)">تلاش دوباره</button></div>';
+      }
+      if (action.type === 'preview') return coderRenderPreview(action.data || {});
+      if (action.type === 'preview_done') {
+        return '<div class="coder-inline-card text-xs text-emerald-200">این پیش‌نویس در GitHub ثبت شده است.</div>';
+      }
+      return '';
+    }
+
+</script>
 </body>
 </html>
