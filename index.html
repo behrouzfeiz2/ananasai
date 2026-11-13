@@ -1153,6 +1153,20 @@
     let chatHistorySyncPromise = null;
     let lastHistorySyncAt = 0;
 
+    // زمان آخرین پاک‌سازی سراسری را روی همین دستگاه نگه می‌داریم تا پاسخ موقتاً قدیمی KV
+    // نتواند تاریخچه‌ای را که قبلاً پاک شده دوباره وارد فهرست محلی کند.
+    function getEffectiveHistoryPurgeTimestamp(serverValue) {
+      const storageKey = 'ananas_global_chat_history_purge_at_v1';
+      const received = Number(serverValue) || 0;
+      let stored = 0;
+      try { stored = Number(localStorage.getItem(storageKey)) || 0; } catch (_) {}
+      const effective = Math.max(received, stored);
+      if (effective > stored) {
+        try { localStorage.setItem(storageKey, String(effective)); } catch (_) {}
+      }
+      return effective;
+    }
+
     async function ensureSessionsAccountScope() {
       if (!crypto || !crypto.subtle) return false;
       // کاربران پولی بر اساس کد اشتراک و کاربران رایگان بر اساس UUID همین دستگاه تفکیک می‌شوند.
@@ -1392,6 +1406,14 @@
     window.addEventListener('online', scheduleVisibleHistoryRefresh);
     document.addEventListener('visibilitychange', scheduleVisibleHistoryRefresh);
 
+    // در تب‌هایی که روی موبایل باز می‌مانند، پاک‌سازی دستگاه دیگر هم حداکثر
+    // با یک نوبت همگام‌سازی دوره‌ای در بخش‌های اشتراکی اعمال می‌شود.
+    window.setInterval(() => {
+      if (document.visibilityState !== 'hidden' && ['coder', 'secretary'].includes(currentMode)) {
+        scheduleVisibleHistoryRefresh();
+      }
+    }, 60000);
+
     async function fetchImageQuotaFromServer() {
       if (!userToken || !(quotaState.isUltra || quotaState.tier === 'ultra' || userToken.startsWith('ULTRA-'))) return;
       try {
@@ -1599,22 +1621,21 @@
         renderMessages();
         renderHistoryList();
 
-        // ورود به کدنویس فقط محیط را باز می‌کند؛ گفتگوی جدید تا ارسال اولین پیام ساخته نمی‌شود.
-        if (!alreadyInCoderMode) {
-          coderSyncRemoteHistory().then(() => {
-            if (currentMode !== 'coder' || activeSessionId) return;
+        // ورود یا کلیک مجدد روی کدنویس، تاریخچه ابری را تازه می‌کند؛
+        // گفتگوی جدید همچنان فقط با ارسال اولین پیام واقعی ساخته می‌شود.
+        coderSyncRemoteHistory().then(() => {
+          if (currentMode !== 'coder') return;
+          if (!activeSessionId) {
             const latest = sessions
               .filter(session => session.mode === 'coder' &&
                 (session.messages?.length || session.remoteLoaded === false || session.coder?.repository))
               .sort((a, b) => Number(b.updatedAt || b.createdAt || 0) - Number(a.updatedAt || a.createdAt || 0))[0];
             if (latest) activeSessionId = latest.id;
-            renderMessages();
-            renderHistoryList();
-            if (coderCurrentSession()) coderInitializeCurrent();
-          }).catch(error => console.warn('Coder history refresh failed:', error));
-        } else if (coderCurrentSession()) {
-          coderInitializeCurrent();
-        }
+          }
+          renderMessages();
+          renderHistoryList();
+          if (coderCurrentSession()) coderInitializeCurrent();
+        }).catch(error => console.warn('Coder history refresh failed:', error));
       } else if (mode === 'secretary') {
         if (!current || current.mode !== 'secretary') activeSessionId = null;
         currentMode = 'secretary'; updateModeUI('secretary');
@@ -2819,7 +2840,7 @@ function renderDollarChart(c,i){
       const result = await chatHistoryApiPost({ action: 'history_list' });
       const deletedIds = new Set(Array.isArray(result.deleted_ids) ? result.deleted_ids : []);
       const deletedBefore = Number(result.deleted_before) || 0;
-      const purgedBefore = Number(result.purged_before) || 0;
+      const purgedBefore = getEffectiveHistoryPurgeTimestamp(result.purged_before);
       // حتی اگر KV موقتاً فهرست قدیمی را از کش برگرداند، رکوردهای قبل از پاک‌سازی
       // یا حذف‌شده نباید دوباره وارد تاریخچه محلی شوند.
       const remote = (Array.isArray(result.conversations) ? result.conversations : []).filter(item => {
@@ -2924,7 +2945,7 @@ function renderDollarChart(c,i){
         const result = await coderApiPost({ action: 'history_list' });
         const deletedIds = new Set(Array.isArray(result.deleted_ids) ? result.deleted_ids : []);
         const deletedBefore = Number(result.deleted_before) || 0;
-        const purgedBefore = Number(result.purged_before) || 0;
+        const purgedBefore = getEffectiveHistoryPurgeTimestamp(result.purged_before);
         const remote = (Array.isArray(result.conversations) ? result.conversations : []).filter(item => {
           const createdAt = Number(item.created_at) || 0;
           const activity = Number(item.updated_at || createdAt) || 0;
