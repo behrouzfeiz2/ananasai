@@ -165,7 +165,7 @@ export async function onRequest(context) {
     freeUsers.sort((a, b) => b.last_seen - a.last_seen);
     const totalFreeUsers = freeUsers.length;
 
-    return new Response(JSON.stringify({ tokens, payments, freeUsers: freeUsers.slice(0, 500), totalFreeUsers }), {
+    return new Response(JSON.stringify({ tokens, payments, freeUsers, totalFreeUsers }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' }
     });
