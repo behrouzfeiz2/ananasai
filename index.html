@@ -1078,7 +1078,7 @@
       const blob=await response.blob();
       if(!blob.size) throw new Error('فایل صوتی دریافتی خالی است.');
       const id='audio_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
-      const record={id,blob,mime:blob.type||'audio/mpeg',name:'صدای آناناس '+new Intl.DateTimeFormat('fa-IR',{dateStyle:'short',timeStyle:'short'}).format(new Date()),createdAt:Date.now(),text:w.text||'',speaker:w.speaker||'',tone:w.tone||''};
+      const record={id,blob,mime:blob.type||'audio/mpeg',sourceUrl:url,name:'صدای آناناس '+new Intl.DateTimeFormat('fa-IR',{dateStyle:'short',timeStyle:'short'}).format(new Date()),createdAt:Date.now(),text:w.text||'',speaker:w.speaker||'',tone:w.tone||''};
       const db=await openAudioDb();
       await new Promise((resolve,reject)=>{const tx=db.transaction(AUDIO_STORE,'readwrite');tx.objectStore(AUDIO_STORE).put(record);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);});
       audioObjectUrls[id]=URL.createObjectURL(blob);
@@ -1092,9 +1092,21 @@
       const db=await openAudioDb();
       return new Promise((resolve,reject)=>{const tx=db.transaction(AUDIO_STORE,'readonly'),req=tx.objectStore(AUDIO_STORE).getAll();req.onsuccess=()=>resolve((req.result||[]).sort((a,b)=>b.createdAt-a.createdAt));req.onerror=()=>reject(req.error);});
     }
-    async function downloadAudioRecord(id){
+    async function downloadAudioRecord(id, sourceUrl){
       const r=await getAudioRecord(id); if(!r)return alert('فایل در کتابخانه پیدا نشد.');
-      const u=URL.createObjectURL(r.blob),a=document.createElement('a');a.href=u;a.download='AnanasAI-Audio-'+new Date(r.createdAt).toISOString().slice(0,10)+'.mp3';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),30000);
+      const remoteUrl=sourceUrl||r.sourceUrl;
+      // Median native download manager requires a publicly accessible HTTP(S) URL; blob: URLs are not supported.
+      if(remoteUrl&&/^https?:\/\//i.test(remoteUrl)&&window.median&&window.median.share&&typeof window.median.share.downloadFile==='function'){
+        try{
+          await window.median.share.downloadFile({url:remoteUrl,open:false});
+          return;
+        }catch(error){
+          console.warn('Median native audio download failed; using browser download fallback.',error);
+        }
+      }
+      const u=URL.createObjectURL(r.blob),a=document.createElement('a');
+      a.href=u;a.download='AnanasAI-Audio-'+new Date(r.createdAt).toISOString().slice(0,10)+'.mp3';
+      document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),30000);
     }
     async function deleteAudioRecord(id){
       const db=await openAudioDb();
@@ -1147,7 +1159,7 @@
         const records=await getAllAudioRecords();
         if(!records.length){list.innerHTML='<p class="text-sm text-gray-400 text-center py-8">هنوز فایل صوتی ذخیره‌شده‌ای ندارید.</p>';return;}
         for(const r of records) if(!audioObjectUrls[r.id]) audioObjectUrls[r.id]=URL.createObjectURL(r.blob);
-        list.innerHTML=records.map(r=>'<div class="rounded-xl border border-ananas-border bg-ananas-dark/60 p-3 space-y-2"><div class="flex justify-between items-center gap-2"><div class="min-w-0"><div class="text-sm font-bold text-white">'+escapeHtml(r.name)+'</div><div class="text-[10px] text-gray-400">'+new Intl.DateTimeFormat('fa-IR',{dateStyle:'medium',timeStyle:'short'}).format(new Date(r.createdAt))+' · '+Math.round(r.blob.size/1024)+' KB</div></div><button onclick="removeAudioFromLibrary(\''+r.id+'\')" class="text-xs text-red-400">حذف</button></div><audio controls preload="none" class="w-full" src="'+audioObjectUrls[r.id]+'"></audio><button onclick="downloadAudioRecord(\''+r.id+'\')" class="px-3 py-1.5 rounded-lg bg-fuchsia-500 text-white text-xs">⬇ دانلود فایل</button></div>').join('');
+        list.innerHTML=records.map(r=>'<div class="rounded-xl border border-ananas-border bg-ananas-dark/60 p-3 space-y-2"><div class="flex justify-between items-center gap-2"><div class="min-w-0"><div class="text-sm font-bold text-white">'+escapeHtml(r.name)+'</div><div class="text-[10px] text-gray-400">'+new Intl.DateTimeFormat('fa-IR',{dateStyle:'medium',timeStyle:'short'}).format(new Date(r.createdAt))+' · '+Math.round(r.blob.size/1024)+' KB</div></div><button onclick="removeAudioFromLibrary(\''+r.id+'\')" class="text-xs text-red-400">حذف</button></div><audio controls preload="none" class="w-full" src="'+audioObjectUrls[r.id]+'"></audio><button onclick="downloadAudioRecord(\''+r.id+'\', \''+(r.sourceUrl||'').replace(/'/g,"\\'")+'\')" class="px-3 py-1.5 rounded-lg bg-fuchsia-500 text-white text-xs">⬇ دانلود فایل</button></div>').join('');
       }catch(e){list.innerHTML='<p class="text-sm text-red-300 text-center py-8">'+escapeHtml(e.message||'خطا در خواندن کتابخانه')+'</p>';}
     }
     async function removeAudioFromLibrary(id){if(!confirm('این فایل از حافظه همین مرورگر حذف شود؟'))return;await deleteAudioRecord(id);await openAudioLibrary();renderMessages();}
@@ -2160,7 +2172,7 @@ function renderDollarChart(c,i){
           if (msg.ttsWizard) return renderTtsWizard(idx, msg.ttsWizard);
           const parsedMd = renderAssistantContent(msg.text || '');
           const playableAudioUrl = (msg.audioId && audioObjectUrls[msg.audioId]) || msg.audioUrl;
-          const audioPlayer = playableAudioUrl ? `<div class="mt-3 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/10 p-3"><div class="text-xs text-fuchsia-200 mb-2">🎧 فایل صوتی آماده پخش است</div><audio controls preload="none" class="w-full" src="${escapeHtml(playableAudioUrl)}"></audio>${msg.audioId ? `<div class="flex gap-2 mt-2"><button type="button" onclick="downloadAudioRecord('${escapeHtml(msg.audioId)}')" class="text-xs px-3 py-1.5 rounded-lg bg-fuchsia-500 text-white">⬇ دانلود فایل</button><button type="button" onclick="openAudioLibrary()" class="text-xs px-3 py-1.5 rounded-lg border border-fuchsia-400/40 text-fuchsia-200">کتابخانه صوتی</button></div>` : '<div class="mt-2 flex items-center justify-between gap-2"><p class="text-[10px] text-amber-300">این مورد ممکن است در ذخیره محلی ذخیره نشود؛ لطفاً آن را هرچه سریع‌تر دانلود کنید.</p><a href="'+escapeHtml(msg.audioUrl||'')+'" target="_blank" rel="noopener" class="text-xs px-3 py-1.5 rounded-lg bg-fuchsia-500 text-white whitespace-nowrap">⬇ دریافت فایل</a></div>'}</div>` : '';
+          const audioPlayer = playableAudioUrl ? `<div class="mt-3 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/10 p-3"><div class="text-xs text-fuchsia-200 mb-2">🎧 فایل صوتی آماده پخش است</div><audio controls preload="none" class="w-full" src="${escapeHtml(playableAudioUrl)}"></audio>${msg.audioId ? `<div class="flex gap-2 mt-2"><button type="button" onclick="downloadAudioRecord('${escapeHtml(msg.audioId)}', '${escapeHtml(msg.audioUrl||'')}')" class="text-xs px-3 py-1.5 rounded-lg bg-fuchsia-500 text-white">⬇ دانلود فایل</button><button type="button" onclick="openAudioLibrary()" class="text-xs px-3 py-1.5 rounded-lg border border-fuchsia-400/40 text-fuchsia-200">کتابخانه صوتی</button></div>` : '<div class="mt-2 flex items-center justify-between gap-2"><p class="text-[10px] text-amber-300">این مورد ممکن است در ذخیره محلی ذخیره نشود؛ لطفاً آن را هرچه سریع‌تر دانلود کنید.</p><a href="'+escapeHtml(msg.audioUrl||'')+'" target="_blank" rel="noopener" class="text-xs px-3 py-1.5 rounded-lg bg-fuchsia-500 text-white whitespace-nowrap">⬇ دریافت فایل</a></div>'}</div>` : '';
 
           return `
             <div class="flex items-start gap-3 justify-end">
