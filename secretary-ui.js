@@ -383,15 +383,24 @@ async function secretaryInit() {
         activeSessionId = session.id;
       }
     }
-    if (!session) session = secretaryNewSession();
-    secretaryRememberActiveSession(session);
-    if (session.remoteLoaded === false) await secretaryLoadRemote(session);
+    if (session) {
+      secretaryRememberActiveSession(session);
+      if (session.remoteLoaded === false) await secretaryLoadRemote(session);
+    } else {
+      // صرفاً بازکردن منشی نباید یک گفتگوی خالی در تاریخچه ثبت کند.
+      activeSessionId = null;
+      try { localStorage.removeItem(SECRETARY_ACTIVE_SESSION_KEY); } catch (_) {}
+    }
     saveSessions(); renderHistoryList(); renderMessages();
   } catch (error) {
     console.warn("Secretary initialization failed:", error);
     const label = document.getElementById("secretaryGoogleStatusText");
     if (label) label.textContent = "دریافت اطلاعات منشی ناموفق بود: " + error.message;
-    if (!secretaryCurrentSession()) secretaryNewSession();
+    if (!secretaryCurrentSession()) {
+      activeSessionId = null;
+      renderMessages();
+      renderHistoryList();
+    }
   } finally {
     window.secretaryLoading = false;
   }
