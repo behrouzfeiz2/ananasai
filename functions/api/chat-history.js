@@ -155,7 +155,7 @@ async function handlePost({ request, env }) {
       const now = Date.now();
       conversation.updated_at = now;
       await env.ANANAS_KV.put(storageKey, JSON.stringify(conversation), {
-        expirationTtl: HISTORY_TTL,
+        expirationTtl: historyTtl,
         metadata: {
           title: conversation.title || "گفتگوی بدون عنوان",
           created_at: Number(conversation.created_at) || now,
@@ -211,7 +211,7 @@ async function handlePost({ request, env }) {
 
     await env.ANANAS_KV.delete("ananas_chat_history_deleted:" + accountHash + ":" + id);
     await env.ANANAS_KV.put(storageKey, JSON.stringify(conversation), {
-      expirationTtl: HISTORY_TTL,
+      expirationTtl: historyTtl,
       metadata: { title, created_at: conversation.created_at, updated_at: now }
     });
     return json({ saved: true, conversation: { id, title, created_at: conversation.created_at, updated_at: now } });
