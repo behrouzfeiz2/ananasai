@@ -3359,6 +3359,198 @@ function renderDollarChart(c,i){
       return '';
     }
 
+
+    function coderQuickCommand(command) {
+      const input = document.getElementById('promptInput');
+      if (!input) return;
+      input.value = command;
+      handleSubmit();
+    }
+
+    function coderBuildHistory() {
+      const session = coderCurrentSession();
+      if (!session) return [];
+      return session.messages
+        .filter(message => typeof message.text === 'string' && !message.isError)
+        .slice(-14)
+        .map(message => ({
+          role: message.role === 'user' ? 'user' : 'assistant',
+          content: message.text.slice(0, 1800)
+        }));
+    }
+
+    function coderWantsImplementation(text) {
+      const value = String(text || '').replace(/[\u200c\u200f]/g, ' ').toLowerCase();
+      return /خودت.{0,18}(?:انجام|اعمال|پیاده|بساز)|انجامش\s*(?:بده|کن)|اعمالش\s*(?:کن|بده)|پیاده\s*سازی\s*(?:کن|بکن)|اجراش\s*کن|تغییرات\s*(?:رو|را)?\s*(?:انجام|اعمال)|درستش\s*کن|کد\s*(?:رو|را)\s*(?:اعمال|پیاده)|شروع\s*کن/i.test(value);
+    }
+
+    function coderWantsCommit(text) {
+      const value = String(text || '').replace(/[\u200c\u200f]/g, ' ').toLowerCase();
+      return /(?:در\s*(?:مخزن|گیت\s*هاب)|روی\s*گیت\s*هاب)?\s*(?:اعمالش\s*کن|اعمال\s*کن|ثبتش\s*کن|ثبت\s*کن|تایید\s*میکنم|تایید\s*می\s*کنم|تأیید|تایید|اوکیه|برو\s*جلو)/i.test(value);
+    }
+
+    function coderCancelPreview(session) {
+      session.coder.stage = 'task';
+      session.coder.status = 'chat';
+      session.coder.proposal_id = null;
+      session.messages.forEach(message => {
+        if (message.coderAction && message.coderAction.type === 'preview') {
+          message.coderAction.type = 'preview_done';
+        }
+      });
+      coderPush('model', 'پیش‌نویس لغو شد. هیچ تغییری در GitHub ثبت نشد؛ می‌توانی درخواستت را اصلاح کنی یا کار دیگری بخواهی.');
+    }
+
+    async function coderSendToAgent(userText) {
+      const session = coderCurrentSession();
+      if (!session || !session.coder.repository) throw new Error('ابتدا پروژه GitHub را انتخاب کن.');
+      const meta = session.coder;
+      const history = coderBuildHistory();
+      const hasPreview = meta.stage === 'preview' && meta.proposal_id;
+
+      if (hasPreview && /لغو|بیخیال|بی\s*خیال|کنسل/i.test(userText)) {
+        coderCancelPreview(session);
+        return;
+      }
+
+      if (hasPreview && coderWantsCommit(userText)) {
+        const result = await coderApiPost({
+          action: 'confirm',
+          repo: meta.repository,
+          proposal_id: meta.proposal_id
+        });
+        meta.stage = 'draft';
+        meta.status = 'draft';
+        meta.pull_request_number = result.number || meta.pull_request_number;
+        meta.pull_request_url = result.pull_request || meta.pull_request_url;
+        meta.pull_request_branch = result.branch || meta.pull_request_branch;
+        session.messages.forEach(message => {
+          if (message.coderAction && message.coderAction.type === 'preview') {
+            message.coderAction.type = 'preview_done';
+          }
+        });
+        let reply = 'تغییرات در شاخه اختصاصی ' + (result.branch || '') + ' ثبت شد و Draft Pull Request شماره #' + Number(result.number || 0) + ' ساخته شد.';
+        if (result.pull_request) reply += '\n\n[مشاهده پیش‌نویس در GitHub](' + result.pull_request + ')';
+        reply += '\n\nنکته: شاخه main مستقیماً تغییر نکرده است؛ تغییرات پس از بررسی و ادغام Pull Request وارد شاخه اصلی می‌شوند.';
+        coderPush('model', reply);
+        return;
+      }
+
+      const implementation = coderWantsImplementation(userText);
+      let action = 'chat';
+      if (meta.stage === 'preview' && meta.proposal_id) action = 'refine';
+      else if (implementation) action = meta.proposal_id ? 'refine' : 'apply';
+
+      let message = userText;
+      if (implementation && !meta.proposal_id) {
+        const userMessages = session.messages.filter(item =>
+          item.role === 'user' && !String(item.text || '').startsWith('پروژه انتخاب‌شده:')
+        );
+        const originalRequest = userMessages.length > 1 ? userMessages[userMessages.length - 2].text : userText;
+        const assistantMessages = session.messages.filter(item =>
+          item.role !== 'user' && item.text && !item.coderAction
+        );
+        const plan = assistantMessages.length ? assistantMessages[assistantMessages.length - 1].text : '';
+        message = 'کاربر اکنون صریحاً دستور ساخت پیش‌نویس برای درخواست مطرح‌شده را داده است.\n' +
+          'درخواست اصلی کاربر: ' + originalRequest + '\n' +
+          'پیشنهاد و توضیح فنی آناناس: ' + plan + '\n' +
+          'پیام تأیید فعلی کاربر: ' + userText;
+      }
+
+      const result = await coderApiPost({
+        action: action,
+        repo: meta.repository,
+        branch: meta.branch,
+        message: message,
+        proposal_id: meta.proposal_id || undefined,
+        history: history
+      });
+
+      if (result.preview_required) {
+        meta.proposal_id = result.proposal_id;
+        meta.stage = 'preview';
+        meta.status = 'preview';
+        coderPush('model', result.assistant_message || result.summary || 'پیش‌نویس تغییرات آماده شد. جزئیات را بررسی کن.', {
+          coderAction: { type: 'preview', data: result }
+        });
+      } else {
+        coderPush('model', result.message || result.summary || 'پاسخی از عامل کدنویس دریافت نشد.');
+      }
+    }
+
+    async function handleCoderSubmit() {
+      const input = document.getElementById('promptInput');
+      const text = String(input && input.value || '').trim();
+      if (!text) return;
+      const session = coderCurrentSession() || coderCreateSession();
+      input.value = '';
+      autoResizeTextarea(input);
+
+      if (!session.coder) {
+        session.coder = { stage: 'connect', repository: '', branch: '', proposal_id: null, status: 'chat' };
+      }
+      if (session.coder.stage === 'connect') {
+        coderPush('user', text);
+        coderPush('model', 'برای بررسی پروژه باید اول حساب GitHub متصل باشد. از دکمه زیر اتصال را انجام بده؛ بعد از بازگشت، فهرست پروژه‌ها را خودکار نمایش می‌دهم.', {
+          coderAction: { type: 'connect' }
+        });
+        return;
+      }
+      if (session.coder.stage === 'project' || !session.coder.repository) {
+        coderPush('user', text);
+        await coderReloadProjects();
+        return;
+      }
+
+      coderPush('user', text);
+      coderSetTitleFromRequest(text);
+      saveSessions();
+      renderHistoryList();
+      isGenerating = true;
+      appendLoadingBubble(true, false);
+      try {
+        await coderSendToAgent(text);
+      } catch (error) {
+        coderPush('model', 'نتوانستم این مرحله را کامل کنم: ' + error.message + '\nمی‌توانی دوباره درخواست را بفرستی؛ هیچ تغییری در GitHub ثبت نشده مگر اینکه پیام تأیید ثبت تغییرات را داده باشی.');
+      } finally {
+        removeLoadingBubble();
+        isGenerating = false;
+        saveSessions();
+        renderHistoryList();
+        renderMessages();
+      }
+    }
+
+    async function coderRestoreFromUrl() {
+      const params = new URLSearchParams(location.search);
+      const isCoderReturn = params.get('mode') === 'coder' || params.has('github') || params.has('github_error');
+      if (!isCoderReturn) return;
+      const pendingId = localStorage.getItem('ananas_pending_coder_session');
+      if (pendingId && sessions.some(s => s.id === pendingId && s.mode === 'coder')) {
+        activeSessionId = pendingId;
+      }
+      localStorage.removeItem('ananas_pending_coder_session');
+      currentMode = 'coder';
+      if (!coderCurrentSession()) {
+        activeSessionId = null;
+        coderCreateSession();
+      }
+      updateModeUI('coder');
+      const error = params.get('github_error');
+      history.replaceState({}, '', location.pathname);
+      if (error) {
+        coderPush('model', 'اتصال GitHub کامل نشد (' + error + '). دوباره تلاش کن.', {
+          coderAction: { type: 'connect' }
+        });
+      } else {
+        await coderInitializeCurrent(true);
+      }
+    }
+
+    // بازگشت OAuth و لینک مستقیم کدنویس، همان صفحه چت را باز می‌کنند.
+    coderRestoreFromUrl();
+    // ----------------------------------------------------------
+
 </script>
 </body>
 </html>
