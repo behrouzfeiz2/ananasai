@@ -441,11 +441,13 @@ async function handlePost({ request, env }) {
       const recordKey = id => "coder_history_record:" + accountHash + ":" + id;
       const deletedPrefix = "coder_history_deleted:" + accountHash + ":";
       const clearMarkerKey = "coder_history_clear:" + accountHash;
+      const globalPurgedAt = Number(await env.ANANAS_KV.get("admin_chat_history_purge_at")) || 0;
       const validId = value => /^[A-Za-z0-9_-]{8,64}$/.test(String(value || ""));
       const rawIndex = await env.ANANAS_KV.get(indexKey);
       let index = [];
       try { index = rawIndex ? JSON.parse(rawIndex) : []; } catch { index = []; }
       if (!Array.isArray(index)) index = [];
+      if (globalPurgedAt) index = index.filter(item => Number(item?.created_at || 0) >= globalPurgedAt);
 
       if (action === "history_list") {
         const cutoff = Date.now() - HISTORY_TTL * 1000;
@@ -477,7 +479,7 @@ async function handlePost({ request, env }) {
           await env.ANANAS_KV.put(retentionKey, "1", { expirationTtl: HISTORY_TTL });
         }
         await env.ANANAS_KV.put(indexKey, JSON.stringify(index), { expirationTtl: HISTORY_TTL });
-        return json({ conversations: index.filter(item => item && validId(item.id)).sort((a, b) => Number(b.updated_at || 0) - Number(a.updated_at || 0)), deleted_ids: deletedIds, deleted_before: deletedBefore });
+        return json({ conversations: index.filter(item => item && validId(item.id)).sort((a, b) => Number(b.updated_at || 0) - Number(a.updated_at || 0)), deleted_ids: deletedIds, deleted_before: deletedBefore, purged_before: globalPurgedAt });
       }
 
       if (action === "history_clear") {
@@ -499,6 +501,7 @@ async function handlePost({ request, env }) {
         if (!raw) return json({ error: "این گفتگو پیدا نشد یا حذف شده است." }, 404);
         let conversation;
         try { conversation = JSON.parse(raw); } catch { return json({ error: "اطلاعات این گفتگو قابل بازیابی نیست." }, 500); }
+        if (globalPurgedAt && Number(conversation.created_at || 0) < globalPurgedAt) return json({ error: "این گفتگو در پاک‌سازی سراسری تاریخچه حذف شده است." }, 404);
         conversation.updated_at = Date.now();
         await env.ANANAS_KV.put(storageKey, JSON.stringify(conversation), { expirationTtl: HISTORY_TTL });
         index = index.map(item => item?.id === id ? { ...item, updated_at: conversation.updated_at } : item);
@@ -521,6 +524,7 @@ async function handlePost({ request, env }) {
       }
 
       if (action === "history_rename") {
+        if (previous && globalPurgedAt && Number(previous.created_at || 0) < globalPurgedAt) return json({ error: "این گفتگو در پاک‌سازی سراسری تاریخچه حذف شده است." }, 404);
         const title = String(body.title || "").replace(/[\r\n\t]+/g, " ").trim().slice(0, 120);
         if (!title) return json({ error: "عنوان گفتگو نمی‌تواند خالی باشد." }, 400);
         if (!previous) return json({ error: "گفتگو پیدا نشد." }, 404);
@@ -538,6 +542,8 @@ async function handlePost({ request, env }) {
       if (!incoming || typeof incoming !== "object" || Array.isArray(incoming) || incoming.id !== id) {
         return json({ error: "ساختار اطلاعات گفتگو معتبر نیست." }, 400);
       }
+      const incomingCreatedAt = Number(incoming.created_at) || Number(previous?.created_at) || Date.now();
+      if (globalPurgedAt && incomingCreatedAt < globalPurgedAt) return json({ error: "این تاریخچه در پاک‌سازی سراسری حذف شده و قابل بازیابی مجدد نیست." }, 410);
       const repository = String(incoming.repository || previous?.repository || "").trim();
       if (repository && !repoOK(repository)) return json({ error: "نام پروژه در اطلاعات گفتگو معتبر نیست." }, 400);
       if (previous?.repository && repository && previous.repository !== repository) {
@@ -589,7 +595,7 @@ async function handlePost({ request, env }) {
         pull_request_url: pullUrl || null,
         pull_request_branch: pullBranch || null,
         status: requestedStatus,
-        created_at: previous?.created_at || now,
+        created_at: previous?.created_at || incomingCreatedAt,
         updated_at: now
       };
       await env.ANANAS_KV.delete(deletedPrefix + id);
