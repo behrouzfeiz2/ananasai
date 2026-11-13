@@ -1275,6 +1275,14 @@ async function callGemini(
       ok: response.ok,
       status: response.status,
       responseText,
+      retryAfterMs: (() => {
+        const value = response.headers.get("Retry-After");
+        if (!value) return 0;
+        const seconds = Number(value);
+        if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+        const dateMs = Date.parse(value);
+        return Number.isFinite(dateMs) ? Math.max(0, dateMs - Date.now()) : 0;
+      })(),
       model: cleanModel
     };
 
@@ -1282,6 +1290,49 @@ async function callGemini(
     clearTimeout(timer);
   }
 }
+
+// Extract provider error details without logging API keys or full prompts.
+function getGeminiErrorDetails(responseText) {
+  try {
+    const parsed = JSON.parse(responseText || "{}");
+    const error = parsed?.error || {};
+    const details = Array.isArray(error.details) ? error.details : [];
+    return {
+      code: Number(error.code) || null,
+      status: String(error.status || ""),
+      message: String(error.message || "").slice(0, 500),
+      reasons: details
+        .map(item => item?.reason || item?.["@type"] || "")
+        .filter(Boolean)
+        .slice(0, 8)
+    };
+  } catch {
+    return {
+      code: null,
+      status: "",
+      message: String(responseText || "").slice(0, 300),
+      reasons: []
+    };
+  }
+}
+
+function isHardQuotaExhaustion(details) {
+  const text = [
+    details?.status,
+    details?.message,
+    ...(details?.reasons || [])
+  ].join(" ").toLowerCase();
+
+  return /per.?day|daily|requests.?per.?day|per.?month|monthly|billing|billing.?limit|project.?budget/.test(text);
+}
+
+function getRetryDelayMs(result, attempt) {
+  const exponential = Math.min(800 * (2 ** Math.max(0, attempt - 1)), 2400);
+  const providerDelay = Number(result?.retryAfterMs) || 0;
+  // Do not let a provider hint create a long-running request; cap the wait.
+  return Math.max(500, Math.min(providerDelay || exponential, 2500));
+}
+
 // ======================================================
 // 8.1 GEMINI RETRY - فقط برای خطاهای موقت مدل اصلی
 // ======================================================
@@ -1291,7 +1342,8 @@ async function callGeminiWithRetry(
   apiKey,
   payload,
   systemPrompt,
-  maxAttempts = 1
+  maxAttempts = 2,
+  requestId = "unknown"
 ) {
   let lastError = null;
 
@@ -1304,19 +1356,40 @@ async function callGeminiWithRetry(
         systemPrompt
       );
 
-      // خطاهای موقت سرور یا Gateway ارزش یک تلاش مجدد دارند.
-      const retryableStatus = [408, 425, 500, 502, 503, 504]
-        .includes(result.status);
+      const details = result.ok
+        ? null
+        : getGeminiErrorDetails(result.responseText);
+      const hardQuota = result.status === 429 && isHardQuotaExhaustion(details);
+      const retryableStatus = [408, 425, 429, 500, 502, 503, 504]
+        .includes(result.status) && !hardQuota;
 
       if (!result.ok && retryableStatus && attempt < maxAttempts) {
+        const delayMs = getRetryDelayMs(result, attempt);
         console.warn("ANANAS_GEMINI_RETRY", {
+          requestId,
           model,
           attempt,
-          status: result.status
+          status: result.status,
+          providerStatus: details?.status || null,
+          providerCode: details?.code || null,
+          delayMs
         });
 
-        await new Promise(resolve => setTimeout(resolve, 800));
+        await new Promise(resolve => setTimeout(resolve, delayMs));
         continue;
+      }
+
+      if (!result.ok) {
+        console.warn("ANANAS_GEMINI_ATTEMPT_FAILED", {
+          requestId,
+          model,
+          attempt,
+          status: result.status,
+          hardQuota,
+          providerStatus: details?.status || null,
+          providerCode: details?.code || null,
+          message: details?.message || ""
+        });
       }
 
       return result;
@@ -1324,19 +1397,21 @@ async function callGeminiWithRetry(
     } catch (error) {
       lastError = error;
 
-      // خطاهای fetch و timeout معمولاً موقتی‌اند.
       if (attempt >= maxAttempts) {
         throw error;
       }
 
+      const delayMs = Math.min(800 * (2 ** (attempt - 1)), 2400);
       console.warn("ANANAS_GEMINI_RETRY", {
+        requestId,
         model,
         attempt,
         error: error?.name || "NetworkError",
-        message: error?.message || String(error)
+        message: String(error?.message || error).slice(0, 300),
+        delayMs
       });
 
-      await new Promise(resolve => setTimeout(resolve, 800));
+      await new Promise(resolve => setTimeout(resolve, delayMs));
     }
   }
 
@@ -1730,24 +1805,41 @@ if (!attachmentValidation.valid) {
     let geminiSuccess = false;
     let lastError = null;
 
+    const requestId = crypto.randomUUID();
+
     const models = unique([
-  requestedModel,
-  ...CONFIG.FALLBACK_MODELS
-]).filter(modelName =>
-  CONFIG.ALLOWED_MODELS.includes(modelName)
-);
+      requestedModel,
+      ...CONFIG.FALLBACK_MODELS
+    ]).filter(modelName =>
+      CONFIG.ALLOWED_MODELS.includes(modelName)
+    );
+
+    const modelAttempts = [];
+
+    console.info("ANANAS_CHAT_REQUEST_START", {
+      requestId,
+      mode,
+      modelCount: models.length,
+      hasAttachments: attachmentExists
+    });
 
     for (const targetModel of models) {
       try {
-        // مدل اصلی در صورت خطای موقت فقط یک بار در پس‌زمینه تکرار می‌شود.
-        // مدل‌های جایگزین بدون Retry اجرا می‌شوند تا تأخیر بی‌مورد ایجاد نشود.
+        // تمام مدل‌ها یک تلاش مجدد محدود برای خطاهای موقت دارند.
         const result = await callGeminiWithRetry(
           targetModel,
           geminiKey,
           payload,
           systemPrompt,
-          targetModel === models[0] ? 2 : 1
+          2,
+          requestId
         );
+
+        modelAttempts.push({
+          model: targetModel,
+          status: result.status,
+          ok: result.ok
+        });
 
         if (!result.ok) {
           lastError = {
@@ -1755,12 +1847,8 @@ if (!attachmentValidation.valid) {
             response: result.responseText
           };
 
-          // خطای سهمیه پروژه با تغییر مدل حل نمی‌شود.
-          if (result.status === 429) {
-            break;
-          }
-
-          // خطای احراز هویت یا کلید نامعتبر
+          // فقط خطاهای احراز هویت/مجوز، ادامه مدل‌ها را بی‌فایده می‌کنند.
+          // خطای 429 ممکن است محدودیت موقت مدل باشد؛ مدل بعدی را نیز امتحان کن.
           if (result.status === 401 || result.status === 403) {
             break;
           }
@@ -1784,11 +1872,18 @@ if (!attachmentValidation.valid) {
           message: error.message
         };
 
-        console.error(
-          "ANANAS_MODEL_EXCEPTION",
-          targetModel,
-          error.message
-        );
+        modelAttempts.push({
+          model: targetModel,
+          exception: error?.name || "Error",
+          message: String(error?.message || error).slice(0, 300)
+        });
+
+        console.error("ANANAS_MODEL_EXCEPTION", {
+          requestId,
+          model: targetModel,
+          error: error?.name || "Error",
+          message: String(error?.message || error).slice(0, 300)
+        });
       }
     }
 
@@ -1821,16 +1916,28 @@ if (!attachmentValidation.valid) {
     // ==================================================
 
     if (!responseJson) {
-      console.error("ANANAS_ALL_MODELS_FAILED", lastError);
+      console.error("ANANAS_ALL_MODELS_FAILED", {
+        requestId,
+        lastError,
+        modelAttempts
+      });
 
       return jsonResponse({
         error: {
           message:
             "در حال حاضر موتور هوش مصنوعی آناناس در دسترس نیست. لطفاً کمی بعد دوباره تلاش کنید."
         },
-        quota: getQuotaInfo(quota)
+        quota: getQuotaInfo(quota),
+        requestId
       }, 503);
     }
+
+    console.info("ANANAS_CHAT_REQUEST_SUCCESS", {
+      requestId,
+      provider: responseJson?.provider?.name || "Gemini",
+      model: responseJson?.provider?.model || null,
+      modelAttempts
+    });
 
     // ==================================================
     // 15. SAVE QUOTA
