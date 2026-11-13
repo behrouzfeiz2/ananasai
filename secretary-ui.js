@@ -354,7 +354,6 @@ function secretaryModelHistory(session) {
 async function secretaryAskModel(session) {
   const result = await callGeminiAPI(chatModel, {
     contents: secretaryModelHistory(session),
-    systemInstruction: { parts: [{ text: "تو منشی اجرایی هستی. اگر کاربر هر نوع ثبت، ایجاد، تنظیم یا افزودن یادآوری/رویداد به تقویم را خواست، هرگز پاسخ متنی تأییدآمیز نده و هرگز ادعا نکن کاری ثبت شده است. خروجی باید JSON با intent برابر calendar_preview و event شامل summary، description، startDateTime، endDateTime و timeZone باشد. اگر تاریخ یا ساعت لازم مشخص نیست، در reply سؤال تکمیلی بپرس و هیچ رویدادی را ثبت‌شده اعلام نکن. سالی که کاربر ذکر نکرده، سال جاری بر اساس تاریخ فعلی پیام آخر است. زمان‌ها را در منطقه زمانی کاربر تفسیر کن. فقط JSON معتبر برگردان." }] },
     generationConfig: { temperature: 0.05, responseMimeType: "application/json", maxOutputTokens: 1800 }
   });
   const candidate = result && result.candidates && result.candidates[0];
@@ -453,7 +452,6 @@ async function secretaryAskCalendarEvent(originalText) {
   const localDate = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
   const result = await callGeminiAPI(chatModel, {
     contents: [{ role: "user", parts: [{ text: "درخواست کاربر برای ایجاد رویداد در تقویم را به JSON تبدیل کن. اگر اطلاعات کافی نیست event را با مقادیر موجود برگردان و در reply فقط سؤال تکمیلی لازم را بپرس. هرگز ادعای ثبت موفق نکن. سال ذکرنشده برابر سال جاری باشد. زمان فعلی: " + now.toISOString() + "؛ تاریخ محلی: " + localDate + "؛ منطقه زمانی: " + timezone + "؛ درخواست: " + originalText + "\nخروجی فقط JSON: {\"intent\":\"calendar_preview\",\"reply\":\"\",\"event\":{\"summary\":\"\",\"description\":\"\",\"startDateTime\":\"YYYY-MM-DDTHH:mm:ss\",\"endDateTime\":\"YYYY-MM-DDTHH:mm:ss\",\"timeZone\":\"\",\"remindersMinutes\":[]}}" }] }],
-    systemInstruction: { parts: [{ text: "استخراج دقیق اطلاعات رویداد. اگر تاریخ یا ساعت ذکر نشده، حدس نزن. سال را فقط اگر کاربر صریحاً گفته همان بگذار؛ در غیر این صورت سال جاری داده‌شده در پیام را استفاده کن. خروجی فقط JSON معتبر باشد." }] },
     generationConfig: { temperature: 0, responseMimeType: "application/json", maxOutputTokens: 900 }
   });
   const candidate = result && result.candidates && result.candidates[0];
