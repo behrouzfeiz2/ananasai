@@ -14,9 +14,18 @@ async function auth(req,env){
 }
 async function tokenHash(token){const bytes=new TextEncoder().encode(token),digest=await crypto.subtle.digest("SHA-256",bytes);return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,"0")).join("");}
 async function release(env,key){try{const q=JSON.parse(await env.ANANAS_KV.get(key)||"{}");q.used=Math.max(0,(Number(q.used)||0)-1);await env.ANANAS_KV.put(key,JSON.stringify(q),{expirationTtl:172800});}catch{}}
+function safeUpstreamPreview(value,prompt,referenceUrl){
+  let preview=String(value||"").slice(0,500);
+  for(const sensitive of [prompt,referenceUrl])if(sensitive)preview=preview.split(sensitive).join("[redacted]");
+  return preview
+    .replace(/Bearer\s+[^\s"'<>]+/gi,"Bearer [redacted]")
+    .replace(/https?:\/\/[^\s"'<>]+/gi,"[URL redacted]")
+    .replace(/("(?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|authorization)"\s*:\s*")[^"]*(")/gi,"$1[redacted]$2");
+}
 export async function onRequestPost({request,env}){
   const requestId=crypto.randomUUID();
   let stage="احراز هویت";
+  let upstreamDiagnostics=null;
   try{
     const u=await auth(request,env);if(u.error)return out({error:u.error},u.status);
     stage="خواندن درخواست";
@@ -41,25 +50,47 @@ export async function onRequestPost({request,env}){
     const effectivePrompt = qwenNailProtection ? prompt + qwenNailProtection : prompt;
     const generationBody={model,prompt:effectivePrompt,...(model==="qwen-image-edit"?{}:{width,height}),...(referenceUrl?{image:referenceUrl}:{})};
     stage="ارسال درخواست به سرویس تصویر";
-    const r=await fetch(API+"/generations",{method:"POST",headers:{Authorization:"Bearer "+env.ALPHA_KEY,"Content-Type":"application/json"},body:JSON.stringify(generationBody)});
+    const r=await fetch(API+"/generations",{method:"POST",headers:{Authorization:"Bearer "+env.ALPHA_KEY,"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(generationBody)});
     stage="خواندن پاسخ سرویس تصویر";
+    const upstreamContentType=r.headers.get("content-type");
+    upstreamDiagnostics={
+      status:r.status,
+      contentType:upstreamContentType,
+      contentRange:r.headers.get("content-range"),
+      acceptRanges:r.headers.get("accept-ranges"),
+      requestId:r.headers.get("x-request-id"),
+      correlationId:r.headers.get("x-correlation-id"),
+      cfRay:r.headers.get("cf-ray")
+    };
+    const responseText=await r.text();
     let j;
-    try{j=await r.json();}
-    catch{throw new Error("سرویس تصویر به‌جای JSON پاسخ غیرمعتبر برگرداند (HTTP "+r.status+").");}
-    if(!r.ok||j.error||!j.id)return out({error:j.error?.message||"ثبت درخواست ناموفق بود."},r.status||502);
+    try{j=JSON.parse(responseText);}
+    catch{
+      upstreamDiagnostics.bodyPreview=safeUpstreamPreview(responseText,effectivePrompt,referenceUrl);
+      throw new Error("سرویس تصویر JSON معتبر برنگرداند (HTTP "+r.status+", Content-Type: "+(upstreamContentType||"نامشخص")+").");
+    }
+    if(r.status===206){
+      upstreamDiagnostics.bodyPreview=safeUpstreamPreview(responseText,effectivePrompt,referenceUrl);
+      throw new Error("سرویس تصویر پاسخ ناقص HTTP 206 برگرداند؛ ثبت درخواست تولید تصویر تأیید نشد.");
+    }
+    if(!r.ok||j.error||!j.id){
+      upstreamDiagnostics.bodyPreview=safeUpstreamPreview(responseText,effectivePrompt,referenceUrl);
+      console.error("[ANANAS_IMAGE_UPSTREAM_REJECTED]",{requestId,upstream:upstreamDiagnostics,error:j.error?.message||"Missing generation id"});
+      return out({error:j.error?.message||"ثبت درخواست ناموفق بود."},r.status||502);
+    }
     stage="ذخیره سهمیه";
     await env.ANANAS_KV.put(u.key,JSON.stringify({used:used+1}),{expirationTtl:172800});
     stage="ذخیره وضعیت درخواست";
     await env.ANANAS_KV.put("imagejob_"+j.id,JSON.stringify({token:u.token,key:u.key,released:false,prompt,model,width,height}),{expirationTtl:86400});
     return out({success:true,id:j.id,status:j.status,quota:{used:used+1,limit:5},requestId});
   }catch(error){
-    console.error("[ANANAS_IMAGE_POST_FAILED]",{requestId,stage,error:String(error),stack:error&&error.stack?String(error.stack):null});
+    console.error("[ANANAS_IMAGE_POST_FAILED]",{requestId,stage,error:String(error),stack:error&&error.stack?String(error.stack):null,...(upstreamDiagnostics?{upstream:upstreamDiagnostics}:{})});
     return out({error:"درخواست تصویر در مرحله «"+stage+"» ناموفق شد.",requestId},502,{"X-Ananas-Image-Request-Id":requestId});
   }
 }
 export async function onRequestGet({request,env}){
   const healthUrl=new URL(request.url);
-  if(healthUrl.searchParams.get("health")==="1")return out({success:true,endpoint:"/api/image",version:"image-api-2026-11-14.3"});
+  if(healthUrl.searchParams.get("health")==="1")return out({success:true,endpoint:"/api/image",version:"image-api-2026-11-14.4"});
   const u=await auth(request,env);if(u.error)return out({error:u.error},u.status);
   try{
     const url=new URL(request.url),id=url.searchParams.get("id");
