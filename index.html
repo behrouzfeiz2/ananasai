@@ -2105,6 +2105,7 @@ function renderDollarChart(c,i){
     function extractFashionQuery(text) {
       return String(text || '')
         .replace(/[\u200c\u200f]/g, ' ')
+        .replace(/(?:زیر|حداکثر|کمتر\s*از|تا(?:\s*سقف)?)\s*[\d۰-۹٠-٩,.٬٫]+\s*(?:میلیون(?:ی)?|هزار(?:ی)?|تومان|تومن|م)?/gi, ' ')
         .replace(/(?:لطفاً|لطفا|میشه|می‌شود|میخوام|می‌خوام|می خواهم|می‌خواهم|برای\s*من|برام|پیدا\s*کن(?:ید)?|معرفی\s*کن(?:ید)?|بخرم|بخر|از\s*کجا|لینک\s*خرید|لینک|قیمت|چنده|چند\s*(?:ه|است)|ارزان(?:ترین|تر)?|ارزون(?:ترین|تر)?|موجود\s*دار(?:ه|ید)?|فروشگاه(?:ی)?|تخفیف(?:دار)?)/gi, ' ')
         .replace(/[؟?!،,؛؛.]/g, ' ')
         .replace(/\s+/g, ' ')
@@ -2115,9 +2116,9 @@ function renderDollarChart(c,i){
 
     function extractFashionMaxPrice(text) {
       const p = englishDigits(String(text || '')).replace(/[٬,]/g, '').replace(/٫/g, '.');
-      let match = p.match(/(?:زیر|حداکثر|کمتر\s*از|تا(?:\s*سقف)?)\s*(\d+(?:\.\d+)?)\s*(میلیون|میلیونی|م\b)/i);
+      let match = p.match(/(?:زیر|حداکثر|کمتر\s*از|تا(?:\s*سقف)?)\s*(\d+(?:\.\d+)?)\s*(میلیون|میلیونی|م)/i);
       if (match) return Math.min(100000000, Math.round(Number(match[1]) * 1000000));
-      match = p.match(/(?:زیر|حداکثر|کمتر\s*از|تا(?:\s*سقف)?)\s*(\d+(?:\.\d+)?)\s*(هزار|هزاری)\b/i);
+      match = p.match(/(?:زیر|حداکثر|کمتر\s*از|تا(?:\s*سقف)?)\s*(\d+(?:\.\d+)?)\s*(هزار|هزاری)/i);
       if (match) return Math.min(100000000, Math.round(Number(match[1]) * 1000));
       match = p.match(/(?:زیر|حداکثر|کمتر\s*از|تا(?:\s*سقف)?)\s*(\d{6,})\s*(?:تومان|تومن)?/i);
       if (match) return Math.min(100000000, Number(match[1]));

@@ -500,7 +500,7 @@ async function loadFashionProducts(request, query, limit, refresh = false, maxPr
     catch (error) { return { source: id, ok: false, count: 0, products: [], error: fashionErrorLabel(error) }; }
   }));
   const successful = settled.filter(x => x.ok);
-  const lists = successful.map(x => x.products || []);
+  const lists = successful.map(x => (x.products || []).filter(p => !maxPrice || (Number(p.price) > 0 && Number(p.price) <= maxPrice)));
   const products = [];
   const seen = new Set();
   const maxRows = Math.max(...lists.map(x => x.length), 0);
