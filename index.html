@@ -1619,7 +1619,7 @@
         input.placeholder = 'از آناناس بپرس ...';
       }
     }
-    function openCoderWorkspace() { setMode('coder'); }
+    function openCoderWorkspace() { setMode('coder', { startFresh: true }); }
     function secretaryHasUltraAccess() {
       const token = String(userToken || '');
       return Boolean(token) && Boolean(quotaState && (quotaState.isUltra || quotaState.tier === 'ultra' || token.startsWith('ULTRA-')));
@@ -1629,7 +1629,7 @@
       if (userToken && !secretaryHasUltraAccess()) await fetchQuotaFromServer();
       setMode('secretary');
     }
-    function setMode(mode) {
+    function setMode(mode, options = {}) {
       if (mode === 'coder' && !userToken) {
         openSettingsModal('🔒 بخش کدنویس ویژه کاربران Pro و Ultra است. ابتدا اشتراک خود را فعال کنید.');
         return;
@@ -1646,8 +1646,18 @@
         activeSessionId = null;
       }
       if (mode === 'coder') {
-        const alreadyInCoderMode = currentMode === 'coder';
-        if (!alreadyInCoderMode) activeSessionId = null;
+        const startFresh = options.startFresh === true;
+        if (startFresh) {
+          const previousDraft = coderCurrentSession();
+          if (previousDraft && previousDraft.isTransientDraft) {
+            sessions = sessions.filter(session => session.id !== previousDraft.id);
+          }
+          activeSessionId = null;
+          coderInitializedSessionId = null;
+        } else {
+          const alreadyInCoderMode = currentMode === 'coder';
+          if (!alreadyInCoderMode) activeSessionId = null;
+        }
         currentMode = 'coder';
         updateModeUI('coder');
         renderMessages();
@@ -1657,7 +1667,7 @@
         // گفتگوی جدید همچنان فقط با ارسال اولین پیام واقعی ساخته می‌شود.
         coderSyncRemoteHistory().then(() => {
           if (currentMode !== 'coder') return;
-          if (!activeSessionId) {
+          if (!startFresh && !activeSessionId) {
             const latest = sessions
               .filter(session => session.mode === 'coder' &&
                 (session.messages?.length || session.remoteLoaded === false || session.coder?.repository))
