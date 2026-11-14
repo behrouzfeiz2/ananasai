@@ -15,8 +15,11 @@ async function auth(req,env){
 async function tokenHash(token){const bytes=new TextEncoder().encode(token),digest=await crypto.subtle.digest("SHA-256",bytes);return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,"0")).join("");}
 async function release(env,key){try{const q=JSON.parse(await env.ANANAS_KV.get(key)||"{}");q.used=Math.max(0,(Number(q.used)||0)-1);await env.ANANAS_KV.put(key,JSON.stringify(q),{expirationTtl:172800});}catch{}}
 export async function onRequestPost({request,env}){
-  const u=await auth(request,env);if(u.error)return out({error:u.error},u.status);
+  const requestId=crypto.randomUUID();
+  let stage="احراز هویت";
   try{
+    const u=await auth(request,env);if(u.error)return out({error:u.error},u.status);
+    stage="خواندن درخواست";
     const b=await request.json(),prompt=String(b.prompt||"").trim(),model=String(b.model||"");
     const width=Number(b.width)||1024,height=Number(b.height)||1024;
     if(!prompt||prompt.length>4000)return out({error:"متن تصویر الزامی است (حداکثر ۴۰۰۰ نویسه)."},400);
@@ -24,33 +27,39 @@ export async function onRequestPost({request,env}){
     if(!Number.isInteger(width)||!Number.isInteger(height)||width<256||height<256||width>2048||height>2048)return out({error:"ابعاد تصویر باید عدد صحیحی بین ۲۵۶ تا ۲۰۴۸ پیکسل باشند."},400);
     let referenceUrl=null;
     if(model==="qwen-image-edit"){
+      stage="بررسی تصویر مرجع";
       const referenceId=String(b.referenceId||"");
       if(!/^[a-f0-9-]{36}$/i.test(referenceId))return out({error:"تصویر مرجع ارسال نشده یا شناسه آن نامعتبر است."},400);
       const ref=await env.ANANAS_KV.getWithMetadata("imgref_"+referenceId,"arrayBuffer");
       if(!ref||!ref.value||!ref.metadata||ref.metadata.owner!==await tokenHash(u.token))return out({error:"تصویر مرجع منقضی شده یا در دسترس نیست؛ لطفاً دوباره تصویر را ضمیمه کنید."},410);
       referenceUrl=new URL("/api/image-reference?id="+encodeURIComponent(referenceId),request.url).toString();
     }
+    stage="بررسی سهمیه تصویر";
     const q=JSON.parse(await env.ANANAS_KV.get(u.key)||"{}"),used=Number(q.used)||0;
     if(used>=5)return out({error:"سهمیه روزانه ۵ تصویر شما تمام شده است.",quota:{used,limit:5}},429);
-    // Server-side safeguard: preserve all nail details in Qwen edits unless explicitly requested.
-    const qwenNailProtection = model === "qwen-image-edit" ? `
-
-قانون حفاظتی اجباری برای تصویر مرجع:
-اگر در تصویر مرجع دست، انگشت، ناخن یا لاک ناخن دیده می‌شود، رنگ لاک، رنگ طبیعی ناخن، شکل، طول، فرم، طراحی و بافت ناخن‌ها را دقیقاً بدون تغییر حفظ کن.
-به هیچ عنوان رنگ ناخن یا لاک را تغییر نده، لاک را حذف یا اضافه نکن، ناخن‌ها را بازطراحی نکن و ظاهر آن‌ها را زیباتر، یکدست‌تر یا متفاوت نکن.
-این بخش از تصویر باید کاملاً دست‌نخورده باقی بماند، مگر اینکه کاربر در درخواست فعلی خود به‌صراحت تغییر رنگ ناخن/لاک یا ویرایش خود ناخن‌ها را خواسته باشد.
-در صورت نبود درخواست صریح درباره ناخن، فقط بخش‌های دیگری را که کاربر مشخص کرده ویرایش کن و ناخن‌ها را عیناً از تصویر مرجع حفظ کن.
-` : "";
+    const qwenNailProtection = model === "qwen-image-edit" ? "\n\nقانون حفاظتی اجباری برای تصویر مرجع:\nاگر در تصویر مرجع دست، انگشت، ناخن یا لاک ناخن دیده می‌شود، رنگ لاک، رنگ طبیعی ناخن، شکل، طول، فرم، طراحی و بافت ناخن‌ها را دقیقاً بدون تغییر حفظ کن.\nبه هیچ عنوان رنگ ناخن یا لاک را تغییر نده، لاک را حذف یا اضافه نکن، ناخن‌ها را بازطراحی نکن و ظاهر آن‌ها را زیباتر، یکدست‌تر یا متفاوت نکن.\nاین بخش از تصویر باید کاملاً دست‌نخورده باقی بماند، مگر اینکه کاربر در درخواست فعلی خود به‌صراحت تغییر رنگ ناخن/لاک یا ویرایش خود ناخن‌ها را خواسته باشد.\nدر صورت نبود درخواست صریح درباره ناخن، فقط بخش‌های دیگری را که کاربر مشخص کرده ویرایش کن و ناخن‌ها را عیناً از تصویر مرجع حفظ کن.\n" : "";
     const effectivePrompt = qwenNailProtection ? prompt + qwenNailProtection : prompt;
     const generationBody={model,prompt:effectivePrompt,...(model==="qwen-image-edit"?{}:{width,height}),...(referenceUrl?{image:referenceUrl}:{})};
+    stage="ارسال درخواست به سرویس تصویر";
     const r=await fetch(API+"/generations",{method:"POST",headers:{Authorization:"Bearer "+env.ALPHA_KEY,"Content-Type":"application/json"},body:JSON.stringify(generationBody)});
-    const j=await r.json();if(!r.ok||j.error||!j.id)return out({error:j.error?.message||"ثبت درخواست ناموفق بود."},r.status||502);
+    stage="خواندن پاسخ سرویس تصویر";
+    let j;
+    try{j=await r.json();}
+    catch{throw new Error("سرویس تصویر به‌جای JSON پاسخ غیرمعتبر برگرداند (HTTP "+r.status+").");}
+    if(!r.ok||j.error||!j.id)return out({error:j.error?.message||"ثبت درخواست ناموفق بود."},r.status||502);
+    stage="ذخیره سهمیه";
     await env.ANANAS_KV.put(u.key,JSON.stringify({used:used+1}),{expirationTtl:172800});
+    stage="ذخیره وضعیت درخواست";
     await env.ANANAS_KV.put("imagejob_"+j.id,JSON.stringify({token:u.token,key:u.key,released:false,prompt,model,width,height}),{expirationTtl:86400});
-    return out({success:true,id:j.id,status:j.status,quota:{used:used+1,limit:5}});
-  }catch{return out({error:"ارتباط با سرویس تصویر برقرار نشد."},502);}
+    return out({success:true,id:j.id,status:j.status,quota:{used:used+1,limit:5},requestId});
+  }catch(error){
+    console.error("[ANANAS_IMAGE_POST_FAILED]",{requestId,stage,error:String(error),stack:error&&error.stack?String(error.stack):null});
+    return out({error:"درخواست تصویر در مرحله «"+stage+"» ناموفق شد.",requestId},502,{"X-Ananas-Image-Request-Id":requestId});
+  }
 }
 export async function onRequestGet({request,env}){
+  const healthUrl=new URL(request.url);
+  if(healthUrl.searchParams.get("health")==="1")return out({success:true,endpoint:"/api/image",version:"image-api-2026-11-14.3"});
   const u=await auth(request,env);if(u.error)return out({error:u.error},u.status);
   try{
     const url=new URL(request.url),id=url.searchParams.get("id");
