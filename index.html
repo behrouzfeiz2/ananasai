@@ -1603,7 +1603,7 @@
         coderBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-cyan-500 text-white';
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
         secretaryBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
-        input.placeholder = 'کدی را که می‌خواهی بررسی یا بهبود بدهم بفرست یا سؤال برنامه‌نویسی‌ات را بنویس...';
+        input.placeholder = 'امروز چه پروژه ای میخوای شروع کنی ...';
         const infoCard = document.getElementById('coderInfoCard');
         if (infoCard) infoCard.remove();
       } else if (mode === 'secretary') {
@@ -1611,7 +1611,7 @@
         secretaryBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-white text-slate-900 shadow-sm';
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
         coderBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
-        input.placeholder = 'مثلاً: ایمیل‌های امروز را خلاصه کن یا برای تمدید هاست یادآوری ثبت کن...';
+        input.placeholder = 'برنامه امروز چیه ...';
       } else {
         chatBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 bg-ananas-500 text-ananas-dark';
         secretaryBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 text-gray-400 hover:text-white';
@@ -1896,8 +1896,8 @@
 
       if (inputEl) {
         inputEl.placeholder = currentMode === 'coder'
-          ? 'کد یا درخواست برنامه‌نویسی خود را اینجا بنویسید...'
-          : 'از آناناس بپرس ...';
+          ? 'امروز چه پروژه ای میخوای شروع کنی ...'
+          : (currentMode === 'secretary' ? 'برنامه امروز چیه ...' : 'از آناناس بپرس ...');
       }
     }
 
