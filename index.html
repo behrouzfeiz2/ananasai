@@ -2432,6 +2432,7 @@ function renderDollarChart(c,i){
               <div class="max-w-[85%] sm:max-w-[75%] rounded-2xl rounded-tr-xs ${secretaryTheme ? 'bg-white border border-slate-200 text-slate-800 shadow-sm' : 'bg-gradient-to-l from-ananas-500 to-ananas-600 text-ananas-dark shadow-md'} px-4 py-3">
                 ${msg.text?renderUserMessageText(msg.text, idx):''}
                 ${attachment}
+                ${msg.fileName && msg.fileMime && String(msg.fileMime).startsWith('image/') && !attachmentUrl ? '<div class="mt-1 text-[10px] text-amber-300">فایل تصویر روی این دستگاه موجود نیست؛ برای ویرایش دوباره آن را ضمیمه کنید.</div>' : ''}
               </div>
             </div>
           `;
