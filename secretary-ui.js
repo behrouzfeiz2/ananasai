@@ -27,6 +27,7 @@ async function secretaryApi(action, payload) {
   } else {
     options.body = JSON.stringify(payload || { action: action });
   }
+  if (window.ananasApiFetchJson) return window.ananasApiFetchJson(url, options, "منشی هوشمند");
   const response = await fetch(url, options);
   const data = await response.json().catch(function() { return {}; });
   if (!response.ok) throw new Error(data.error || "خطای منشی (" + response.status + ")");
@@ -40,6 +41,7 @@ async function secretaryMailboxApi(payload, method) {
     credentials: "same-origin"
   };
   if (options.method === "POST") options.body = JSON.stringify(payload || {});
+  if (window.ananasApiFetchJson) return window.ananasApiFetchJson("/api/mailboxes", options, "اتصال صندوق ایمیل");
   const response = await fetch("/api/mailboxes", options);
   const data = await response.json().catch(function() { return {}; });
   if (!response.ok) throw new Error(data.error || "خطای اتصال صندوق ایمیل (" + response.status + ")");

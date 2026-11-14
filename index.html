@@ -1876,43 +1876,90 @@
       }
     }
 
+    const ANANAS_INFRASTRUCTURE_MESSAGE = '⚠️ زیرساخت آناناس یا یکی از سرویس‌های متصل موقتاً در دسترس نیست و ممکن است در حال به‌روزرسانی باشد. لطفاً چند ساعت دیگر دوباره تلاش بفرمایید. برای جلوگیری از ثبت تکراری، پیش از ارسال دوباره وضعیت عملیات را بررسی کنید.';
+    function ananasApiErrorMessage({ status = 0, data = null, error = null, rawText = '', contentType = '' } = {}) {
+      const apiError = data && data.error;
+      const serverMessage = typeof apiError === 'string'
+        ? apiError
+        : (apiError && typeof apiError.message === 'string' ? apiError.message : (data && typeof data.message === 'string' ? data.message : ''));
+      const text = String(serverMessage || (error && error.message) || '').trim();
+      const lower = text.toLowerCase();
+      const quotaOrInputError = /(سهمیه|به پایان رسیده|کد فعال.?سازی|اشتراک.*نامعتبر|نامعتبر است|حجم.*(?:مجاز|حد)|فرمت.*پشتیبانی|فقط کاربران|دسترسی.*مجاز|شناسه.*معتبر|متن.*الزامی|گوینده نامعتبر|لحن نامعتبر)/i.test(text);
+      const isNetworkError = Boolean(error && (
+        error.name === 'AbortError' ||
+        error.name === 'TimeoutError' ||
+        error instanceof TypeError ||
+        /failed to fetch|networkerror|network request failed|load failed|fetch failed|timed out|timeout/i.test(String(error.message || ''))
+      ));
+      const isHtml = /text\/html|<!doctype\s+html|<html[\s>]/i.test(String(contentType || '') + ' ' + String(rawText || '').slice(0, 300));
+      const isMalformedJson = Boolean(rawText) && !String(rawText).trim().startsWith('{') && !String(rawText).trim().startsWith('[');
+      if (quotaOrInputError && status >= 400 && status < 500 && status !== 429) return text;
+      if (status === 429 && quotaOrInputError) return text;
+      if (status >= 500 || status === 408 || status === 425 || status === 429 || isNetworkError || isHtml || isMalformedJson) {
+        return ANANAS_INFRASTRUCTURE_MESSAGE;
+      }
+      if (text) return text;
+      return ANANAS_INFRASTRUCTURE_MESSAGE;
+    }
+    async function ananasReadApiJson(response, action) {
+      const contentType = response.headers.get('content-type') || '';
+      const rawText = await response.text();
+      let data = {};
+      try {
+        data = rawText ? JSON.parse(rawText) : {};
+      } catch (error) {
+        console.warn('[ANANAS_API_INVALID_RESPONSE]', { action: action || '', status: response.status, contentType });
+        throw new Error(ananasApiErrorMessage({ status: response.status, error, rawText, contentType }));
+      }
+      if (!response.ok || (data && data.error)) {
+        throw new Error(ananasApiErrorMessage({ status: response.status, data, contentType, rawText }));
+      }
+      return data;
+    }
+    async function ananasApiFetchJson(url, options, action) {
+      let response;
+      try {
+        response = await fetch(url, options);
+      } catch (error) {
+        throw new Error(ananasApiErrorMessage({ error }));
+      }
+      return ananasReadApiJson(response, action || url);
+    }
+    let lastInfrastructureNoticeAt = 0;
+    function showAnanasInfrastructureNotice() {
+      const now = Date.now();
+      if (now - lastInfrastructureNoticeAt < 60000) return;
+      lastInfrastructureNoticeAt = now;
+      let notice = document.getElementById('ananasInfrastructureNotice');
+      if (!notice) {
+        notice = document.createElement('div');
+        notice.id = 'ananasInfrastructureNotice';
+        notice.className = 'fixed top-20 left-3 right-3 z-[100000] max-w-xl mx-auto rounded-xl border border-amber-400/40 bg-[#171717] px-4 py-3 text-sm text-amber-100 shadow-2xl text-center';
+        document.body.appendChild(notice);
+      }
+      notice.textContent = ANANAS_INFRASTRUCTURE_MESSAGE;
+      notice.classList.remove('hidden');
+      setTimeout(() => notice && notice.remove(), 9000);
+    }
+    window.ananasApiErrorMessage = ananasApiErrorMessage;
+    window.ananasApiFetchJson = ananasApiFetchJson;
+    window.ananasShowInfrastructureNotice = showAnanasInfrastructureNotice;
+
     async function callGeminiAPI(selectedModel, requestPayload) {
       const headers = {
         'Content-Type': 'application/json',
         'X-Device-UUID': deviceUUID
       };
-
       if (userToken) headers['X-User-Token'] = userToken;
-
-      const response = await fetch('/api/gemini', {
+      const data = await ananasApiFetchJson('/api/gemini', {
         method: 'POST',
-        headers: headers,
-        body: JSON.stringify({
-          model: selectedModel,
-          payload: requestPayload,
-          mode: currentMode
-        })
-      });
-
-      const rawText = await response.text();
-      let data;
-
-      try {
-        data = JSON.parse(rawText);
-      } catch (err) {
-        throw new Error(`پاسخ سرور نامعتبر یا زمان درخواست تمام شد (کد وضعیت: ${response.status}).`);
-      }
-
+        headers,
+        body: JSON.stringify({ model: selectedModel, payload: requestPayload, mode: currentMode })
+      }, 'گفتگوی آناناس');
       if (data && data.quota) {
         quotaState = data.quota;
         updateAccountStatusBadge();
       }
-
-      if (!response.ok || data.error) {
-        const errMsg = data?.error?.message || `خطای ارتباط با سرور (${response.status})`;
-        throw new Error(errMsg);
-      }
-
       return data;
     }
 
@@ -2557,30 +2604,25 @@ function renderDollarChart(c,i){
     function selectImageModel(idx,model){const m=getImageWizard(idx);if(!m||!['flux-dev','z-image'].includes(model)||m.imageWizard.hasReference)return;m.imageWizard.model=model;m.imageWizard.step='confirm';saveSessions();renderMessages();}
     function backToImageModels(idx){const m=getImageWizard(idx);if(!m)return;m.imageWizard.step='model';saveSessions();renderMessages();}
     async function readImageApiJson(response, action) {
-      const body = await response.text();
       try {
-        return body ? JSON.parse(body) : {};
-      } catch {
-        const contentType = response.headers.get('content-type') || 'نامشخص';
+        return await ananasReadApiJson(response, action);
+      } catch (error) {
         const endpoint = (() => { try { return new URL(response.url).pathname; } catch { return 'مسیر نامشخص'; } })();
-        const isHtml = /<\s*!doctype\s+html|<\s*html[\s>]/i.test(body) || /text\/html/i.test(contentType);
-        if (isHtml) {
-          let routeDiagnostic = '';
-          if (response.status >= 500 && endpoint === '/api/image') {
-            try {
-              const healthResponse = await fetch('/api/image?health=1', { cache: 'no-store' });
-              const healthText = await healthResponse.text();
-              const healthData = JSON.parse(healthText);
-              routeDiagnostic = healthResponse.ok && healthData.version
-                ? ' نشانگر سلامت مسیر فعال است (' + healthData.version + ')؛ خطا مخصوص اجرای درخواست POST است و باید لاگ Function بررسی شود.'
-                : ' آزمون سلامت مسیر هم موفق نبود (HTTP ' + healthResponse.status + ').';
-            } catch {
-              routeDiagnostic = ' آزمون سلامت مسیر نیز پاسخ JSON نداد؛ احتمال مشکل در انتشار یا مسیریابی Function بیشتر است.';
-            }
+        if (response.status >= 500 && endpoint === '/api/image') {
+          try {
+            const healthResponse = await fetch('/api/image?health=1', { cache: 'no-store' });
+            const healthText = await healthResponse.text();
+            const healthData = JSON.parse(healthText);
+            console.warn('[ANANAS_IMAGE_ROUTE_DIAGNOSTIC]', {
+              endpoint, status: response.status,
+              healthVersion: healthResponse.ok ? healthData.version || null : null,
+              healthStatus: healthResponse.status
+            });
+          } catch (healthError) {
+            console.warn('[ANANAS_IMAGE_HEALTH_CHECK_FAILED]', { endpoint, status: response.status });
           }
-          throw new Error(action + ': مسیر ' + endpoint + ' به‌جای JSON صفحه HTML برگرداند (HTTP ' + response.status + ').' + routeDiagnostic);
         }
-        throw new Error(action + ': پاسخ JSON معتبر نبود (HTTP ' + response.status + '، ' + contentType + ').');
+        throw error;
       }
     }
 
@@ -2647,11 +2689,11 @@ function renderDollarChart(c,i){
       const w=msg.ttsWizard; if(!w.text||!w.speaker||!w.tone)return; isGenerating=true; w.step='generating'; saveSessions(); renderMessages();
       try {
         const headers={'Content-Type':'application/json','X-User-Token':userToken};
-        const start=await fetch('/api/tts',{method:'POST',headers,body:JSON.stringify({text:w.text,speaker:w.speaker,tone:w.tone})});
-        const started=await start.json(); if(!start.ok||!started.success)throw new Error(started.error||'شروع تبدیل صوت ناموفق بود.');
+        const started=await ananasApiFetchJson('/api/tts',{method:'POST',headers,body:JSON.stringify({text:w.text,speaker:w.speaker,tone:w.tone})},'تبدیل متن به صدا');
+        if(!started.success)throw new Error(started.error||'شروع تبدیل صوت ناموفق بود.');
         if(started.quota){quotaState.audioUsed=started.quota.used;quotaState.audioLimit=started.quota.limit;updateAccountStatusBadge();}
         let audioUrl=null;
-        for(let attempt=0;attempt<30;attempt++){await new Promise(resolve=>setTimeout(resolve,2000));const response=await fetch('/api/tts?id='+encodeURIComponent(started.id),{headers:{'X-User-Token':userToken}});const poll=await response.json();if(!response.ok)throw new Error(poll.error||'دریافت وضعیت صوت ناموفق بود.');if(poll.output){const o=poll.output;audioUrl=typeof o==='string'?o:(o.url||o.audio_url||o[0]?.url||null);if(audioUrl)break;}if(poll.status==='failed'||poll.status==='error')throw new Error(poll.error?.message||'تولید فایل صوتی ناموفق بود.');}
+        for(let attempt=0;attempt<30;attempt++){await new Promise(resolve=>setTimeout(resolve,2000));const poll=await ananasApiFetchJson('/api/tts?id='+encodeURIComponent(started.id),{headers:{'X-User-Token':userToken}},'بررسی وضعیت تبدیل صوت');if(poll.output){const o=poll.output;audioUrl=typeof o==='string'?o:(o.url||o.audio_url||o[0]?.url||null);if(audioUrl)break;}if(poll.status==='failed'||poll.status==='error')throw new Error(poll.error?.message||'تولید فایل صوتی ناموفق بود.');}
         if(!audioUrl)throw new Error('تولید صوت بیش از زمان انتظار طول کشید.');
         msg.ttsWizard=null;msg.text='🔊 تبدیل متن به صدا با موفقیت انجام شد.';msg.audioUrl=audioUrl;
         try { msg.audioId=await saveGeneratedAudioToLibrary(audioUrl,w); msg.audioSavedLocally=true; msg.audioUrl=null; }
@@ -2804,16 +2846,13 @@ function renderDollarChart(c,i){
     }
 
     async function chatHistoryApiPost(body) {
-      const response = await fetch('/api/chat-history', {
+      return ananasApiFetchJson('/api/chat-history', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-User-Token': userToken, 'X-Device-UUID': deviceUUID },
         body: JSON.stringify(body || {}),
         cache: 'no-store',
         credentials: 'same-origin'
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || 'همگام‌سازی گفتگو ناموفق بود (' + response.status + ')');
-      return data;
+      }, 'همگام‌سازی تاریخچه گفتگو');
     }
 
     function historyActivityTimestamp(session) {
@@ -2882,6 +2921,7 @@ function renderDollarChart(c,i){
           }
         } catch (error) {
           console.warn('Chat history save failed:', error);
+          if (error && error.message === ANANAS_INFRASTRUCTURE_MESSAGE) showAnanasInfrastructureNotice();
         }
       }, 650);
       chatHistorySaveTimers.set(id, timer);
@@ -3039,6 +3079,7 @@ function renderDollarChart(c,i){
           }
         } catch (error) {
           console.warn('Coder history save failed:', error);
+          if (error && error.message === ANANAS_INFRASTRUCTURE_MESSAGE) showAnanasInfrastructureNotice();
         }
       }, 650);
       coderHistorySaveTimers.set(id, timer);
@@ -3889,22 +3930,16 @@ function renderDollarChart(c,i){
     }
 
     async function coderApiGet(params) {
-      const response = await fetch('/api/github?' + new URLSearchParams(params || {}).toString(), {
+      return ananasApiFetchJson('/api/github?' + new URLSearchParams(params || {}).toString(), {
         method: 'GET', headers: coderHeaders(), cache: 'no-store', credentials: 'same-origin'
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || 'ارتباط با GitHub ناموفق بود (' + response.status + ')');
-      return data;
+      }, 'بخش کدنویس');
     }
 
     async function coderApiPost(body) {
-      const response = await fetch('/api/github', {
+      return ananasApiFetchJson('/api/github', {
         method: 'POST', headers: coderHeaders(), body: JSON.stringify(body || {}),
         cache: 'no-store', credentials: 'same-origin'
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || 'درخواست کدنویس ناموفق بود (' + response.status + ')');
-      return data;
+      }, 'بخش کدنویس');
     }
 
     async function coderMigrateLegacyHistory() {
