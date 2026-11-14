@@ -292,7 +292,10 @@ async function secretarySaveHistory() {
   if (!session || !userToken) return;
   const saved = await secretaryApi("history_save", { action: "history_save", conversation: secretaryConversationPayload(session) });
   session.remoteLoaded = true;
-  if (saved.conversation && saved.conversation.updated_at) session.updatedAt = saved.conversation.updated_at;
+  if (saved.conversation && saved.conversation.updated_at) {
+    session.updatedAt = saved.conversation.updated_at;
+    if (typeof renderHistoryList === "function") renderHistoryList();
+  }
 }
 async function secretaryLoadRemote(session) {
   if (!session || !userToken || session.remoteLoaded !== false) return;
