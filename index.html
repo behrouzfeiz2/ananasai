@@ -2432,6 +2432,7 @@ function renderDollarChart(c,i){
               <div class="max-w-[85%] sm:max-w-[75%] rounded-2xl rounded-tr-xs ${secretaryTheme ? 'bg-white border border-slate-200 text-slate-800 shadow-sm' : 'bg-gradient-to-l from-ananas-500 to-ananas-600 text-ananas-dark shadow-md'} px-4 py-3">
                 ${msg.text?renderUserMessageText(msg.text, idx):''}
                 ${attachment}
+                ${msg.fileName && msg.fileMime && String(msg.fileMime).startsWith('image/') && !attachmentUrl ? '<div class="mt-1 text-[10px] text-amber-300">فایل تصویر روی این دستگاه موجود نیست؛ برای ویرایش دوباره آن را ضمیمه کنید.</div>' : ''}
               </div>
             </div>
           `;
@@ -2601,9 +2602,19 @@ function renderDollarChart(c,i){
             referenceData=String(dataUrl).split(',')[1]||'';
           }else{
             const session=sessions.find(x=>x.id===activeSessionId);
-            const sourceMessage=session&&session.messages.slice(0,idx).reverse().find(x=>x.role==='user'&&x.fileData&&x.fileMime&&x.fileMime.startsWith('image/'));
+            const sourceMessage=session&&session.messages.slice(0,idx).reverse().find(x=>x.role==='user'&&x.fileMime&&x.fileMime.startsWith('image/')&&(x.fileData||x.localImageId));
             if(!sourceMessage)throw new Error('تصویر ضمیمه‌شده در تاریخچه این گفتگو پیدا نشد؛ لطفاً تصویر را دوباره ارسال کنید.');
-            referenceMime=sourceMessage.fileMime;referenceData=sourceMessage.fileData;
+            referenceMime=sourceMessage.fileMime;
+            if(sourceMessage.fileData){
+              referenceData=sourceMessage.fileData;
+            }else if(sourceMessage.localImageId){
+              const localRecord=await getLocalImageRecord(sourceMessage.localImageId);
+              if(!localRecord||!localRecord.blob)throw new Error('فایل تصویر فقط روی دستگاهی که قبلاً ضمیمه شده ذخیره است؛ برای ویرایش در این دستگاه، تصویر را دوباره ضمیمه کنید.');
+              const blob=localRecord.blob;
+              referenceMime=localRecord.mime||blob.type||referenceMime;
+              const dataUrl=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||''));reader.onerror=()=>reject(new Error('خواندن تصویر مرجع از حافظه دستگاه ناموفق بود.'));reader.readAsDataURL(blob);});
+              referenceData=String(dataUrl).split(',')[1]||'';
+            }
           }
           const upload=await fetch('/api/image-reference',{method:'POST',headers,body:JSON.stringify({mimeType:referenceMime,data:referenceData})});
           const uploaded=await readImageApiJson(upload,'بارگذاری تصویر مرجع');if(!upload.ok||!uploaded.success)throw new Error(uploaded.error||'بارگذاری تصویر مرجع ناموفق بود.');
@@ -2820,10 +2831,31 @@ function renderDollarChart(c,i){
 
     function chatHistoryPayload(session) {
       const messages = (session.messages || [])
-        .filter(message => message && typeof message.text === 'string' && message.text.trim() &&
-          ['user', 'model', 'assistant'].includes(message.role))
+        .filter(message => message && typeof message.text === 'string' &&
+          ['user', 'model', 'assistant'].includes(message.role) &&
+          (message.text.trim() || (message.role === 'user' && message.fileMime && String(message.fileMime).startsWith('image/'))))
         .slice(-180)
-        .map(message => ({ role: message.role === 'user' ? 'user' : 'assistant', text: message.text.slice(0, 7000) }));
+        .map(message => {
+          const saved = { role: message.role === 'user' ? 'user' : 'assistant', text: message.text.slice(0, 7000) };
+          if (message.role === 'user' && message.fileMime && String(message.fileMime).startsWith('image/')) {
+            saved.fileName = String(message.fileName || 'تصویر ضمیمه‌شده').slice(0, 180);
+            saved.fileMime = String(message.fileMime).slice(0, 80);
+            if (/^image_[A-Za-z0-9_-]{8,100}$/.test(String(message.localImageId || ''))) saved.localImageId = message.localImageId;
+          }
+          if (message.role !== 'user' && message.imageWizard && typeof message.imageWizard === 'object') {
+            const wizard = message.imageWizard;
+            saved.imageWizard = {
+              prompt: String(wizard.prompt || '').slice(0, 4000),
+              model: ['flux-dev', 'z-image', 'qwen-image-edit'].includes(wizard.model) ? wizard.model : null,
+              step: wizard.step === 'model' ? 'model' : 'confirm',
+              hasReference: Boolean(wizard.hasReference),
+              ...(Number.isInteger(Number(wizard.width)) && Number(wizard.width) >= 256 && Number(wizard.width) <= 2048 ? { width: Number(wizard.width) } : {}),
+              ...(Number.isInteger(Number(wizard.height)) && Number(wizard.height) >= 256 && Number(wizard.height) <= 2048 ? { height: Number(wizard.height) } : {}),
+              ...(wizard.sourceLibraryId && /^[A-Za-z0-9_-]{8,100}$/.test(String(wizard.sourceLibraryId)) ? { sourceLibraryId: String(wizard.sourceLibraryId) } : {})
+            };
+          }
+          return saved;
+        });
       return {
         id: session.id,
         title: session.title || 'گفتگوی جدید',
@@ -2866,15 +2898,40 @@ function renderDollarChart(c,i){
         session.createdAt = conversation.created_at || session.createdAt || Date.now();
         session.updatedAt = conversation.updated_at || Date.now();
         session.mode = 'chat';
-        session.messages = conversation.messages.map(message => ({
-          role: message.role === 'user' ? 'user' : 'model',
-          text: String(message.text || '')
-        }));
+        const previousLocalMessages = Array.isArray(session.messages) ? session.messages : [];
+        session.messages = conversation.messages.map((message, index) => {
+          const role = message.role === 'user' ? 'user' : 'model';
+          const local = previousLocalMessages[index];
+          const sameLocalMessage = local && local.role === role && String(local.text || '') === String(message.text || '');
+          const restored = { role, text: String(message.text || '') };
+          const fileName = message.fileName || (sameLocalMessage ? local.fileName : null);
+          const fileMime = message.fileMime || (sameLocalMessage ? local.fileMime : null);
+          const localImageId = message.localImageId || (sameLocalMessage ? local.localImageId : null);
+          if (fileName && fileMime && String(fileMime).startsWith('image/')) {
+            restored.fileName = String(fileName).slice(0, 180);
+            restored.fileMime = String(fileMime).slice(0, 80);
+            if (/^image_[A-Za-z0-9_-]{8,100}$/.test(String(localImageId || ''))) restored.localImageId = localImageId;
+          }
+          const wizard = message.imageWizard || (sameLocalMessage ? local.imageWizard : null);
+          if (wizard && typeof wizard === 'object') {
+            restored.imageWizard = {
+              prompt: String(wizard.prompt || '').slice(0, 4000),
+              model: ['flux-dev', 'z-image', 'qwen-image-edit'].includes(wizard.model) ? wizard.model : null,
+              step: wizard.step === 'model' ? 'model' : 'confirm',
+              hasReference: Boolean(wizard.hasReference),
+              ...(Number.isInteger(Number(wizard.width)) && Number(wizard.width) >= 256 && Number(wizard.width) <= 2048 ? { width: Number(wizard.width) } : {}),
+              ...(Number.isInteger(Number(wizard.height)) && Number(wizard.height) >= 256 && Number(wizard.height) <= 2048 ? { height: Number(wizard.height) } : {}),
+              ...(wizard.sourceLibraryId && /^[A-Za-z0-9_-]{8,100}$/.test(String(wizard.sourceLibraryId)) ? { sourceLibraryId: String(wizard.sourceLibraryId) } : {})
+            };
+          }
+          return restored;
+        });
         session.remoteLoaded = true;
         saveSessions();
       } finally {
         isApplyingCloudHistory = false;
       }
+      await hydrateLocalImages();
       renderMessages();
       renderHistoryList();
     }
@@ -3102,6 +3159,15 @@ function renderDollarChart(c,i){
             localImageId: m.localImageId || null,
             fileName: m.fileName || null,
             fileMime: m.fileMime || null,
+            ...(m.imageWizard ? { imageWizard: {
+              prompt: String(m.imageWizard.prompt || '').slice(0, 4000),
+              model: ['flux-dev', 'z-image', 'qwen-image-edit'].includes(m.imageWizard.model) ? m.imageWizard.model : null,
+              step: m.imageWizard.step === 'model' ? 'model' : 'confirm',
+              hasReference: Boolean(m.imageWizard.hasReference),
+              ...(Number.isInteger(Number(m.imageWizard.width)) && Number(m.imageWizard.width) >= 256 && Number(m.imageWizard.width) <= 2048 ? { width: Number(m.imageWizard.width) } : {}),
+              ...(Number.isInteger(Number(m.imageWizard.height)) && Number(m.imageWizard.height) >= 256 && Number(m.imageWizard.height) <= 2048 ? { height: Number(m.imageWizard.height) } : {}),
+              ...(m.imageWizard.sourceLibraryId ? { sourceLibraryId: String(m.imageWizard.sourceLibraryId).slice(0, 100) } : {})
+            } } : {}),
             isError: m.isError,
             // Persist chart payloads so market charts survive reloads and reopening old conversations.
             ...(m.marketChart ? { marketChart: m.marketChart } : {}),
