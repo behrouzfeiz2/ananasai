@@ -249,6 +249,295 @@ function response(data, status = 200) {
   }});
 }
 
+
+const FASHION_CONFIG = {
+  CACHE_TTL_SECONDS: 180,
+  REQUEST_TIMEOUT_MS: 7000,
+  DEFAULT_LIMIT: 9,
+  MAX_LIMIT: 12,
+  SOURCE_LIMIT: 8
+};
+
+const FASHION_SOURCES = [
+  { id: "shopino", name: "شاپینو", type: "fashion_marketplace", enabled: true, official_api: false },
+  { id: "banimode", name: "بانی‌مد", type: "fashion_retailer", enabled: true, official_api: false },
+  { id: "basalam", name: "باسلام", type: "marketplace", enabled: true, official_api: false }
+];
+
+function fashionSafeHttps(value) {
+  const url = safeUrl(value);
+  return url && url.startsWith("https://") ? url : null;
+}
+
+function tomanFromRial(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? Math.round(n / 10) : null;
+}
+
+function firstImage(list) {
+  if (!Array.isArray(list)) return null;
+  for (const item of list) {
+    const candidate = typeof item === "string"
+      ? item
+      : item?.url || item?.large || item?.original || item?.src || null;
+    const safe = fashionSafeHttps(candidate);
+    if (safe) return safe;
+  }
+  return null;
+}
+
+async function fetchFashionJson(url, origin, referer) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FASHION_CONFIG.REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        "Accept-Language": "fa-IR,fa;q=0.9,en;q=0.8",
+        Origin: origin,
+        Referer: referer,
+        "User-Agent": "AnanasAI-FashionSearch/1.0 (+https://ananasai.ir)"
+      },
+      signal: controller.signal,
+      redirect: "follow"
+    });
+    const raw = await res.text();
+    if (!res.ok) {
+      const error = new Error("HTTP " + res.status);
+      error.status = res.status;
+      throw error;
+    }
+    let data;
+    try { data = JSON.parse(raw); }
+    catch {
+      const error = new Error("پاسخ منبع JSON معتبر نبود");
+      error.status = res.status;
+      throw error;
+    }
+    if (data && typeof data === "object" && data.status === "error") {
+      throw new Error(String(data.message || "خطای منبع فروشگاه").slice(0, 160));
+    }
+    return data;
+  } catch (error) {
+    if (controller.signal.aborted) {
+      const timeout = new Error("timeout");
+      timeout.code = "TIMEOUT";
+      throw timeout;
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function fashionProductBase(item, source, fetchedAt) {
+  return {
+    id: String(item.id),
+    source: source.id,
+    source_name: source.name,
+    title: String(item.title || "").trim().slice(0, 180),
+    price: Number(item.price) > 0 ? Math.round(Number(item.price)) : null,
+    original_price: Number(item.original_price) > 0 ? Math.round(Number(item.original_price)) : null,
+    discount_pct: Number(item.discount_pct) > 0 ? Math.min(99, Math.round(Number(item.discount_pct))) : null,
+    currency: "IRT",
+    price_unit: "تومان",
+    price_is_current: Number(item.price) > 0,
+    in_stock: typeof item.in_stock === "boolean" ? item.in_stock : null,
+    image: fashionSafeHttps(item.image),
+    product_url: fashionSafeHttps(item.product_url),
+    seller_url: fashionSafeHttps(item.seller_url),
+    seller_name: String(item.seller_name || "").trim().slice(0, 100) || null,
+    seller_rating: Number(item.seller_rating) > 0 ? Number(item.seller_rating) : null,
+    seller_rating_count: Number(item.seller_rating_count) > 0 ? Number(item.seller_rating_count) : null,
+    sizes: Array.isArray(item.sizes) ? item.sizes.filter(Boolean).map(x => String(x).slice(0, 24)).slice(0, 12) : [],
+    color: item.color ? String(item.color).slice(0, 40) : null,
+    fetched_at: fetchedAt
+  };
+}
+
+async function searchShopinoFashion(query, fetchedAt, maxPrice) {
+  const source = FASHION_SOURCES[0];
+  const url = new URL("https://api-go.shopino.app/api/v1/app/products/search/" + encodeURIComponent(query) + "/");
+  url.searchParams.set("page_size", String(FASHION_CONFIG.SOURCE_LIMIT));
+  url.searchParams.set("in_stock", "true");
+  if (maxPrice) url.searchParams.set("price_to", String(maxPrice));
+  const body = await fetchFashionJson(url.toString(), "https://shopino.app", "https://shopino.app/");
+  const rows = Array.isArray(body?.results) ? body.results : Array.isArray(body?.data?.results) ? body.data.results : [];
+  const products = rows.map(p => {
+    const shop = p.shop || {};
+    const finalPrice = Number(p.discounted_price) > 0 ? Number(p.discounted_price) : Number(p.price);
+    const oldPrice = Number(p.discounted_price) > 0 && Number(p.price) > Number(p.discounted_price) ? Number(p.price) : null;
+    const media = (p.medias || []).find(m => m?.url && !m?.is_video);
+    return fashionProductBase({
+      id: p.id,
+      title: p.title,
+      price: finalPrice,
+      original_price: oldPrice,
+      discount_pct: oldPrice && finalPrice ? Math.round((1 - finalPrice / oldPrice) * 100) : null,
+      in_stock: typeof p.in_stock === "boolean" ? p.in_stock : null,
+      image: media?.url,
+      product_url: "https://shopino.app/product/" + encodeURIComponent(p.id),
+      seller_url: p.website_url,
+      seller_name: shop.title,
+      seller_rating: shop.rating,
+      seller_rating_count: shop.surveys_count
+    }, source, fetchedAt);
+  }).filter(p => p.title && p.product_url && p.price && p.in_stock !== false);
+  return { source: source.id, ok: true, count: products.length, products };
+}
+
+async function searchBanimodeFashion(query, fetchedAt, maxPrice) {
+  const source = FASHION_SOURCES[1];
+  const url = new URL("https://mobapi.banimode.com/api/v4/products/");
+  url.searchParams.set("page", "1");
+  url.searchParams.set("page_size", String(FASHION_CONFIG.SOURCE_LIMIT));
+  url.searchParams.set("q", query);
+  url.searchParams.set("filter[total_qty][gt]", "0");
+  if (maxPrice) url.searchParams.set("filter[product_final_price][lte]", String(maxPrice * 10));
+  const body = await fetchFashionJson(url.toString(), "https://www.banimode.com", "https://www.banimode.com/");
+  const rows = body?.data?.data || body?.data?.products || body?.products || [];
+  const products = (Array.isArray(rows) ? rows : []).map(p => {
+    const finalPrice = tomanFromRial(p.product_final_price);
+    const basePrice = tomanFromRial(p.product_base_price || p.product_price);
+    const discount = basePrice && finalPrice && basePrice > finalPrice
+      ? Math.round((1 - finalPrice / basePrice) * 100) : null;
+    const sizes = Array.isArray(p.size) ? p.size.filter(s => s?.has_quantity).map(s => s.name) : [];
+    const images = p.images?.large_default || p.images?.large || [];
+    return fashionProductBase({
+      id: p.id_product,
+      title: p.product_name,
+      price: finalPrice || basePrice,
+      original_price: discount ? basePrice : null,
+      discount_pct: discount,
+      in_stock: Number(p.total_qty) > 0,
+      image: firstImage(images),
+      product_url: "https://www.banimode.com/BM-" + encodeURIComponent(p.id_product),
+      seller_name: p.product_manufacturer_name || "بانی‌مد",
+      sizes,
+      color: p.color_name
+    }, source, fetchedAt);
+  }).filter(p => p.title && p.product_url && p.price && p.in_stock !== false);
+  return { source: source.id, ok: true, count: products.length, products };
+}
+
+async function searchBasalamFashion(query, fetchedAt, maxPrice) {
+  const source = FASHION_SOURCES[2];
+  const url = new URL("https://services.basalam.com/web/v1/search/product/search");
+  url.searchParams.set("q", query);
+  url.searchParams.set("sort", "rank");
+  url.searchParams.set("from", "0");
+  url.searchParams.set("size", String(FASHION_CONFIG.SOURCE_LIMIT));
+  if (maxPrice) url.searchParams.set("filters.maxPrice", String(maxPrice * 10));
+  const body = await fetchFashionJson(url.toString(), "https://basalam.com", "https://basalam.com/");
+  const rows = Array.isArray(body?.products) ? body.products : [];
+  const products = rows.map(p => {
+    const price = tomanFromRial(p.price);
+    const oldPrice = p.primaryPrice && p.price && Number(p.primaryPrice) > Number(p.price)
+      ? tomanFromRial(p.primaryPrice) : null;
+    const photos = Array.isArray(p.photos) ? p.photos : [];
+    return fashionProductBase({
+      id: p.id,
+      title: p.name,
+      price,
+      original_price: oldPrice,
+      discount_pct: oldPrice && price ? Math.round((1 - price / oldPrice) * 100) : null,
+      in_stock: typeof p.IsAvailable === "boolean" ? p.IsAvailable : (Number(p.stock) > 0 ? true : null),
+      image: firstImage(photos),
+      product_url: "https://basalam.com/p/" + encodeURIComponent(p.id),
+      seller_name: p.vendor?.name,
+      seller_rating: p.rating?.average,
+      seller_rating_count: p.rating?.count,
+      color: p.mainAttribute
+    }, source, fetchedAt);
+  }).filter(p => p.title && p.product_url && p.price && p.in_stock !== false);
+  return { source: source.id, ok: true, count: products.length, products };
+}
+
+function fashionSearchLinks(query) {
+  const q = encodeURIComponent(query);
+  return [
+    { id: "digikala", name: "جست‌وجو در دیجی‌کالا", url: "https://www.digikala.com/search/?q=" + q, type: "search" },
+    { id: "basalam", name: "جست‌وجو در باسلام", url: "https://basalam.com/s?q=" + q, type: "search" },
+    { id: "modiseh", name: "ورود به فروشگاه مودیسه", url: "https://www.modiseh.com/", type: "store" },
+    { id: "banimode", name: "ورود به فروشگاه بانی‌مد", url: "https://www.banimode.com/", type: "store" }
+  ];
+}
+
+function fashionErrorLabel(error) {
+  if (error?.code === "TIMEOUT" || error?.name === "AbortError") return "پاسخ منبع در زمان مقرر دریافت نشد";
+  if (error?.status === 403 || error?.status === 429) return "دسترسی منبع محدود شد (HTTP " + error.status + ")";
+  if (error?.status >= 500) return "اختلال موقت منبع (HTTP " + error.status + ")";
+  return "پاسخ معتبر از منبع دریافت نشد";
+}
+
+async function loadFashionProducts(request, query, limit, refresh = false, maxPrice = null) {
+  const normalizedQuery = String(query || "").trim().slice(0, 120);
+  if (normalizedQuery.length < 2) {
+    return { success: false, query: normalizedQuery, products: [], count: 0, error: "عبارت جست‌وجو باید دست‌کم دو نویسه باشد." };
+  }
+  const cache = caches.default;
+  const cacheUrl = new URL("/__ananas_fashion_search_v1", request.url);
+  cacheUrl.searchParams.set("q", normalizedQuery);
+  cacheUrl.searchParams.set("limit", String(limit));
+  if (maxPrice) cacheUrl.searchParams.set("max_price", String(maxPrice));
+  const cacheKey = new Request(cacheUrl.toString());
+  if (!refresh) {
+    const cached = await cache.match(cacheKey);
+    if (cached) {
+      try { return { ...(await cached.json()), cached: true }; } catch {}
+    }
+  }
+
+  const fetchedAt = new Date().toISOString();
+  const adapters = [
+    ["shopino", () => searchShopinoFashion(normalizedQuery, fetchedAt, maxPrice)],
+    ["banimode", () => searchBanimodeFashion(normalizedQuery, fetchedAt, maxPrice)],
+    ["basalam", () => searchBasalamFashion(normalizedQuery, fetchedAt, maxPrice)]
+  ];
+  const settled = await Promise.all(adapters.map(async ([id, run]) => {
+    try { return await run(); }
+    catch (error) { return { source: id, ok: false, count: 0, products: [], error: fashionErrorLabel(error) }; }
+  }));
+  const successful = settled.filter(x => x.ok);
+  const lists = successful.map(x => (x.products || []).filter(p => !maxPrice || (Number(p.price) > 0 && Number(p.price) <= maxPrice)));
+  const products = [];
+  const seen = new Set();
+  const maxRows = Math.max(...lists.map(x => x.length), 0);
+  for (let i = 0; i < maxRows && products.length < limit; i++) {
+    for (const list of lists) {
+      const item = list[i];
+      if (!item || products.length >= limit) continue;
+      const key = normalize(item.title + "|" + (item.seller_name || item.source_name));
+      if (seen.has(key)) continue;
+      seen.add(key);
+      products.push(item);
+    }
+  }
+
+  const data = {
+    success: true,
+    available: successful.length > 0,
+    query: normalizedQuery,
+    max_price: maxPrice || null,
+    count: products.length,
+    products,
+    source_status: settled.map(({ source, ok, count, error }) => ({
+      source, name: FASHION_SOURCES.find(s => s.id === source)?.name || source,
+      ok, count, error: error || null
+    })),
+    store_links: fashionSearchLinks(normalizedQuery),
+    fetched_at: fetchedAt,
+    cached: false,
+    note: "قیمت و موجودی بر اساس آخرین پاسخ منبع در زمان جست‌وجو هستند؛ پیش از خرید در صفحه فروشنده دوباره بررسی شوند."
+  };
+
+  await cache.put(cacheKey, new Response(JSON.stringify(data), {
+    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "public, max-age=" + FASHION_CONFIG.CACHE_TTL_SECONDS }
+  }));
+  return data;
+}
+
 async function handle({ request }) {
   if (request.method === "OPTIONS") return response({ success: true });
   if (!["GET", "POST"].includes(request.method)) return response({ success: false, error: "Method not allowed" }, 405);
@@ -257,16 +546,21 @@ async function handle({ request }) {
     action: (u.searchParams.get("action") || "search").toLowerCase(),
     q: u.searchParams.get("q") || u.searchParams.get("query") || "",
     limit: Math.min(CONFIG.MAX_LIMIT, Math.max(1, Number(u.searchParams.get("limit")) || CONFIG.DEFAULT_LIMIT)),
-    refresh: ["1", "true", "yes"].includes((u.searchParams.get("refresh") || "").toLowerCase())
+    refresh: ["1", "true", "yes"].includes((u.searchParams.get("refresh") || "").toLowerCase()),
+    maxPrice: Number(u.searchParams.get("max_price")) > 0 ? Math.min(100000000, Number(u.searchParams.get("max_price"))) : null
   };
   if (request.method === "POST") {
     try {
       const b = await request.json();
       p = { ...p, action: String(b.action || p.action).toLowerCase(), q: b.q || b.query || p.q,
-        limit: Math.min(CONFIG.MAX_LIMIT, Math.max(1, Number(b.limit) || p.limit)), refresh: Boolean(b.refresh || p.refresh) };
+        limit: Math.min(CONFIG.MAX_LIMIT, Math.max(1, Number(b.limit) || p.limit)), refresh: Boolean(b.refresh || p.refresh), maxPrice: Number(b.max_price) > 0 ? Math.min(100000000, Number(b.max_price)) : p.maxPrice };
     } catch {}
   }
-  if (p.action === "sources") return response({ success: true, sources: CONFIG.SOURCES });
+  if (p.action === "sources") return response({ success: true, sources: CONFIG.SOURCES, fashion_sources: FASHION_SOURCES });
+  if (["product_search", "fashion_search", "products"].includes(p.action)) {
+    const data = await loadFashionProducts(request, p.q, Math.min(FASHION_CONFIG.MAX_LIMIT, Math.max(1, p.limit || FASHION_CONFIG.DEFAULT_LIMIT)), p.refresh, p.maxPrice);
+    return response(data, data.success ? 200 : 400);
+  }
   const data = await loadFeeds(request, p.refresh);
   if (p.action === "health") return response({
     success: true, fetched_at: data.fetched_at, cached: data.cached,
