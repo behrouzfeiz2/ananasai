@@ -1616,6 +1616,10 @@
         return;
       }
       const current = sessions.find(s => s.id === activeSessionId);
+      if (mode !== 'coder' && current && current.isTransientDraft) {
+        sessions = sessions.filter(session => session.id !== current.id);
+        activeSessionId = null;
+      }
       if (mode === 'coder') {
         const alreadyInCoderMode = currentMode === 'coder';
         if (!alreadyInCoderMode) activeSessionId = null;
@@ -1716,6 +1720,10 @@
               <li><b>پایگاه داده:</b> SQL, MongoDB</li>
               <li><b>دیباگ و الگوریتم:</b> پیدا کردن خطا و بهبود کد</li>
             </ul>
+            <div class="pt-2 border-t border-ananas-border">
+              <p class="text-gray-400 mb-2">برای کار مستقیم روی فایل‌های پروژه، می‌توانی حساب GitHub را هم متصل کنی؛ این کار گفتگو ایجاد نمی‌کند.</p>
+              <button type="button" class="coder-inline-primary" onclick="window.coderCheckGitHubStatus()">بررسی حساب و اتصال GitHub (اختیاری)</button>
+            </div>
           `;
 
           container.appendChild(infoDiv);
@@ -2676,6 +2684,10 @@ function renderDollarChart(c,i){
 
     async function loadSession(id) {
       stopTextToSpeech();
+      const previousDraft = coderCurrentSession();
+      if (previousDraft && previousDraft.isTransientDraft && previousDraft.id !== id) {
+        sessions = sessions.filter(session => session.id !== previousDraft.id);
+      }
       activeSessionId = id;
       chatMenuOpenId = null;
       const selected = sessions.find(s => s.id === id);
@@ -2991,7 +3003,7 @@ function renderDollarChart(c,i){
             local.updatedAt = Number(item.updated_at) || local.updatedAt || 0;
           }
         }
-        for (const local of sessions.filter(session => session.mode === 'coder' && session.messages?.length && session.remoteLoaded !== false)) {
+        for (const local of sessions.filter(session => session.mode === 'coder' && !session.isTransientDraft && session.messages?.length && session.remoteLoaded !== false)) {
           const item = remoteById.get(local.id);
           if (!item || Number(local.updatedAt || 0) > Number(item.updated_at || 0)) {
             const saved = await coderApiPost({ action: 'history_save', id: local.id, conversation: coderHistoryPayload(local) });
@@ -3044,7 +3056,8 @@ function renderDollarChart(c,i){
       try {
         const active = sessions.find(session => session.id === activeSessionId);
         if (active && active.messages?.length) active.updatedAt = Date.now();
-        const lightSessions = sessions.map(s => ({
+        const durableSessions = sessions.filter(session => !session.isTransientDraft);
+        const lightSessions = durableSessions.map(s => ({
           ...s,
           messages: s.messages.map(m => ({
             role: m.role,
@@ -3070,19 +3083,20 @@ function renderDollarChart(c,i){
       } catch (e) {}
       if (!isApplyingCloudHistory) {
         const active = sessions.find(session => session.id === activeSessionId);
-        if (active && (!active.mode || active.mode === 'chat')) scheduleChatHistorySave(active.id);
-        else if (userToken && active && active.mode === 'coder') scheduleCoderHistorySave(active.id);
+        if (active && !active.isTransientDraft && (!active.mode || active.mode === 'chat')) scheduleChatHistorySave(active.id);
+        else if (userToken && active && !active.isTransientDraft && active.mode === 'coder') scheduleCoderHistorySave(active.id);
       }
     }
 
     function renderHistoryList() {
       const list = document.getElementById('chatHistoryList');
-      if (!sessions.length) {
+      const visibleSessions = sessions.filter(session => !session.isTransientDraft);
+      if (!visibleSessions.length) {
         list.innerHTML = '<p class="text-xs text-gray-500 text-center py-6">هنوز گفتگویی ثبت نشده است</p>';
         return;
       }
 
-      const sortedSessions = [...sessions].sort((a, b) => {
+      const sortedSessions = [...visibleSessions].sort((a, b) => {
         if (a.isPinned && !b.isPinned) return -1;
         if (!a.isPinned && b.isPinned) return 1;
         return 0;
@@ -3701,11 +3715,12 @@ function renderDollarChart(c,i){
       return sessions.find(s => s.id === activeSessionId && s.mode === 'coder') || null;
     }
 
-    function coderCreateSession() {
+    function coderCreateSession(isTransientDraft = false) {
       const id = 'coder_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 9);
       const record = {
         id: id, title: 'گفتگوی کدنویسی', mode: 'coder', isPinned: false,
         createdAt: Date.now(), updatedAt: Date.now(),
+        ...(isTransientDraft ? { isTransientDraft: true } : {}),
         coder: {
           stage: 'manual', repository: '', branch: '', proposal_id: null,
           status: 'chat', pull_request_number: null, pull_request_url: null,
@@ -3723,7 +3738,10 @@ function renderDollarChart(c,i){
     }
 
     function startNewCoderConversation() {
-      // شروع گفتگوی تازه فقط محیط را خالی می‌کند؛ رکورد با اولین پیام کاربر ساخته می‌شود.
+      const previousDraft = coderCurrentSession();
+      if (previousDraft && previousDraft.isTransientDraft) {
+        sessions = sessions.filter(session => session.id !== previousDraft.id);
+      }
       currentMode = 'coder';
       activeSessionId = null;
       coderInitializedSessionId = null;
@@ -3850,12 +3868,13 @@ function renderDollarChart(c,i){
     }
 
     async function coderCheckGitHubStatus() {
-      const session = coderCurrentSession();
-      if (!session || isGenerating) return;
+      if (isGenerating) return;
       if (!userToken) {
         openSettingsModal('برای اتصال GitHub ابتدا اشتراک Pro یا Ultra را فعال کن.');
         return;
       }
+      let session = coderCurrentSession();
+      if (!session) session = coderCreateSession(true);
       isGenerating = true;
       appendLoadingBubble(true, false);
       try {
@@ -3935,8 +3954,12 @@ function renderDollarChart(c,i){
     }
 
     async function coderConnectGitHub() {
-      const session = coderCurrentSession();
-      if (!session) return;
+      if (!userToken) {
+        openSettingsModal('برای اتصال GitHub ابتدا اشتراک Pro یا Ultra را فعال کن.');
+        return;
+      }
+      let session = coderCurrentSession();
+      if (!session) session = coderCreateSession(true);
       try {
         if (!session.coder) {
           session.coder = { stage: 'manual', repository: '', branch: '', proposal_id: null, status: 'chat' };
@@ -3945,10 +3968,26 @@ function renderDollarChart(c,i){
         saveSessions();
         renderHistoryList();
         localStorage.setItem('ananas_pending_coder_session', session.id);
+        if (session.isTransientDraft) {
+          localStorage.setItem('ananas_pending_coder_draft_v1', JSON.stringify({
+            id: session.id,
+            title: session.title,
+            mode: 'coder',
+            createdAt: session.createdAt,
+            updatedAt: session.updatedAt,
+            coder: session.coder,
+            messages: session.messages,
+            expiresAt: Date.now() + 15 * 60 * 1000
+          }));
+        } else {
+          localStorage.removeItem('ananas_pending_coder_draft_v1');
+        }
         const result = await coderApiGet({ action: 'connect' });
         if (!result.url) throw new Error('لینک اتصال GitHub دریافت نشد.');
         location.href = result.url;
       } catch (error) {
+        localStorage.removeItem('ananas_pending_coder_session');
+        localStorage.removeItem('ananas_pending_coder_draft_v1');
         session.coder.stage = 'manual';
         coderPush('model',
           'اتصال GitHub آماده نشد: ' + error.message + '\nمی‌توانی بدون اتصال هم کدت را همین‌جا بفرستی و بررسی را ادامه بدهی.',
@@ -4250,6 +4289,10 @@ function renderDollarChart(c,i){
       const text = String(input && input.value || '').trim();
       if (!text || isGenerating) return;
       const session = coderCurrentSession() || coderCreateSession();
+      if (session.isTransientDraft) {
+        session.isTransientDraft = false;
+        if (!session.createdAt) session.createdAt = Date.now();
+      }
       input.value = '';
       autoResizeTextarea(input);
 
@@ -4301,34 +4344,71 @@ function renderDollarChart(c,i){
 
     async function coderRestoreFromUrl() {
       const params = new URLSearchParams(location.search);
-      const isCoderReturn = params.get('mode') === 'coder' || params.has('github') || params.has('github_error');
-      if (!isCoderReturn) return;
+      const requestedCoderMode = params.get('mode') === 'coder';
+      const error = params.get('github_error');
+      const hasGithubCallback = params.has('github') || params.has('github_error');
+      if (!requestedCoderMode && !hasGithubCallback) return;
+
+      if (!hasGithubCallback) {
+        currentMode = 'coder';
+        activeSessionId = null;
+        updateModeUI('coder');
+        renderMessages();
+        renderHistoryList();
+        history.replaceState({}, '', location.pathname);
+        return;
+      }
+
       const pendingId = localStorage.getItem('ananas_pending_coder_session');
-      if (pendingId && sessions.some(s => s.id === pendingId && s.mode === 'coder')) {
-        activeSessionId = pendingId;
+      if (pendingId) {
+        const existing = sessions.find(session => session.id === pendingId && session.mode === 'coder');
+        if (existing) {
+          activeSessionId = existing.id;
+        } else {
+          let pendingDraft = null;
+          try {
+            pendingDraft = JSON.parse(localStorage.getItem('ananas_pending_coder_draft_v1') || 'null');
+          } catch (_) {}
+          if (pendingDraft && pendingDraft.id === pendingId &&
+              Number(pendingDraft.expiresAt || 0) > Date.now() &&
+              Array.isArray(pendingDraft.messages)) {
+            const restoredDraft = {
+              id: pendingDraft.id,
+              title: pendingDraft.title || 'گفتگوی کدنویسی',
+              mode: 'coder',
+              isPinned: false,
+              createdAt: Number(pendingDraft.createdAt) || Date.now(),
+              updatedAt: Number(pendingDraft.updatedAt) || Date.now(),
+              isTransientDraft: true,
+              coder: pendingDraft.coder || { stage: 'connect_pending', repository: '', branch: '', status: 'chat' },
+              messages: pendingDraft.messages
+            };
+            sessions.unshift(restoredDraft);
+            activeSessionId = restoredDraft.id;
+          }
+        }
       }
       localStorage.removeItem('ananas_pending_coder_session');
+      localStorage.removeItem('ananas_pending_coder_draft_v1');
+
       currentMode = 'coder';
       if (!coderCurrentSession()) {
         activeSessionId = null;
-        coderCreateSession();
+        coderCreateSession(true);
       }
       updateModeUI('coder');
-      const error = params.get('github_error');
-      const hasGithubCallback = params.has('github') || params.has('github_error');
       const restoredSession = coderCurrentSession();
-      if (hasGithubCallback && restoredSession && restoredSession.coder && !restoredSession.coder.repository) {
+      if (restoredSession && restoredSession.coder && !restoredSession.coder.repository) {
         restoredSession.coder.stage = 'connect_pending';
       }
       history.replaceState({}, '', location.pathname);
+
       if (error) {
         if (restoredSession && restoredSession.coder) restoredSession.coder.stage = 'manual';
         coderPush('model', 'اتصال GitHub کامل نشد (' + error + '). با این حال می‌توانی بدون GitHub کد را همین‌جا بفرستی و بررسی را ادامه بدهی.', {
           coderAction: { type: 'manual_intro' }
         });
       } else {
-        const current = coderCurrentSession();
-        if (current && current.coder) current.coder.stage = 'connect_pending';
         await coderCheckGitHubStatus();
       }
     }
