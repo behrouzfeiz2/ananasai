@@ -3069,6 +3069,7 @@ function renderDollarChart(c,i){
             fileName: m.fileName || null,
             fileMime: m.fileMime || null,
             isError: m.isError,
+            // Persist chart payloads so market charts survive reloads and reopening old conversations.
             ...(m.marketChart ? { marketChart: m.marketChart } : {}),
             ...(m.dollarChart ? { dollarChart: m.dollarChart } : {}),
             ...(m.goldChoice ? { goldChoice: true } : {}),
@@ -3866,7 +3867,7 @@ function renderDollarChart(c,i){
       }
     }
 
-    async async function coderCheckGitHubStatus() {
+    async function coderCheckGitHubStatus() {
       if (isGenerating) return;
       if (!userToken) {
         openSettingsModal('برای اتصال GitHub ابتدا اشتراک Pro یا Ultra را فعال کن.');
@@ -3952,7 +3953,7 @@ function renderDollarChart(c,i){
       }
     }
 
-    async async function coderConnectGitHub() {
+    async function coderConnectGitHub() {
       if (!userToken) {
         openSettingsModal('برای اتصال GitHub ابتدا اشتراک Pro یا Ultra را فعال کن.');
         return;
@@ -4341,7 +4342,7 @@ function renderDollarChart(c,i){
       }
     }
 
-    async async function coderRestoreFromUrl() {
+    async function coderRestoreFromUrl() {
       const params = new URLSearchParams(location.search);
       const requestedCoderMode = params.get('mode') === 'coder';
       const error = params.get('github_error');
