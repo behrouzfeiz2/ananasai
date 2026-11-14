@@ -2564,7 +2564,20 @@ function renderDollarChart(c,i){
         const endpoint = (() => { try { return new URL(response.url).pathname; } catch { return 'مسیر نامشخص'; } })();
         const isHtml = /<\s*!doctype\s+html|<\s*html[\s>]/i.test(body) || /text\/html/i.test(contentType);
         if (isHtml) {
-          throw new Error(action + ': مسیر ' + endpoint + ' به‌جای JSON صفحه HTML برگرداند (HTTP ' + response.status + '). احتمالاً Function این مسیر در آخرین انتشار Cloudflare فعال نشده است.');
+          let routeDiagnostic = '';
+          if (response.status >= 500 && endpoint === '/api/image') {
+            try {
+              const healthResponse = await fetch('/api/image?health=1', { cache: 'no-store' });
+              const healthText = await healthResponse.text();
+              const healthData = JSON.parse(healthText);
+              routeDiagnostic = healthResponse.ok && healthData.version
+                ? ' نشانگر سلامت مسیر فعال است (' + healthData.version + ')؛ خطا مخصوص اجرای درخواست POST است و باید لاگ Function بررسی شود.'
+                : ' آزمون سلامت مسیر هم موفق نبود (HTTP ' + healthResponse.status + ').';
+            } catch {
+              routeDiagnostic = ' آزمون سلامت مسیر نیز پاسخ JSON نداد؛ احتمال مشکل در انتشار یا مسیریابی Function بیشتر است.';
+            }
+          }
+          throw new Error(action + ': مسیر ' + endpoint + ' به‌جای JSON صفحه HTML برگرداند (HTTP ' + response.status + ').' + routeDiagnostic);
         }
         throw new Error(action + ': پاسخ JSON معتبر نبود (HTTP ' + response.status + '، ' + contentType + ').');
       }
