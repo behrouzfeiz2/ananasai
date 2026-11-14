@@ -190,10 +190,33 @@ async function handlePost({ request, env }) {
         continue;
       }
       const text = message.text.slice(0, 7000);
-      if (!text.trim()) continue;
+      const isImageAttachment = message.role === "user" &&
+        typeof message.fileName === "string" &&
+        typeof message.fileMime === "string" && /^image\/[a-z0-9.+-]{1,40}$/i.test(message.fileMime);
+      if (!text.trim() && !isImageAttachment) continue;
       totalCharacters += text.length;
       if (totalCharacters > 140000) return json({ error: "حجم متن تاریخچه بیش از حد مجاز است." }, 413);
-      messages.push({ role: message.role === "user" ? "user" : "assistant", text });
+      const savedMessage = { role: message.role === "user" ? "user" : "assistant", text };
+      if (isImageAttachment) {
+        savedMessage.fileName = message.fileName.replace(/[\r\n\t]+/g, " ").trim().slice(0, 180) || "تصویر ضمیمه‌شده";
+        savedMessage.fileMime = message.fileMime.slice(0, 80);
+        if (typeof message.localImageId === "string" && /^image_[A-Za-z0-9_-]{8,100}$/.test(message.localImageId)) {
+          savedMessage.localImageId = message.localImageId;
+        }
+      }
+      if (message.role !== "user" && message.imageWizard && typeof message.imageWizard === "object" && !Array.isArray(message.imageWizard)) {
+        const wizard = message.imageWizard;
+        savedMessage.imageWizard = {
+          prompt: String(wizard.prompt || "").slice(0, 4000),
+          model: ["flux-dev", "z-image", "qwen-image-edit"].includes(wizard.model) ? wizard.model : null,
+          step: wizard.step === "model" ? "model" : "confirm",
+          hasReference: Boolean(wizard.hasReference),
+          ...(Number.isInteger(Number(wizard.width)) && Number(wizard.width) >= 256 && Number(wizard.width) <= 2048 ? { width: Number(wizard.width) } : {}),
+          ...(Number.isInteger(Number(wizard.height)) && Number(wizard.height) >= 256 && Number(wizard.height) <= 2048 ? { height: Number(wizard.height) } : {}),
+          ...(typeof wizard.sourceLibraryId === "string" && /^[A-Za-z0-9_-]{8,100}$/.test(wizard.sourceLibraryId) ? { sourceLibraryId: wizard.sourceLibraryId } : {})
+        };
+      }
+      messages.push(savedMessage);
     }
 
     const now = Date.now();
