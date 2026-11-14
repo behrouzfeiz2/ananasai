@@ -1418,7 +1418,7 @@
       if (!userToken || !(quotaState.isUltra || quotaState.tier === 'ultra' || userToken.startsWith('ULTRA-'))) return;
       try {
         const response = await fetch('/api/image', { method: 'GET', headers: { 'X-User-Token': userToken }, cache: 'no-store' });
-        const data = await response.json();
+        const data = await readImageApiJson(response, 'دریافت سهمیه تصویر');
         if (response.ok && data.quota) {
           imageQuotaState = { used: Number(data.quota.used) || 0, limit: Number(data.quota.limit) || 5 };
           updateImageQuotaCounter();
@@ -2555,6 +2555,21 @@ function renderDollarChart(c,i){
     function getImageWizard(idx){const s=sessions.find(x=>x.id===activeSessionId),m=s&&s.messages[idx];return m&&m.imageWizard?m:null;}
     function selectImageModel(idx,model){const m=getImageWizard(idx);if(!m||!['flux-dev','z-image'].includes(model)||m.imageWizard.hasReference)return;m.imageWizard.model=model;m.imageWizard.step='confirm';saveSessions();renderMessages();}
     function backToImageModels(idx){const m=getImageWizard(idx);if(!m)return;m.imageWizard.step='model';saveSessions();renderMessages();}
+    async function readImageApiJson(response, action) {
+      const body = await response.text();
+      try {
+        return body ? JSON.parse(body) : {};
+      } catch {
+        const contentType = response.headers.get('content-type') || 'نامشخص';
+        const endpoint = (() => { try { return new URL(response.url).pathname; } catch { return 'مسیر نامشخص'; } })();
+        const isHtml = /<\s*!doctype\s+html|<\s*html[\s>]/i.test(body) || /text\/html/i.test(contentType);
+        if (isHtml) {
+          throw new Error(action + ': مسیر ' + endpoint + ' به‌جای JSON صفحه HTML برگرداند (HTTP ' + response.status + '). احتمالاً Function این مسیر در آخرین انتشار Cloudflare فعال نشده است.');
+        }
+        throw new Error(action + ': پاسخ JSON معتبر نبود (HTTP ' + response.status + '، ' + contentType + ').');
+      }
+    }
+
     async function generateImageFromWizard(idx){
       const m=getImageWizard(idx);if(!m||isGenerating)return;
       if(!userToken||!(quotaState.isUltra||quotaState.tier==='ultra'||userToken.startsWith('ULTRA-'))){m.imageWizard=null;m.isError=true;m.text='⚠️ فقط کاربران Ultra مجاز هستند.';saveSessions();renderMessages();return;}
@@ -2578,17 +2593,17 @@ function renderDollarChart(c,i){
             referenceMime=sourceMessage.fileMime;referenceData=sourceMessage.fileData;
           }
           const upload=await fetch('/api/image-reference',{method:'POST',headers,body:JSON.stringify({mimeType:referenceMime,data:referenceData})});
-          const uploaded=await upload.json();if(!upload.ok||!uploaded.success)throw new Error(uploaded.error||'بارگذاری تصویر مرجع ناموفق بود.');
+          const uploaded=await readImageApiJson(upload,'بارگذاری تصویر مرجع');if(!upload.ok||!uploaded.success)throw new Error(uploaded.error||'بارگذاری تصویر مرجع ناموفق بود.');
           referenceId=uploaded.referenceId;
         }
         const start=await fetch('/api/image',{method:'POST',headers,body:JSON.stringify({prompt:w.prompt,model:w.model,width:Number(w.width)||1024,height:Number(w.height)||1024,...(referenceId?{referenceId}:{})})});
-        const job=await start.json();if(!start.ok||!job.success)throw new Error(job.error||'ثبت درخواست تصویر ناموفق بود.');
+        const job=await readImageApiJson(start,'ثبت درخواست ویرایش تصویر');if(!start.ok||!job.success)throw new Error(job.error||'ثبت درخواست تصویر ناموفق بود.');
         if(job.quota){imageQuotaState={used:Number(job.quota.used)||0,limit:Number(job.quota.limit)||5};updateImageQuotaCounter();}
         let imageReady=false;
-        for(let i=0;i<300;i++){await new Promise(r=>setTimeout(r,3000));const res=await fetch('/api/image?id='+encodeURIComponent(job.id),{headers:{'X-User-Token':userToken}});const data=await res.json();if(!res.ok)throw new Error(data.error||'خطا در دریافت وضعیت تصویر.');if(data.status==='ready'){imageReady=true;break;}if(data.status==='failed')throw new Error(data.error?.message||'تولید تصویر ناموفق بود.');}
+        for(let i=0;i<300;i++){await new Promise(r=>setTimeout(r,3000));const res=await fetch('/api/image?id='+encodeURIComponent(job.id),{headers:{'X-User-Token':userToken}});const data=await readImageApiJson(res,'بررسی وضعیت ویرایش تصویر');if(!res.ok)throw new Error(data.error||'خطا در دریافت وضعیت تصویر.');if(data.status==='ready'){imageReady=true;break;}if(data.status==='failed')throw new Error(data.error?.message||'تولید تصویر ناموفق بود.');}
         if(!imageReady)throw new Error('زمان انتظار تولید تصویر به پایان رسید.');
         const imageResponse=await fetch('/api/image?id='+encodeURIComponent(job.id)+'&download=1',{headers:{'X-User-Token':userToken},cache:'no-store'});
-        if(!imageResponse.ok){const errorData=await imageResponse.json().catch(()=>({}));throw new Error(errorData.error||'دریافت فایل تصویر ناموفق بود.');}
+        if(!imageResponse.ok){const errorData=await readImageApiJson(imageResponse,'دریافت فایل تصویر').catch(error=>({error:error.message}));throw new Error(errorData.error||'دریافت فایل تصویر ناموفق بود.');}
         const imageBlob=await imageResponse.blob();
         await saveLocalImageBlob(imageBlob,w.prompt||'تصویر تولیدشده','generated',job.id);
         m.imageWizard=null;m.text='🖼️ تصویر با موفقیت تولید و در حافظه همین دستگاه ذخیره شد.';m.generatedImageModel=w.model;m.generatedImageLibraryId=job.id;delete m.generatedImageUrl;

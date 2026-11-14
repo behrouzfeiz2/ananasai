@@ -2,13 +2,15 @@ const API="https://api.appalpha.ir/v1";
 const out=(d,s=200,extra={})=>new Response(JSON.stringify(d),{status:s,headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store","Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type, X-User-Token","Access-Control-Allow-Methods":"GET, POST, OPTIONS",...extra}});
 const today=()=>new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Tehran"}).format(new Date());
 async function auth(req,env){
-  if(!env.ALPHA_KEY||!env.ANANAS_KV)return{error:"تنظیمات سرویس تصویر کامل نیست.",status:503};
-  const token=(req.headers.get("X-User-Token")||"").trim();
-  if(!token)return{error:"فقط کاربران Ultra مجاز هستند.",status:403};
-  const raw=await env.ANANAS_KV.get(token);if(!raw)return{error:"کد فعال‌سازی نامعتبر است.",status:401};
-  let d={};try{d=JSON.parse(raw)}catch{}
-  if(d.tier!=="ultra"&&!token.startsWith("ULTRA-"))return{error:"فقط کاربران Ultra مجاز هستند.",status:403};
-  return{token,key:"image_ultra_"+token+"_"+today()};
+  try{
+    if(!env.ALPHA_KEY||!env.ANANAS_KV)return{error:"تنظیمات سرویس تصویر کامل نیست.",status:503};
+    const token=(req.headers.get("X-User-Token")||"").trim();
+    if(!token)return{error:"فقط کاربران Ultra مجاز هستند.",status:403};
+    const raw=await env.ANANAS_KV.get(token);if(!raw)return{error:"کد فعال‌سازی نامعتبر است.",status:401};
+    let d={};try{d=JSON.parse(raw)}catch{}
+    if(d.tier!=="ultra"&&!token.startsWith("ULTRA-"))return{error:"فقط کاربران Ultra مجاز هستند.",status:403};
+    return{token,key:"image_ultra_"+token+"_"+today()};
+  }catch{return{error:"بررسی دسترسی سرویس تصویر ناموفق بود؛ اتصال فضای ذخیره‌سازی را بررسی کنید.",status:503};}
 }
 async function tokenHash(token){const bytes=new TextEncoder().encode(token),digest=await crypto.subtle.digest("SHA-256",bytes);return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,"0")).join("");}
 async function release(env,key){try{const q=JSON.parse(await env.ANANAS_KV.get(key)||"{}");q.used=Math.max(0,(Number(q.used)||0)-1);await env.ANANAS_KV.put(key,JSON.stringify(q),{expirationTtl:172800});}catch{}}
@@ -50,16 +52,16 @@ export async function onRequestPost({request,env}){
 }
 export async function onRequestGet({request,env}){
   const u=await auth(request,env);if(u.error)return out({error:u.error},u.status);
-  const url=new URL(request.url),id=url.searchParams.get("id");
-  if(!id){
-    const usage=JSON.parse(await env.ANANAS_KV.get(u.key)||"{}");
-    return out({success:true,quota:{used:Math.max(0,Number(usage.used)||0),limit:5}});
-  }
-  if(!/^[a-zA-Z0-9_-]{1,100}$/.test(id))return out({error:"شناسه نامعتبر است."},400);
-  const raw=await env.ANANAS_KV.get("imagejob_"+id);if(!raw)return out({error:"درخواست تصویر پیدا نشد."},404);
-  let job={};try{job=JSON.parse(raw)}catch{}
-  if(job.token!==u.token)return out({error:"دسترسی غیرمجاز."},403);
   try{
+    const url=new URL(request.url),id=url.searchParams.get("id");
+    if(!id){
+      const usage=JSON.parse(await env.ANANAS_KV.get(u.key)||"{}");
+      return out({success:true,quota:{used:Math.max(0,Number(usage.used)||0),limit:5}});
+    }
+    if(!/^[a-zA-Z0-9_-]{1,100}$/.test(id))return out({error:"شناسه نامعتبر است."},400);
+    const raw=await env.ANANAS_KV.get("imagejob_"+id);if(!raw)return out({error:"درخواست تصویر پیدا نشد."},404);
+    let job={};try{job=JSON.parse(raw)}catch{}
+    if(job.token!==u.token)return out({error:"دسترسی غیرمجاز."},403);
     const r=await fetch(API+"/generations/"+id,{headers:{Authorization:"Bearer "+env.ALPHA_KEY}}),d=await r.json();
     if(!r.ok)return out({error:d.error?.message||"خطا در دریافت وضعیت."},r.status);
     if(d.status==="failed"&&!job.released){await release(env,job.key);job.released=true;await env.ANANAS_KV.put("imagejob_"+id,JSON.stringify(job),{expirationTtl:86400});}
@@ -83,6 +85,6 @@ export async function onRequestGet({request,env}){
       }});
     }
     return out({success:true,status:d.status,output:d.output||null,error:d.error||null});
-  }catch{return out({error:"دریافت وضعیت تصویر ناموفق بود."},502);}
+  }catch{return out({error:"دریافت وضعیت تصویر ناموفق بود؛ مسیر API یا دسترسی فضای ذخیره‌سازی را بررسی کنید."},502);}
 }
 export async function onRequestOptions(){return new Response(null,{status:204,headers:{"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"Content-Type, X-User-Token","Access-Control-Allow-Methods":"GET, POST, OPTIONS"}});}
