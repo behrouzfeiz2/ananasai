@@ -2816,7 +2816,10 @@ function renderDollarChart(c,i){
         try {
           const result = await chatHistoryApiPost({ action: 'history_save', conversation: chatHistoryPayload(session) });
           session.remoteLoaded = true;
-          if (result.conversation?.updated_at) session.updatedAt = result.conversation.updated_at;
+          if (result.conversation?.updated_at) {
+            session.updatedAt = result.conversation.updated_at;
+            renderHistoryList();
+          }
         } catch (error) {
           console.warn('Chat history save failed:', error);
         }
@@ -2945,7 +2948,10 @@ function renderDollarChart(c,i){
         try {
           const result = await coderApiPost({ action: 'history_save', id: session.id, conversation: coderHistoryPayload(session) });
           session.remoteLoaded = true;
-          if (result.conversation?.updated_at) session.updatedAt = result.conversation.updated_at;
+          if (result.conversation?.updated_at) {
+            session.updatedAt = result.conversation.updated_at;
+            renderHistoryList();
+          }
         } catch (error) {
           console.warn('Coder history save failed:', error);
         }
@@ -3096,10 +3102,21 @@ function renderDollarChart(c,i){
         return;
       }
 
+      // Keep pinned chats first, then always show the most recently active chat.
+      // Do not rely on the sessions array insertion order: cloud sync can append
+      // restored records and change that order independently of user activity.
       const sortedSessions = [...visibleSessions].sort((a, b) => {
         if (a.isPinned && !b.isPinned) return -1;
         if (!a.isPinned && b.isPinned) return 1;
-        return 0;
+
+        const activityDifference = historyActivityTimestamp(b) - historyActivityTimestamp(a);
+        if (activityDifference !== 0) return activityDifference;
+
+        const createdDifference =
+          Number(b.createdAt || b.created_at || 0) - Number(a.createdAt || a.created_at || 0);
+        if (createdDifference !== 0) return createdDifference;
+
+        return String(b.id || '').localeCompare(String(a.id || ''));
       });
 
       list.innerHTML = sortedSessions.map(s => {
