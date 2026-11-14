@@ -2,6 +2,11 @@ const SITE_ORIGIN = "https://ananasai.ir";
 const HISTORY_TTL = 180 * 24 * 60 * 60;
 const FREE_HISTORY_TTL = 5 * 24 * 60 * 60;
 const FREE_DEVICE_UUID_PATTERN = /^dev_[a-z0-9]{6,80}$/i;
+const CHAT_HISTORY_LIMITS = Object.freeze({
+  free: { maxMessageCharacters: 7000, maxMessages: 70, maxConversationCharacters: 28000, maxConversations: 7 },
+  pro: { maxMessageCharacters: 14000, maxMessages: 112, maxConversationCharacters: 56000, maxConversations: 42 },
+  ultra: { maxMessageCharacters: 21000, maxMessages: 126, maxConversationCharacters: 84000, maxConversations: 70 }
+});
 const headers = {
   "Access-Control-Allow-Origin": SITE_ORIGIN,
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -89,6 +94,7 @@ async function handlePost({ request, env }) {
   try {
     const account = await getAccount(request, env);
     if (account.error) return json({ error: account.error }, account.status);
+    const limits = CHAT_HISTORY_LIMITS[account.tier] || CHAT_HISTORY_LIMITS.free;
     const contentLength = Number(request.headers.get("Content-Length") || 0);
     if (contentLength > 400000) return json({ error: "حجم تاریخچه بیش از حد مجاز است." }, 413);
 
@@ -181,28 +187,51 @@ async function handlePost({ request, env }) {
       return json({ error: "این تاریخچه در پاک‌سازی سراسری حذف شده و قابل بازیابی مجدد نیست." }, 410);
     }
 
+    const now = Date.now();
     const inputMessages = Array.isArray(incoming.messages) ? incoming.messages : [];
-    if (inputMessages.length > 180) return json({ error: "تعداد پیام‌های گفتگو بیش از حد مجاز است." }, 413);
+    if (inputMessages.length > limits.maxMessages) {
+      return json({ error: `این گفتگو به سقف ${limits.maxMessages} پیام رسیده است. برای ادامه، گفتگوی تازه‌ای ایجاد کنید.`, code: "CHAT_MESSAGE_LIMIT", limit: limits.maxMessages }, 413);
+    }
+
+    // سقف گفتگوهای ذخیره‌شده فقط هنگام ایجاد یک رکورد جدید بررسی می‌شود.
+    const existingConversation = await env.ANANAS_KV.get(storageKey);
+    if (!existingConversation) {
+      const activeConversations = (await listAccountRecords(env.ANANAS_KV, prefix))
+        .filter(item => Number(item.updated_at || item.created_at || 0) >= now - historyTtl * 1000);
+      const currentConversationIsListed = activeConversations.some(item => item.id === id);
+      if (!currentConversationIsListed && activeConversations.length >= limits.maxConversations) {
+        return json({
+          error: `به سقف ${limits.maxConversations} گفتگوی ذخیره‌شده در پلن شما رسیده‌اید. برای ذخیره گفتگوی جدید، ابتدا یکی از گفتگوهای قبلی را حذف کنید.`,
+          code: "HISTORY_CONVERSATION_LIMIT",
+          limit: limits.maxConversations
+        }, 409);
+      }
+    }
+
     let totalCharacters = 0;
     const messages = [];
     for (const message of inputMessages) {
-      if (!message || !["user", "assistant", "model"].includes(message.role) || typeof message.text !== "string") {
-        continue;
+      if (!message || !["user", "assistant", "model"].includes(message.role) || typeof message.text !== "string") continue;
+      const text = message.text;
+      const messageCharacters = Array.from(text).length;
+      if (message.role === "user" && messageCharacters > limits.maxMessageCharacters) {
+        return json({
+          error: `طول پیام شما بیشتر از سقف ${limits.maxMessageCharacters.toLocaleString("fa-IR")} نویسه در پلن فعلی است.`,
+          code: "CHAT_MESSAGE_CHARACTER_LIMIT",
+          limit: limits.maxMessageCharacters
+        }, 413);
       }
-      const text = message.text.slice(0, 7000);
+
       const isImageAttachment = message.role === "user" &&
         typeof message.fileName === "string" &&
         typeof message.fileMime === "string" && /^image\/[a-z0-9.+-]{1,40}$/i.test(message.fileMime);
       if (!text.trim() && !isImageAttachment) continue;
-      totalCharacters += text.length;
-      if (totalCharacters > 140000) return json({ error: "حجم متن تاریخچه بیش از حد مجاز است." }, 413);
+      totalCharacters += messageCharacters;
       const savedMessage = { role: message.role === "user" ? "user" : "assistant", text };
       if (isImageAttachment) {
         savedMessage.fileName = message.fileName.replace(/[\r\n\t]+/g, " ").trim().slice(0, 180) || "تصویر ضمیمه‌شده";
         savedMessage.fileMime = message.fileMime.slice(0, 80);
-        if (typeof message.localImageId === "string" && /^image_[A-Za-z0-9_-]{8,100}$/.test(message.localImageId)) {
-          savedMessage.localImageId = message.localImageId;
-        }
+        if (typeof message.localImageId === "string" && /^image_[A-Za-z0-9_-]{8,100}$/.test(message.localImageId)) savedMessage.localImageId = message.localImageId;
       }
       if (message.role !== "user" && message.imageWizard && typeof message.imageWizard === "object" && !Array.isArray(message.imageWizard)) {
         const wizard = message.imageWizard;
@@ -219,7 +248,15 @@ async function handlePost({ request, env }) {
       messages.push(savedMessage);
     }
 
-    const now = Date.now();
+    // اگر مجموع متن از سقف پلن عبور کند، قدیمی‌ترین پیام‌ها از نسخه ابری کنار گذاشته می‌شوند.
+    while (messages.length > 1 && totalCharacters > limits.maxConversationCharacters) {
+      const removed = messages.shift();
+      totalCharacters -= Array.from(removed.text || "").length;
+    }
+    if (messages.length === 1 && totalCharacters > limits.maxConversationCharacters) {
+      messages[0].text = Array.from(messages[0].text || "").slice(-limits.maxConversationCharacters).join("");
+    }
+
     const firstUserMessage = messages.find(message => message.role === "user")?.text || "";
     const title = String(incoming.title || "")
       .replace(/[\r\n\t]+/g, " ").trim().slice(0, 120) ||

@@ -1075,6 +1075,7 @@
             </svg>
           </button>
         </form>
+        <p id="chatLimitHint" class="px-2 pt-1 text-[10px] leading-5 text-gray-500" aria-live="polite">محدودیت‌های گفتگوی هوشمند بر اساس پلن شما اعمال می‌شود.</p>
 
       </div>
     </div>
@@ -1204,6 +1205,29 @@
       audioUsed: 0,
       audioLimit: 0
     };
+
+    const CHAT_HISTORY_LIMITS = {
+      free: { maxMessageCharacters: 7000, maxMessages: 70, maxConversationCharacters: 28000, maxConversations: 7 },
+      pro: { maxMessageCharacters: 14000, maxMessages: 112, maxConversationCharacters: 56000, maxConversations: 42 },
+      ultra: { maxMessageCharacters: 21000, maxMessages: 126, maxConversationCharacters: 84000, maxConversations: 70 }
+    };
+
+    function getChatHistoryLimits() {
+      const isUltra = Boolean(userToken) && (quotaState.isUltra || quotaState.tier === 'ultra' || userToken.startsWith('ULTRA-'));
+      const isPro = Boolean(userToken) && (quotaState.isPro !== false || quotaState.tier === 'pro' || userToken.startsWith('PRO-'));
+      return CHAT_HISTORY_LIMITS[isUltra ? 'ultra' : isPro ? 'pro' : 'free'];
+    }
+
+    function countChatCharacters(value) {
+      return Array.from(String(value || '')).length;
+    }
+
+    function updateChatLimitHint() {
+      const hint = document.getElementById('chatLimitHint');
+      if (!hint) return;
+      const limits = getChatHistoryLimits();
+      hint.textContent = `گفتگوی هوشمند: حداکثر ${limits.maxMessageCharacters.toLocaleString('fa-IR')} نویسه در هر پیام · ${limits.maxMessages.toLocaleString('fa-IR')} پیام در هر گفتگو · ${limits.maxConversations.toLocaleString('fa-IR')} گفتگوی ذخیره‌شده`;
+    }
 
     /* وضعیت بلندخوانی */
     let activeSpeechUtterance = null;
@@ -1558,6 +1582,7 @@
           setMode('chat');
         }
       }
+      updateChatLimitHint();
     }
 
     function updateModeUI(mode) {
@@ -2071,8 +2096,27 @@ function renderDollarChart(c,i){
       const inputEl = document.getElementById('promptInput');
       const userText = inputEl.value.trim();
       const hadAttachment = Boolean(attachedFile);
+      const chatLimits = getChatHistoryLimits();
+      const userTextCharacters = countChatCharacters(userText);
 
       if (!userText && !attachedFile) return;
+      if (userTextCharacters > chatLimits.maxMessageCharacters) {
+        alert(`طول پیام شما ${userTextCharacters.toLocaleString('fa-IR')} نویسه است؛ سقف پیام در پلن فعلی ${chatLimits.maxMessageCharacters.toLocaleString('fa-IR')} نویسه است. متن را کوتاه‌تر کنید.`);
+        return;
+      }
+
+      if (!activeSessionId || !sessions.some(session => session.id === activeSessionId)) {
+        const savedChatCount = sessions.filter(session =>
+          (!session.mode || session.mode === 'chat') &&
+          !session.isTransientDraft &&
+          (session.messages?.length || session.remoteLoaded === false) &&
+          !isHistoryExpiredLocally(session)
+        ).length;
+        if (savedChatCount >= chatLimits.maxConversations) {
+          alert(`به سقف ${chatLimits.maxConversations.toLocaleString('fa-IR')} گفتگوی ذخیره‌شده در پلن خود رسیده‌اید. برای شروع گفتگوی جدید، ابتدا یک گفتگوی قبلی را حذف کنید.`);
+          return;
+        }
+      }
 
       if (attachedFile && !userToken) {
         removeAttachment();
@@ -2093,6 +2137,20 @@ function renderDollarChart(c,i){
       }
 
       const currentSession = sessions.find(s => s.id === activeSessionId);
+      const existingMessages = (currentSession.messages || []).filter(message =>
+        message && ['user', 'model', 'assistant'].includes(message.role)
+      );
+      if (existingMessages.length + 2 > chatLimits.maxMessages) {
+        alert(`این گفتگو به سقف ${chatLimits.maxMessages.toLocaleString('fa-IR')} پیام رسیده است. برای ادامه، گفتگوی تازه‌ای ایجاد کنید.`);
+        return;
+      }
+      const existingConversationCharacters = existingMessages.reduce(
+        (sum, message) => sum + countChatCharacters(message.text), 0
+      );
+      if (existingConversationCharacters + userTextCharacters > chatLimits.maxConversationCharacters) {
+        alert(`این گفتگو به سقف ${chatLimits.maxConversationCharacters.toLocaleString('fa-IR')} نویسه رسیده است. برای ادامه موضوع، گفتگوی تازه‌ای ایجاد کنید.`);
+        return;
+      }
 
       const userMsg = {
         role: 'user',
@@ -2869,13 +2927,18 @@ function renderDollarChart(c,i){
     }
 
     function chatHistoryPayload(session) {
+      const limits = getChatHistoryLimits();
       const messages = (session.messages || [])
         .filter(message => message && typeof message.text === 'string' &&
           ['user', 'model', 'assistant'].includes(message.role) &&
           (message.text.trim() || (message.role === 'user' && message.fileMime && String(message.fileMime).startsWith('image/'))))
-        .slice(-180)
+        .slice(-limits.maxMessages)
         .map(message => {
-          const saved = { role: message.role === 'user' ? 'user' : 'assistant', text: message.text.slice(0, 7000) };
+          let text = String(message.text || '');
+          if (message.role === 'user' && countChatCharacters(text) > limits.maxMessageCharacters) {
+            text = Array.from(text).slice(0, limits.maxMessageCharacters).join('');
+          }
+          const saved = { role: message.role === 'user' ? 'user' : 'assistant', text };
           if (message.role === 'user' && message.fileMime && String(message.fileMime).startsWith('image/')) {
             saved.fileName = String(message.fileName || 'تصویر ضمیمه‌شده').slice(0, 180);
             saved.fileMime = String(message.fileMime).slice(0, 80);
@@ -2895,6 +2958,15 @@ function renderDollarChart(c,i){
           }
           return saved;
         });
+
+      let totalCharacters = messages.reduce((sum, message) => sum + countChatCharacters(message.text), 0);
+      while (messages.length > 1 && totalCharacters > limits.maxConversationCharacters) {
+        const removed = messages.shift();
+        totalCharacters -= countChatCharacters(removed.text);
+      }
+      if (messages.length === 1 && totalCharacters > limits.maxConversationCharacters) {
+        messages[0].text = Array.from(messages[0].text).slice(-limits.maxConversationCharacters).join('');
+      }
       return {
         id: session.id,
         title: session.title || 'گفتگوی جدید',
@@ -2902,7 +2974,6 @@ function renderDollarChart(c,i){
         messages
       };
     }
-
     function scheduleChatHistorySave(id) {
       if (isApplyingCloudHistory) return;
       const session = sessions.find(item => item.id === id);
@@ -2922,6 +2993,7 @@ function renderDollarChart(c,i){
         } catch (error) {
           console.warn('Chat history save failed:', error);
           if (error && error.message === ANANAS_INFRASTRUCTURE_MESSAGE) showAnanasInfrastructureNotice();
+          else if (error && /سقف .* گفتگوی ذخیره‌شده/.test(error.message || '')) alert(error.message);
         }
       }, 650);
       chatHistorySaveTimers.set(id, timer);
